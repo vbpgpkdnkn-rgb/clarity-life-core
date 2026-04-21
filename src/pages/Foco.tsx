@@ -390,9 +390,11 @@ export default function Foco() {
         <CollapsibleBlock title="Conteúdo de hoje" icon={<Clapperboard className="h-4 w-4" />}>
           <ContentTodayCard />
         </CollapsibleBlock>
-        <CollapsibleBlock title="IA adaptativa — seu padrão de execução" icon={<Brain className="h-4 w-4" />}>
-          <AdaptivePanel />
-        </CollapsibleBlock>
+        <div id="ia-adaptativa-block">
+          <CollapsibleBlock title="IA adaptativa — seu padrão de execução" icon={<Brain className="h-4 w-4" />}>
+            <AdaptivePanel />
+          </CollapsibleBlock>
+        </div>
         <CollapsibleBlock title="Conselheiro estratégico" icon={<Sparkles className="h-4 w-4" />}>
           <StrategicInsights />
         </CollapsibleBlock>
