@@ -87,7 +87,7 @@ export function GoalPlanPreview({ goal, goalId, onApplied, onCreateGoal }: Props
 
   if (!plan) {
     return (
-      <Card className="p-4 border-accent/30 bg-accent/5">
+      <Card data-goal-plan-preview className="p-4 border-accent/30 bg-accent/5">
         <div className="flex items-start gap-3">
           <div className="p-2 rounded-lg bg-accent/10">
             <Sparkles className="h-4 w-4 text-accent" />
