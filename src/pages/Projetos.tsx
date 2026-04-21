@@ -415,3 +415,55 @@ export default function Projetos() {
     </AppLayout>
   );
 }
+
+function ListField({
+  label,
+  placeholder,
+  items,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  items: string[];
+  onChange: (arr: string[]) => void;
+}) {
+  const [draft, setDraft] = useState("");
+  const add = () => {
+    const v = draft.trim();
+    if (!v) return;
+    onChange([...(items ?? []), v]);
+    setDraft("");
+  };
+  return (
+    <div>
+      <Label>{label}</Label>
+      <div className="flex gap-2 mt-1">
+        <Input
+          value={draft}
+          placeholder={placeholder}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+        />
+        <Button type="button" variant="outline" size="sm" onClick={add}>
+          <Plus className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      {(items ?? []).length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {items.map((it: string, i: number) => (
+            <Badge key={i} variant="outline" className="text-xs gap-1 pr-1">
+              {it}
+              <button
+                onClick={() => onChange(items.filter((_, idx) => idx !== i))}
+                className="ml-1 hover:text-destructive"
+                aria-label="remover"
+              >
+                ×
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
