@@ -1,0 +1,137 @@
+import { useState, useMemo } from "react";
+import { AppLayout } from "@/components/AppLayout";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { ScopeBadge } from "@/components/ScopeBadge";
+import { GoalFormDrawer } from "@/components/forms/GoalFormDrawer";
+import { useAllGoalsProgress } from "@/hooks/useGoalProgress";
+import { formatBRL, formatDateBR, todayISO } from "@/lib/format";
+import { Plus, Target, Trophy, AlertCircle, Pause } from "lucide-react";
+
+export default function Metas() {
+  const goals = useAllGoalsProgress();
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const today = todayISO();
+
+  const stats = useMemo(() => {
+    const ativas = goals.filter((g) => g.status === "ativa");
+    const concluidas = goals.filter((g) => g.status === "concluida" || g.progress.pct >= 100);
+    const atrasadas = ativas.filter((g) => g.deadline && g.deadline < today && g.progress.pct < 100);
+    const avgProgress = ativas.length
+      ? Math.round(ativas.reduce((s, g) => s + g.progress.pct, 0) / ativas.length)
+      : 0;
+    return { ativas: ativas.length, concluidas: concluidas.length, atrasadas: atrasadas.length, avgProgress };
+  }, [goals, today]);
+
+  const openNew = () => {
+    setEditing(null);
+    setOpen(true);
+  };
+  const openEdit = (g: any) => {
+    setEditing(g);
+    setOpen(true);
+  };
+
+  return (
+    <AppLayout
+      title="Metas"
+      subtitle="Acompanhamento real do que importa"
+      action={
+        <Button size="sm" onClick={openNew}>
+          <Plus className="h-4 w-4 mr-1" /> Meta
+        </Button>
+      }
+    >
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+        <StatCard label="Atingimento médio" value={`${stats.avgProgress}%`} icon={<Target className="h-4 w-4" />} />
+        <StatCard label="Ativas" value={String(stats.ativas)} icon={<Target className="h-4 w-4" />} />
+        <StatCard label="Concluídas" value={String(stats.concluidas)} icon={<Trophy className="h-4 w-4 text-success" />} />
+        <StatCard
+          label="Atrasadas"
+          value={String(stats.atrasadas)}
+          icon={<AlertCircle className="h-4 w-4 text-destructive" />}
+          highlight={stats.atrasadas > 0}
+        />
+      </div>
+
+      {goals.length === 0 ? (
+        <Card className="p-12 text-center shadow-soft">
+          <Target className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+          <h3 className="font-display text-xl mb-2">Comece pela sua primeira meta</h3>
+          <p className="text-sm text-muted-foreground mb-4 max-w-sm mx-auto">
+            Defina metas por tarefas, valor financeiro ou marcos. O progresso é calculado automaticamente conforme você executa.
+          </p>
+          <Button onClick={openNew}>
+            <Plus className="h-4 w-4 mr-1" /> Criar meta
+          </Button>
+        </Card>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {goals.map((g) => (
+            <GoalCard key={g.id} goal={g} onClick={() => openEdit(g)} />
+          ))}
+        </div>
+      )}
+
+      <GoalFormDrawer open={open} onOpenChange={setOpen} goal={editing} />
+    </AppLayout>
+  );
+}
+
+function GoalCard({ goal, onClick }: { goal: any; onClick: () => void }) {
+  const today = todayISO();
+  const isOverdue = goal.deadline && goal.deadline < today && goal.progress.pct < 100 && goal.status === "ativa";
+  const isDone = goal.status === "concluida" || goal.progress.pct >= 100;
+
+  const progressLabel = useMemo(() => {
+    if (goal.kind === "financeiro" && goal.progress.target) {
+      return `${formatBRL(goal.progress.current)} de ${formatBRL(goal.progress.target)}`;
+    }
+    if (goal.kind === "tarefas" || goal.kind === "marcos") {
+      return `${goal.progress.current} de ${goal.progress.target} ${goal.kind === "tarefas" ? "tarefas" : "marcos"}`;
+    }
+    return null;
+  }, [goal]);
+
+  return (
+    <button
+      onClick={onClick}
+      className={`text-left p-5 rounded-lg border bg-card hover:shadow-elevated transition-all w-full ${
+        isOverdue ? "border-destructive/40" : "border-border"
+      } ${goal.scope === "pessoal" ? "gradient-warm" : "gradient-cool"}`}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <ScopeBadge scope={goal.scope} />
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{goal.kind}</span>
+          {goal.status === "pausada" && <Pause className="h-3 w-3 text-muted-foreground" />}
+        </div>
+        {isDone && <Trophy className="h-4 w-4 text-success" />}
+      </div>
+      <h3 className="font-display text-lg font-semibold mb-1 line-clamp-2">{goal.name}</h3>
+      {progressLabel && <p className="text-xs text-muted-foreground mb-3 tabular-nums">{progressLabel}</p>}
+      <div className="flex items-center gap-2 mb-2">
+        <Progress value={goal.progress.pct} className="h-2 flex-1" />
+        <span className="text-sm font-semibold tabular-nums w-10 text-right">{goal.progress.pct}%</span>
+      </div>
+      {goal.deadline && (
+        <p className={`text-xs mt-2 ${isOverdue ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+          Prazo: {formatDateBR(goal.deadline)}
+        </p>
+      )}
+    </button>
+  );
+}
+
+function StatCard({ label, value, icon, highlight }: { label: string; value: string; icon: React.ReactNode; highlight?: boolean }) {
+  return (
+    <Card className={`p-4 shadow-soft ${highlight ? "border-destructive/40" : ""}`}>
+      <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground mb-2">
+        {icon} {label}
+      </div>
+      <div className="font-display text-2xl font-semibold tabular-nums">{value}</div>
+    </Card>
+  );
+}
