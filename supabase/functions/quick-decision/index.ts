@@ -46,8 +46,13 @@ Deno.serve(async (req) => {
       proximo_evento: body.next_event ?? null,
     };
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const ac = new AbortController();
+    const timeoutId = setTimeout(() => ac.abort(), 25000);
+    let aiResp: Response;
+    try {
+      aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
+      signal: ac.signal,
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-lite",
