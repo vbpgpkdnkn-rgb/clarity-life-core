@@ -46,8 +46,13 @@ Deno.serve(async (req) => {
       proximo_evento: body.next_event ?? null,
     };
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const ac = new AbortController();
+    const timeoutId = setTimeout(() => ac.abort(), 25000);
+    let aiResp: Response;
+    try {
+      aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
+      signal: ac.signal,
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-lite",
@@ -73,7 +78,10 @@ Use o contexto (tarefas, metas, saldo) para decidir. NUNCA dê resposta vaga.`,
         tools: [QUICK_TOOL],
         tool_choice: { type: "function", function: { name: "set_quick_decision" } },
       }),
-    });
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!aiResp.ok) {
       const t = await aiResp.text();
@@ -108,9 +116,10 @@ Use o contexto (tarefas, metas, saldo) para decidir. NUNCA dê resposta vaga.`,
     });
   } catch (e) {
     console.error("quick-decision error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const isAbort = e instanceof Error && (e.name === "AbortError" || e.message.includes("aborted"));
+    return new Response(
+      JSON.stringify({ error: isAbort ? "IA demorou demais. Tente novamente." : (e instanceof Error ? e.message : "Erro") }),
+      { status: isAbort ? 504 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 });
