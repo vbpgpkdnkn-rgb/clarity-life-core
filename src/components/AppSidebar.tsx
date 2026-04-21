@@ -1,9 +1,11 @@
-import { Sparkles, LayoutDashboard, CalendarDays, Target, Wallet, ListTodo, CalendarRange, Clapperboard, Heart, FolderKanban, LogOut } from "lucide-react";
+import { useState } from "react";
+import { Sparkles, LayoutDashboard, CalendarDays, Target, Wallet, ListTodo, CalendarRange, Clapperboard, Heart, FolderKanban, LogOut, ArrowUpDown, ChevronUp, ChevronDown, RotateCcw, Check } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useRecentAdjustments } from "@/hooks/useAdaptive";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { useSidebarOrder } from "@/hooks/useSidebarOrder";
 import {
   Sidebar,
   SidebarContent,
@@ -37,6 +39,8 @@ export function AppSidebar() {
   const { user, signOut } = useAuth();
   const adjustmentsQ = useRecentAdjustments();
   const pendingCount = (adjustmentsQ.data ?? []).filter((a) => a.status === "sugerido").length;
+  const [editMode, setEditMode] = useState(false);
+  const { orderedItems, move, reset } = useSidebarOrder(items);
 
   const handleSignOut = async () => {
     await signOut();
@@ -60,41 +64,83 @@ export function AppSidebar() {
         </div>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Navegação</SidebarGroupLabel>
+          <SidebarGroupLabel className="flex items-center justify-between pr-2">
+            <span>Navegação</span>
+            {!collapsed && (
+              <button
+                onClick={() => setEditMode((v) => !v)}
+                className={`p-1 rounded hover:bg-sidebar-accent transition-colors ${editMode ? "text-accent" : "text-muted-foreground"}`}
+                title={editMode ? "Concluir reordenação" : "Reordenar módulos"}
+              >
+                {editMode ? <Check className="h-3.5 w-3.5" /> : <ArrowUpDown className="h-3.5 w-3.5" />}
+              </button>
+            )}
+          </SidebarGroupLabel>
           <SidebarGroupContent>
+            {editMode && !collapsed && (
+              <div className="px-2 pb-2 flex items-center justify-between">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Use ↑↓ para reordenar</span>
+                <button
+                  onClick={reset}
+                  className="text-[10px] text-muted-foreground hover:text-accent flex items-center gap-1"
+                >
+                  <RotateCcw className="h-2.5 w-2.5" /> Restaurar
+                </button>
+              </div>
+            )}
             <SidebarMenu>
-              {items.map((item) => {
+              {orderedItems.map((item, idx) => {
                 const active = item.end
                   ? location.pathname === item.url
                   : location.pathname.startsWith(item.url);
                 const showBadge = item.url === "/" && pendingCount > 0;
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild className="h-11">
-                      <NavLink
-                        to={item.url}
-                        end={item.end}
-                        className="flex items-center gap-3 rounded-md transition-colors hover:bg-sidebar-accent"
-                        activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                      >
-                        <div className="relative">
-                          <item.icon className={`h-5 w-5 ${active ? "text-accent" : ""}`} />
-                          {showBadge && collapsed && (
-                            <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-accent" />
-                          )}
-                        </div>
-                        {!collapsed && (
-                          <span className="text-sm flex-1 flex items-center justify-between gap-2">
-                            {item.title}
-                            {showBadge && (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground tabular-nums">
-                                {pendingCount}
-                              </span>
+                    <div className="flex items-center gap-1">
+                      <SidebarMenuButton asChild className="h-11 flex-1">
+                        <NavLink
+                          to={item.url}
+                          end={item.end}
+                          className="flex items-center gap-3 rounded-md transition-colors hover:bg-sidebar-accent"
+                          activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                        >
+                          <div className="relative">
+                            <item.icon className={`h-5 w-5 ${active ? "text-accent" : ""}`} />
+                            {showBadge && collapsed && (
+                              <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-accent" />
                             )}
-                          </span>
-                        )}
-                      </NavLink>
-                    </SidebarMenuButton>
+                          </div>
+                          {!collapsed && (
+                            <span className="text-sm flex-1 flex items-center justify-between gap-2">
+                              {item.title}
+                              {showBadge && (
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground tabular-nums">
+                                  {pendingCount}
+                                </span>
+                              )}
+                            </span>
+                          )}
+                        </NavLink>
+                      </SidebarMenuButton>
+                      {editMode && !collapsed && (
+                        <div className="flex flex-col pr-1">
+                          <button
+                            onClick={() => move(item.url, "up")}
+                            disabled={idx === 0}
+                            className="p-0.5 text-muted-foreground hover:text-accent disabled:opacity-20"
+                          >
+                            <ChevronUp className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() => move(item.url, "down")}
+                            disabled={idx === orderedItems.length - 1}
+                            className="p-0.5 text-muted-foreground hover:text-accent disabled:opacity-20"
+                          >
+                            <ChevronDown className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </SidebarMenuItem>
                 );
               })}
