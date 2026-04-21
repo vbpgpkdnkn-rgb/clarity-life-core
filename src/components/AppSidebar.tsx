@@ -21,6 +21,7 @@ const items = [
   { title: "Metas", url: "/metas", icon: Target },
   { title: "Conteúdo", url: "/conteudo", icon: Clapperboard },
   { title: "Financeiro", url: "/financeiro", icon: Wallet },
+  { title: "Vida", url: "/vida", icon: Heart },
   { title: "Anual", url: "/anual", icon: CalendarRange },
 ];
 
