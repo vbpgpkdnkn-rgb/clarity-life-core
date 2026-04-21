@@ -1,4 +1,4 @@
-import { Sparkles, LayoutDashboard, CalendarDays, Target, Wallet, ListTodo, CalendarRange, Clapperboard, Heart } from "lucide-react";
+import { Sparkles, LayoutDashboard, CalendarDays, Target, Wallet, ListTodo, CalendarRange, Clapperboard, Heart, FolderKanban } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -17,6 +17,7 @@ const items = [
   { title: "Foco do dia", url: "/", icon: Sparkles, end: true },
   { title: "Visão geral", url: "/visao-geral", icon: LayoutDashboard },
   { title: "Tarefas", url: "/tarefas", icon: ListTodo },
+  { title: "Projetos", url: "/projetos", icon: FolderKanban },
   { title: "Planner", url: "/planner", icon: CalendarDays },
   { title: "Metas", url: "/metas", icon: Target },
   { title: "Conteúdo", url: "/conteudo", icon: Clapperboard },

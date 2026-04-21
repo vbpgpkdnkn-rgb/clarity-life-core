@@ -28,6 +28,8 @@ import VidaLimpeza from "./pages/VidaLimpeza";
 import VidaDesejos from "./pages/VidaDesejos";
 import VidaLivros from "./pages/VidaLivros";
 import VidaDesafios from "./pages/VidaDesafios";
+import Projetos from "./pages/Projetos";
+import ProjetoDetalhe from "./pages/ProjetoDetalhe";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -48,6 +50,8 @@ const App = () => (
           <Route path="/planner/habitos" element={<PlannerHabitos />} />
           <Route path="/planner/notas" element={<PlannerNotas />} />
           <Route path="/tarefas" element={<Tarefas />} />
+          <Route path="/projetos" element={<Projetos />} />
+          <Route path="/projetos/:id" element={<ProjetoDetalhe />} />
           <Route path="/metas" element={<Metas />} />
           <Route path="/metas/:id" element={<MetaDetalhe />} />
           <Route path="/financeiro" element={<Financeiro />} />
