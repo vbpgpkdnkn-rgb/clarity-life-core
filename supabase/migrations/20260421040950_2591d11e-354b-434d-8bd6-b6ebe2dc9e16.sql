@@ -1,0 +1,1 @@
+DELETE FROM goals WHERE id = '53bce974-db77-4423-8ad8-87010bb3dfb5';
