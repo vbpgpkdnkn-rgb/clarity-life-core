@@ -38,7 +38,13 @@ import {
   Clock,
   ListChecks,
   Edit3,
+  Clapperboard,
+  Brain,
+  Link2,
 } from "lucide-react";
+import { StoriesTab } from "@/components/conteudo/StoriesTab";
+import { IntelligenceTab } from "@/components/conteudo/IntelligenceTab";
+import { ReferencesTab } from "@/components/conteudo/ReferencesTab";
 import {
   ContentFormat,
   ContentPiece,
