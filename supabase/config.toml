@@ -24,3 +24,9 @@ verify_jwt = false
 [functions.annual-monthly-review]
 verify_jwt = false
 
+[functions.content-ideator]
+verify_jwt = false
+
+[functions.content-weekly-plan]
+verify_jwt = false
+

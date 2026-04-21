@@ -1,4 +1,4 @@
-import { Sparkles, LayoutDashboard, CalendarDays, Target, Wallet, ListTodo, CalendarRange } from "lucide-react";
+import { Sparkles, LayoutDashboard, CalendarDays, Target, Wallet, ListTodo, CalendarRange, Clapperboard } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -20,6 +20,7 @@ const items = [
   { title: "Planner", url: "/planner", icon: CalendarDays },
   { title: "Tarefas", url: "/tarefas", icon: ListTodo },
   { title: "Metas", url: "/metas", icon: Target },
+  { title: "Conteúdo", url: "/conteudo", icon: Clapperboard },
   { title: "Financeiro", url: "/financeiro", icon: Wallet },
 ];
 

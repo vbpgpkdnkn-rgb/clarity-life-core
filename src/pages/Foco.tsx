@@ -10,6 +10,7 @@ import { ScopeBadge } from "@/components/ScopeBadge";
 import { FocusSessionDialog } from "@/components/foco/FocusSessionDialog";
 import { StrategicInsights } from "@/components/foco/StrategicInsights";
 import { AdaptivePanel } from "@/components/foco/AdaptivePanel";
+import { ContentTodayCard } from "@/components/foco/ContentTodayCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useTasks, useUpsertTask } from "@/hooks/useData";
 import { useAllGoalsProgress } from "@/hooks/useGoalProgress";
@@ -173,6 +174,7 @@ export default function Foco() {
         </div>
       }
     >
+      <ContentTodayCard />
       {/* Empty state */}
       {candidateTasks.length === 0 && (
         <Card className="p-10 text-center shadow-soft">
