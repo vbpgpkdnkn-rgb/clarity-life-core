@@ -8,7 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { useChallenges, useChallengeLogs, useUpsertChallenge, useToggleChallengeLog } from "@/hooks/useVida";
 import { todayISO, addDaysISO } from "@/lib/format";
-import { Plus, Trophy, X } from "lucide-react";
+import { Plus, Trophy, X, Calendar, Clock } from "lucide-react";
+import { WeekdayPicker } from "@/components/vida/WeekdayPicker";
+import { toast } from "sonner";
 
 export default function VidaDesafios() {
   const { data: challenges = [] } = useChallenges();
@@ -18,6 +20,10 @@ export default function VidaDesafios() {
 
   const save = () => {
     if (!editing.name?.trim()) return;
+    if (!editing.weekdays || editing.weekdays.length === 0) {
+      toast.error("Escolha pelo menos um dia da semana para a ação diária");
+      return;
+    }
     upsert.mutate(editing);
     setEditing(null);
   };
@@ -26,7 +32,7 @@ export default function VidaDesafios() {
     <AppLayout
       title="Desafios"
       subtitle="Consistência por uma duração definida"
-      action={<Button size="sm" onClick={() => setEditing({ name: "", duration_days: 30, start_date: todayISO(), status: "ativo" })}><Plus className="h-4 w-4 mr-1" />Novo</Button>}
+      action={<Button size="sm" onClick={() => setEditing({ name: "", duration_days: 30, start_date: todayISO(), status: "ativo", weekdays: [1,2,3,4,5] })}><Plus className="h-4 w-4 mr-1" />Novo</Button>}
     >
       <VidaNav />
 
@@ -44,6 +50,29 @@ export default function VidaDesafios() {
             <Input type="date" value={editing.start_date} onChange={(e) => setEditing({ ...editing, start_date: e.target.value })} />
           </div>
           <Input placeholder="Recompensa ao concluir (opcional)" value={editing.reward || ""} onChange={(e) => setEditing({ ...editing, reward: e.target.value })} />
+
+          <div className="mt-3 space-y-2">
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              Dias da semana (gera tarefa nesses dias por 4 semanas)
+            </label>
+            <WeekdayPicker
+              value={editing.weekdays || []}
+              onChange={(weekdays) => setEditing({ ...editing, weekdays })}
+            />
+          </div>
+          <div className="mt-2">
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
+              <Clock className="h-3 w-3" />
+              Horário sugerido (opcional)
+            </label>
+            <Input
+              type="time"
+              value={editing.time_of_day || ""}
+              onChange={(e) => setEditing({ ...editing, time_of_day: e.target.value })}
+            />
+          </div>
+
           <div className="flex gap-2 mt-3"><Button size="sm" onClick={save}>Iniciar</Button><Button size="sm" variant="ghost" onClick={() => setEditing(null)}>Cancelar</Button></div>
         </Card>
       )}

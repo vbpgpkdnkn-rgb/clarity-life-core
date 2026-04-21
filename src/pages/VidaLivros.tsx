@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBooks, useUpsertBook, useDeleteBook } from "@/hooks/useVida";
-import { Plus, Trash2, BookOpen, Star, X } from "lucide-react";
+import { Plus, Trash2, BookOpen, Star, X, Calendar, Clock } from "lucide-react";
+import { WeekdayPicker } from "@/components/vida/WeekdayPicker";
 
 const STATUS = [
   { v: "quero_ler", label: "Quero ler" },
@@ -56,6 +57,42 @@ export default function VidaLivros() {
             </Select>
             <Input type="number" placeholder="Páginas" value={editing.pages || ""} onChange={(e) => setEditing({ ...editing, pages: e.target.value ? parseInt(e.target.value) : null })} />
           </div>
+
+          {(editing.status === "lendo" || editing.status === "quero_ler") && (
+            <div className="mb-3 space-y-2 p-3 rounded-md bg-muted/30">
+              <p className="text-xs font-medium text-muted-foreground">Rotina de leitura (opcional)</p>
+              <div>
+                <label className="text-[11px] text-muted-foreground flex items-center gap-1 mb-1">
+                  <Calendar className="h-3 w-3" /> Dias para ler (gera tarefa automática por 4 semanas)
+                </label>
+                <WeekdayPicker
+                  value={editing.weekdays || []}
+                  onChange={(weekdays) => setEditing({ ...editing, weekdays })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] text-muted-foreground flex items-center gap-1 mb-1">
+                    <Clock className="h-3 w-3" /> Horário
+                  </label>
+                  <Input
+                    type="time"
+                    value={editing.time_of_day || ""}
+                    onChange={(e) => setEditing({ ...editing, time_of_day: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground mb-1 block">Min/sessão</label>
+                  <Input
+                    type="number"
+                    placeholder="30"
+                    value={editing.session_minutes || ""}
+                    onChange={(e) => setEditing({ ...editing, session_minutes: e.target.value ? parseInt(e.target.value) : null })}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
           {editing.status === "lido" && (
             <>
               <div className="mb-2">

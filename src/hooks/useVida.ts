@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { syncRecurringTasks, clearRecurringTasks } from "@/lib/recurrence";
 
 // ============== MEAL PLANS ==============
 export const useMealPlan = (date: string) =>
@@ -53,15 +54,33 @@ export const useUpsertCleaningTask = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (t: any) => {
-      if (t.id) {
-        const { error } = await supabase.from("cleaning_tasks").update(t).eq("id", t.id);
+      let id = t.id;
+      if (id) {
+        const { error } = await supabase.from("cleaning_tasks").update(t).eq("id", id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("cleaning_tasks").insert(t);
+        const { data, error } = await supabase.from("cleaning_tasks").insert(t).select("id").single();
         if (error) throw error;
+        id = data.id;
       }
+      // Sincroniza tarefas recorrentes
+      if (Array.isArray(t.weekdays)) {
+        await syncRecurringTasks({
+          table: "cleaning_tasks",
+          id,
+          title: t.name,
+          weekdays: t.weekdays,
+          area_id: t.area_id ?? null,
+          notes: t.notes ?? null,
+          scope: "pessoal",
+        });
+      }
+      return id;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["cleaning_tasks"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["cleaning_tasks"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
     onError: (e: any) => toast.error(e.message),
   });
 };
@@ -83,10 +102,14 @@ export const useDeleteCleaningTask = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
+      await clearRecurringTasks("cleaning_tasks", id);
       const { error } = await supabase.from("cleaning_tasks").update({ active: false }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["cleaning_tasks"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["cleaning_tasks"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
   });
 };
 
@@ -146,15 +169,32 @@ export const useUpsertBook = () => {
     mutationFn: async (b: any) => {
       const payload = { ...b };
       ["started_at", "finished_at"].forEach((k) => { if (payload[k] === "") payload[k] = null; });
-      if (b.id) {
-        const { error } = await supabase.from("books").update(payload).eq("id", b.id);
+      let id = b.id;
+      if (id) {
+        const { error } = await supabase.from("books").update(payload).eq("id", id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("books").insert(payload);
+        const { data, error } = await supabase.from("books").insert(payload).select("id").single();
         if (error) throw error;
+        id = data.id;
       }
+      if (Array.isArray(payload.weekdays)) {
+        await syncRecurringTasks({
+          table: "books",
+          id,
+          title: `📖 Ler: ${payload.title}`,
+          weekdays: payload.weekdays,
+          area_id: payload.area_id ?? null,
+          notes: payload.session_minutes ? `${payload.session_minutes} min de leitura` : null,
+          scope: "pessoal",
+        });
+      }
+      return id;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["books"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["books"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
     onError: (e: any) => toast.error(e.message),
   });
 };
@@ -163,10 +203,14 @@ export const useDeleteBook = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
+      await clearRecurringTasks("books", id);
       const { error } = await supabase.from("books").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["books"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["books"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
   });
 };
 
@@ -199,16 +243,47 @@ export const useUpsertChallenge = () => {
     mutationFn: async (c: any) => {
       const payload = { ...c };
       if (payload.end_date === "") payload.end_date = null;
-      if (c.id) {
-        const { error } = await supabase.from("challenges").update(payload).eq("id", c.id);
+      let id = c.id;
+      if (id) {
+        const { error } = await supabase.from("challenges").update(payload).eq("id", id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("challenges").insert(payload);
+        const { data, error } = await supabase.from("challenges").insert(payload).select("id").single();
         if (error) throw error;
+        id = data.id;
       }
+      if (Array.isArray(payload.weekdays)) {
+        await syncRecurringTasks({
+          table: "challenges",
+          id,
+          title: `🎯 ${payload.name}${payload.daily_action ? `: ${payload.daily_action}` : ""}`,
+          weekdays: payload.weekdays,
+          area_id: payload.area_id ?? null,
+          scope: "pessoal",
+        });
+      }
+      return id;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["challenges"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["challenges"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
     onError: (e: any) => toast.error(e.message),
+  });
+};
+
+export const useDeleteChallenge = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await clearRecurringTasks("challenges", id);
+      const { error } = await supabase.from("challenges").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["challenges"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
   });
 };
 

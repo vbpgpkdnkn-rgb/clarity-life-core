@@ -84,12 +84,15 @@ export type Database = {
           pages: number | null
           rating: number | null
           recommend: boolean | null
+          session_minutes: number | null
           started_at: string | null
           status: string
           summary: string | null
           takeaways: string | null
+          time_of_day: string | null
           title: string
           updated_at: string
+          weekdays: number[]
         }
         Insert: {
           area_id?: string | null
@@ -103,12 +106,15 @@ export type Database = {
           pages?: number | null
           rating?: number | null
           recommend?: boolean | null
+          session_minutes?: number | null
           started_at?: string | null
           status?: string
           summary?: string | null
           takeaways?: string | null
+          time_of_day?: string | null
           title: string
           updated_at?: string
+          weekdays?: number[]
         }
         Update: {
           area_id?: string | null
@@ -122,12 +128,15 @@ export type Database = {
           pages?: number | null
           rating?: number | null
           recommend?: boolean | null
+          session_minutes?: number | null
           started_at?: string | null
           status?: string
           summary?: string | null
           takeaways?: string | null
+          time_of_day?: string | null
           title?: string
           updated_at?: string
+          weekdays?: number[]
         }
         Relationships: [
           {
@@ -253,7 +262,9 @@ export type Database = {
           reward: string | null
           start_date: string
           status: Database["public"]["Enums"]["challenge_status"]
+          time_of_day: string | null
           updated_at: string
+          weekdays: number[]
         }
         Insert: {
           area_id?: string | null
@@ -268,7 +279,9 @@ export type Database = {
           reward?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["challenge_status"]
+          time_of_day?: string | null
           updated_at?: string
+          weekdays?: number[]
         }
         Update: {
           area_id?: string | null
@@ -283,7 +296,9 @@ export type Database = {
           reward?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["challenge_status"]
+          time_of_day?: string | null
           updated_at?: string
+          weekdays?: number[]
         }
         Relationships: [
           {
@@ -331,31 +346,51 @@ export type Database = {
         Row: {
           active: boolean
           area: string | null
+          area_id: string | null
           created_at: string
           frequency: string
           id: string
           last_done: string | null
           name: string
+          notes: string | null
+          time_of_day: string | null
+          weekdays: number[]
         }
         Insert: {
           active?: boolean
           area?: string | null
+          area_id?: string | null
           created_at?: string
           frequency?: string
           id?: string
           last_done?: string | null
           name: string
+          notes?: string | null
+          time_of_day?: string | null
+          weekdays?: number[]
         }
         Update: {
           active?: boolean
           area?: string | null
+          area_id?: string | null
           created_at?: string
           frequency?: string
           id?: string
           last_done?: string | null
           name?: string
+          notes?: string | null
+          time_of_day?: string | null
+          weekdays?: number[]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cleaning_tasks_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "life_areas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       content_ideas: {
         Row: {
@@ -1039,7 +1074,9 @@ export type Database = {
           scope: Database["public"]["Enums"]["scope_type"]
           target_per_week: number | null
           target_value: number | null
+          time_of_day: string | null
           unit: string | null
+          weekdays: number[]
         }
         Insert: {
           active?: boolean
@@ -1055,7 +1092,9 @@ export type Database = {
           scope?: Database["public"]["Enums"]["scope_type"]
           target_per_week?: number | null
           target_value?: number | null
+          time_of_day?: string | null
           unit?: string | null
+          weekdays?: number[]
         }
         Update: {
           active?: boolean
@@ -1071,7 +1110,9 @@ export type Database = {
           scope?: Database["public"]["Enums"]["scope_type"]
           target_per_week?: number | null
           target_value?: number | null
+          time_of_day?: string | null
           unit?: string | null
+          weekdays?: number[]
         }
         Relationships: [
           {
@@ -1556,6 +1597,8 @@ export type Database = {
           notes: string | null
           priority: Database["public"]["Enums"]["task_priority"]
           project_id: string | null
+          recurrence_source_id: string | null
+          recurrence_source_table: string | null
           scope: Database["public"]["Enums"]["scope_type"]
           status: Database["public"]["Enums"]["task_status"]
           title: string
@@ -1578,6 +1621,8 @@ export type Database = {
           notes?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
+          recurrence_source_id?: string | null
+          recurrence_source_table?: string | null
           scope?: Database["public"]["Enums"]["scope_type"]
           status?: Database["public"]["Enums"]["task_status"]
           title: string
@@ -1600,6 +1645,8 @@ export type Database = {
           notes?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
+          recurrence_source_id?: string | null
+          recurrence_source_table?: string | null
           scope?: Database["public"]["Enums"]["scope_type"]
           status?: Database["public"]["Enums"]["task_status"]
           title?: string
