@@ -36,9 +36,15 @@ export interface ContentPiece {
   idea_id: string | null;
   goal_id: string | null;
   priority: "alta" | "media" | "baixa";
+  generated_dms: number;
+  booked_appointment: boolean;
+  cta_type: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export type CtaType = "autoridade" | "dor" | "convite" | "educativo" | "bastidor" | "depoimento" | "outro";
+export const CTA_TYPES: CtaType[] = ["autoridade", "dor", "convite", "educativo", "bastidor", "depoimento", "outro"];
 
 export interface ContentMetric {
   id: string;

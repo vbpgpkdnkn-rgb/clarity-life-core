@@ -45,10 +45,12 @@ import {
 import { StoriesTab } from "@/components/conteudo/StoriesTab";
 import { IntelligenceTab } from "@/components/conteudo/IntelligenceTab";
 import { ReferencesTab } from "@/components/conteudo/ReferencesTab";
+import { GrowthTab } from "@/components/conteudo/GrowthTab";
 import {
   ContentFormat,
   ContentPiece,
   ContentStatus,
+  CTA_TYPES,
   useContentIdeas,
   useContentIdeator,
   useContentMetrics,
