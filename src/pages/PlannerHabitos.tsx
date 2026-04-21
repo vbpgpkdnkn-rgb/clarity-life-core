@@ -53,7 +53,7 @@ export default function PlannerHabitos() {
   const isDone = (habitId: string, date: string) =>
     logs.some((l: any) => l.habit_id === habitId && l.date === date);
 
-  const openNew = () => { setEditing({ name: "", scope: "pessoal", frequency: "diaria" }); setOpen(true); };
+  const openNew = () => { setEditing({ name: "", scope: defaultScope(scope), frequency: "diaria" }); setOpen(true); };
   const openEdit = (h: any) => { setEditing(h); setOpen(true); };
 
   return (
