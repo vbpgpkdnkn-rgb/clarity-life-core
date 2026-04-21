@@ -12,6 +12,9 @@ import { FocusSessionDialog } from "@/components/foco/FocusSessionDialog";
 import { StrategicInsights } from "@/components/foco/StrategicInsights";
 import { AdaptivePanel } from "@/components/foco/AdaptivePanel";
 import { ContentTodayCard } from "@/components/foco/ContentTodayCard";
+import { EisenhowerMatrix } from "@/components/foco/EisenhowerMatrix";
+import { OneThreeFive } from "@/components/foco/OneThreeFive";
+import { PomodoroCard } from "@/components/foco/PomodoroCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useTasks, useUpsertTask } from "@/hooks/useData";
 import { useAllGoalsProgress } from "@/hooks/useGoalProgress";
@@ -33,6 +36,8 @@ import {
   ChevronDown,
   Brain,
   Clapperboard,
+  LayoutGrid,
+  Timer,
 } from "lucide-react";
 
 interface FocusItem {
@@ -322,6 +327,14 @@ export default function Foco() {
               )}
             </Card>
           </div>
+
+          {/* POMODORO + 1-3-5 — visíveis, são o coração da execução */}
+          <div className="grid lg:grid-cols-2 gap-4 mb-6">
+            <PomodoroCard tasks={tasks} />
+            <Card className="p-5 border-border/60 shadow-none">
+              <OneThreeFive tasks={tasks} />
+            </Card>
+          </div>
         </>
       )}
 
@@ -350,6 +363,9 @@ export default function Foco() {
 
       {/* BLOCOS COMPLEMENTARES — recolhidos por padrão pra não competir com foco */}
       <div className="space-y-2 mb-6">
+        <CollapsibleBlock title="Matriz Eisenhower" icon={<LayoutGrid className="h-4 w-4" />}>
+          <EisenhowerMatrix tasks={tasks} />
+        </CollapsibleBlock>
         <CollapsibleBlock title="Conteúdo de hoje" icon={<Clapperboard className="h-4 w-4" />}>
           <ContentTodayCard />
         </CollapsibleBlock>
