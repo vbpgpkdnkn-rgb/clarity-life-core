@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScopeBadge } from "@/components/ScopeBadge";
 import { FocusSessionDialog } from "@/components/foco/FocusSessionDialog";
 import { StrategicInsights } from "@/components/foco/StrategicInsights";
@@ -29,6 +30,9 @@ import {
   Circle,
   ListChecks,
   TrendingUp,
+  ChevronDown,
+  Brain,
+  Clapperboard,
 } from "lucide-react";
 
 interface FocusItem {
@@ -174,11 +178,10 @@ export default function Foco() {
         </div>
       }
     >
-      <ContentTodayCard />
       {/* Empty state */}
       {candidateTasks.length === 0 && (
-        <Card className="p-10 text-center shadow-soft">
-          <Sparkles className="h-10 w-10 mx-auto text-accent mb-3" />
+        <Card className="p-10 text-center border-border/60 shadow-none">
+          <Sparkles className="h-8 w-8 mx-auto text-accent mb-3" />
           <h2 className="font-display text-xl font-semibold mb-2">Nenhuma tarefa pendente para hoje</h2>
           <p className="text-sm text-muted-foreground mb-6">
             Crie tarefas com prazo para hoje e a IA vai montar seu plano de foco automaticamente.
@@ -200,7 +203,7 @@ export default function Foco() {
 
       {/* Error */}
       {focusQuery.isError && (
-        <Card className="p-6 border-destructive/40 bg-destructive/5">
+        <Card className="p-6 border-destructive/40 bg-destructive/5 shadow-none">
           <p className="text-sm text-destructive">
             Não foi possível gerar o plano. {(focusQuery.error as any)?.message ?? ""}
           </p>
@@ -214,17 +217,16 @@ export default function Foco() {
       {plan && (
         <>
           {/* PRIORIDADE PRINCIPAL */}
-          <Card className="p-6 sm:p-8 mb-6 shadow-elevated gradient-card border-accent/30">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-accent mb-3">
-              <Sparkles className="h-3.5 w-3.5" />
+          <Card className="p-6 sm:p-8 mb-4 border-l-4 border-l-accent border-y border-r border-border/60 shadow-none rounded-md">
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-accent mb-3">
+              <Sparkles className="h-3 w-3" />
               Prioridade principal
             </div>
-            <h2 className="font-display text-2xl sm:text-4xl font-semibold mb-3 leading-tight">
+            <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-3 leading-tight">
               {plan.main_priority.title}
             </h2>
-            <p className="text-sm sm:text-base text-muted-foreground mb-6">{plan.main_priority.why}</p>
+            <p className="text-sm text-muted-foreground mb-6 max-w-2xl">{plan.main_priority.why}</p>
             <Button
-              size="lg"
               onClick={() => {
                 if (top3FullTasks.length === 0) {
                   toast.error("Top 3 não encontrado nas tarefas atuais");
@@ -233,27 +235,25 @@ export default function Foco() {
                 setSessionOpen(true);
               }}
             >
-              <Play className="h-5 w-5 mr-2" /> Iniciar meu dia
+              <Play className="h-4 w-4 mr-2" /> Iniciar meu dia
             </Button>
           </Card>
 
-          {/* CARGA */}
-          <Card className={`p-4 mb-6 border ${loadStyle[plan.load.level]} flex items-center gap-3`}>
-            <Gauge className="h-5 w-5 shrink-0" />
-            <div className="flex-1">
-              <div className="text-xs uppercase tracking-wide font-semibold capitalize">
-                Carga: {plan.load.level}
-              </div>
-              <div className="text-sm">{plan.load.advice}</div>
-            </div>
-          </Card>
+          {/* CARGA — barra fina */}
+          <div className={`mb-6 px-4 py-2.5 rounded-md border text-sm flex items-center gap-3 ${loadStyle[plan.load.level]}`}>
+            <Gauge className="h-4 w-4 shrink-0" />
+            <span className="text-xs uppercase tracking-wide font-medium capitalize shrink-0">
+              {plan.load.level}
+            </span>
+            <span className="text-xs text-muted-foreground truncate">{plan.load.advice}</span>
+          </div>
 
           {/* TOP 3 + NÃO FAZER */}
-          <div className="grid lg:grid-cols-2 gap-6 mb-6">
-            <Card className="p-5 shadow-soft">
+          <div className="grid lg:grid-cols-2 gap-4 mb-6">
+            <Card className="p-5 border-border/60 shadow-none">
               <div className="flex items-center gap-2 mb-4">
-                <ListChecks className="h-4 w-4 text-accent" />
-                <h3 className="font-display text-lg font-semibold">Top 3 do dia</h3>
+                <ListChecks className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-display text-base font-semibold">Top 3 do dia</h3>
               </div>
               <ol className="space-y-3">
                 {plan.top_three.map((it, i) => {
@@ -275,7 +275,7 @@ export default function Foco() {
                       </button>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-display text-xl text-accent w-5">{i + 1}</span>
+                          <span className="font-display text-lg text-muted-foreground tabular-nums w-4">{i + 1}</span>
                           <span className={`text-sm font-medium ${done ? "line-through text-muted-foreground" : ""}`}>
                             {it.title}
                           </span>
@@ -283,7 +283,7 @@ export default function Foco() {
                           {linkedGoal && (
                             <button
                               onClick={(e) => { e.stopPropagation(); navigate(`/metas/${linkedGoal.id}`); }}
-                              className="text-[10px] px-1.5 py-0.5 rounded bg-accent/10 text-accent hover:bg-accent/20 flex items-center gap-1"
+                              className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground flex items-center gap-1"
                               title={`Meta: ${linkedGoal.name}`}
                             >
                               <TargetIcon className="h-2.5 w-2.5" /> {linkedGoal.name}
@@ -298,10 +298,10 @@ export default function Foco() {
               </ol>
             </Card>
 
-            <Card className="p-5 shadow-soft">
+            <Card className="p-5 border-border/60 shadow-none">
               <div className="flex items-center gap-2 mb-4">
                 <Ban className="h-4 w-4 text-muted-foreground" />
-                <h3 className="font-display text-lg font-semibold">Não fazer hoje</h3>
+                <h3 className="font-display text-base font-semibold">Não fazer hoje</h3>
               </div>
               {plan.do_not_do.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-6 text-center">
@@ -325,20 +325,14 @@ export default function Foco() {
         </>
       )}
 
-      {/* IA ADAPTATIVA */}
-      <AdaptivePanel />
-
-      {/* CONSELHEIRO ESTRATÉGICO */}
-      <StrategicInsights />
-
-      {/* REVISÃO DO DIA */}
+      {/* REVISÃO DO DIA — só após 18h */}
       {showReview && (
-        <Card className="p-5 shadow-soft mb-6">
+        <Card className="p-5 border-border/60 shadow-none mb-6">
           <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="h-4 w-4 text-accent" />
-            <h3 className="font-display text-lg font-semibold">Revisão do dia</h3>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <h3 className="font-display text-base font-semibold">Revisão do dia</h3>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-3 gap-4 mb-3">
             <Stat label="Concluídas" value={`${todayCompleted}/${todayTotal}`} />
             <Stat label="Taxa" value={`${completionPct}%`} />
             <Stat
@@ -347,18 +341,31 @@ export default function Foco() {
               accent={todayTotal - todayCompleted > 0 ? "warning" : "success"}
             />
           </div>
-          <Progress value={completionPct} className="h-2 mb-4" />
+          <Progress value={completionPct} className="h-1.5 mb-4" />
           <Button variant="outline" size="sm" onClick={() => navigate("/planner")}>
             Registrar reflexão →
           </Button>
         </Card>
       )}
 
-      {/* Atalhos */}
+      {/* BLOCOS COMPLEMENTARES — recolhidos por padrão pra não competir com foco */}
+      <div className="space-y-2 mb-6">
+        <CollapsibleBlock title="Conteúdo de hoje" icon={<Clapperboard className="h-4 w-4" />}>
+          <ContentTodayCard />
+        </CollapsibleBlock>
+        <CollapsibleBlock title="IA adaptativa — seu padrão de execução" icon={<Brain className="h-4 w-4" />}>
+          <AdaptivePanel />
+        </CollapsibleBlock>
+        <CollapsibleBlock title="Conselheiro estratégico" icon={<Sparkles className="h-4 w-4" />}>
+          <StrategicInsights />
+        </CollapsibleBlock>
+      </div>
+
+      {/* Atalhos discretos */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <ShortcutBtn label="Tarefas" onClick={() => navigate("/tarefas")} icon={<ListChecks className="h-4 w-4" />} />
-        <ShortcutBtn label="Metas" onClick={() => navigate("/metas")} icon={<TargetIcon className="h-4 w-4" />} />
         <ShortcutBtn label="Planner" onClick={() => navigate("/planner")} icon={<Sparkles className="h-4 w-4" />} />
+        <ShortcutBtn label="Metas" onClick={() => navigate("/metas")} icon={<TargetIcon className="h-4 w-4" />} />
         <ShortcutBtn label="Visão geral" onClick={() => navigate("/visao-geral")} icon={<TrendingUp className="h-4 w-4" />} />
       </div>
 
@@ -371,6 +378,25 @@ export default function Foco() {
         />
       )}
     </AppLayout>
+  );
+}
+
+function CollapsibleBlock({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <Collapsible>
+      <Card className="border-border/60 shadow-none overflow-hidden">
+        <CollapsibleTrigger className="w-full px-4 py-3 flex items-center gap-2 text-sm font-medium hover:bg-muted/40 transition-colors group">
+          <span className="text-muted-foreground">{icon}</span>
+          <span className="flex-1 text-left">{title}</span>
+          <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="px-4 pb-4 pt-1 [&_.shadow-soft]:shadow-none [&_.shadow-elevated]:shadow-none">
+            {children}
+          </div>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 }
 

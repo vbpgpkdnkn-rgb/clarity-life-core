@@ -16,12 +16,12 @@ import {
 const items = [
   { title: "Foco do dia", url: "/", icon: Sparkles, end: true },
   { title: "Visão geral", url: "/visao-geral", icon: LayoutDashboard },
-  { title: "Visão anual", url: "/anual", icon: CalendarRange },
-  { title: "Planner", url: "/planner", icon: CalendarDays },
   { title: "Tarefas", url: "/tarefas", icon: ListTodo },
+  { title: "Planner", url: "/planner", icon: CalendarDays },
   { title: "Metas", url: "/metas", icon: Target },
   { title: "Conteúdo", url: "/conteudo", icon: Clapperboard },
   { title: "Financeiro", url: "/financeiro", icon: Wallet },
+  { title: "Anual", url: "/anual", icon: CalendarRange },
 ];
 
 export function AppSidebar() {
