@@ -219,12 +219,38 @@ export default function Projetos() {
                 <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} autoFocus />
               </div>
               <div>
-                <Label>Descrição</Label>
+                <Label>Descrição curta</Label>
                 <Textarea
                   value={editing.description ?? ""}
                   onChange={(e) => setEditing({ ...editing, description: e.target.value })}
-                  placeholder="Por que esse projeto importa?"
+                  placeholder="Em uma frase, sobre o que é"
+                  rows={2}
+                />
+              </div>
+              <div>
+                <Label>Visão / por que esse projeto importa</Label>
+                <Textarea
+                  value={editing.vision ?? ""}
+                  onChange={(e) => setEditing({ ...editing, vision: e.target.value })}
+                  placeholder="Qual o impacto se entregue? O que muda quando acabar?"
                   rows={3}
+                />
+              </div>
+              <div>
+                <Label>Critérios de sucesso</Label>
+                <Textarea
+                  value={editing.success_criteria ?? ""}
+                  onChange={(e) => setEditing({ ...editing, success_criteria: e.target.value })}
+                  placeholder="Como você sabe que o projeto deu certo? Liste métricas/observáveis."
+                  rows={2}
+                />
+              </div>
+              <div>
+                <Label>Próximo passo concreto</Label>
+                <Input
+                  value={editing.next_step ?? ""}
+                  onChange={(e) => setEditing({ ...editing, next_step: e.target.value })}
+                  placeholder="Ação única que destrava o projeto agora"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
