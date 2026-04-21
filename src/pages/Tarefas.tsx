@@ -18,19 +18,19 @@ const PRIORITY_DOT: Record<string, string> = {
 
 export default function Planner() {
   const { data: tasks = [] } = useTasks();
+  const { scope } = useScope();
   const upsert = useUpsertTask();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [defaultDate, setDefaultDate] = useState<string>(todayISO());
-  const [filter, setFilter] = useState<"todos" | "pessoal" | "profissional">("todos");
   const [quickInput, setQuickInput] = useState("");
 
   const today = todayISO();
   const weekEnd = endOfWeekISO();
 
   const filtered = useMemo(
-    () => tasks.filter((t) => filter === "todos" || t.scope === filter),
-    [tasks, filter],
+    () => filterByScope(tasks, scope),
+    [tasks, scope],
   );
 
   const groups = useMemo(() => {

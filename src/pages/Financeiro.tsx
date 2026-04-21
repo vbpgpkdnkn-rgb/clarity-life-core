@@ -227,19 +227,8 @@ export default function Financeiro() {
         </Button>
       }
     >
-      {/* Scope filter */}
+      {/* Scope global no header */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        {(["todos", "pessoal", "profissional"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setScopeFilter(f)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-colors ${
-              scopeFilter === f ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/70 text-muted-foreground"
-            }`}
-          >
-            {f}
-          </button>
-        ))}
         <div className="ml-auto flex items-center gap-2">
           <Select value={period} onValueChange={(v: any) => setPeriod(v)}>
             <SelectTrigger className="h-8 w-32 text-xs">
