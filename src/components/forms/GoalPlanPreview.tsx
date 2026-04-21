@@ -12,6 +12,8 @@ interface Props {
   goal: any;
   goalId?: string;
   onApplied: (newDeadline?: string) => void;
+  /** Quando a meta ainda não foi salva, este callback cria a meta e retorna o id. */
+  onCreateGoal?: () => Promise<string | undefined>;
 }
 
 const complexityColor = {
@@ -20,7 +22,7 @@ const complexityColor = {
   alta: "text-destructive",
 };
 
-export function GoalPlanPreview({ goal, goalId, onApplied }: Props) {
+export function GoalPlanPreview({ goal, goalId, onApplied, onCreateGoal }: Props) {
   const generate = useGenerateGoalPlan();
   const qc = useQueryClient();
   const [plan, setPlan] = useState<ExecutionPlan | null>(null);
