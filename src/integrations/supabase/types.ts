@@ -272,6 +272,96 @@ export type Database = {
           },
         ]
       }
+      content_references: {
+        Row: {
+          adapted_format: Database["public"]["Enums"]["content_format"] | null
+          adapted_hook: string | null
+          adapted_outline: string | null
+          adapted_title: string | null
+          analysis: Json
+          created_at: string
+          id: string
+          piece_id: string | null
+          scope: Database["public"]["Enums"]["scope_type"]
+          source_author: string | null
+          source_text: string | null
+          source_url: string | null
+          used: boolean
+        }
+        Insert: {
+          adapted_format?: Database["public"]["Enums"]["content_format"] | null
+          adapted_hook?: string | null
+          adapted_outline?: string | null
+          adapted_title?: string | null
+          analysis?: Json
+          created_at?: string
+          id?: string
+          piece_id?: string | null
+          scope?: Database["public"]["Enums"]["scope_type"]
+          source_author?: string | null
+          source_text?: string | null
+          source_url?: string | null
+          used?: boolean
+        }
+        Update: {
+          adapted_format?: Database["public"]["Enums"]["content_format"] | null
+          adapted_hook?: string | null
+          adapted_outline?: string | null
+          adapted_title?: string | null
+          analysis?: Json
+          created_at?: string
+          id?: string
+          piece_id?: string | null
+          scope?: Database["public"]["Enums"]["scope_type"]
+          source_author?: string | null
+          source_text?: string | null
+          source_url?: string | null
+          used?: boolean
+        }
+        Relationships: []
+      }
+      content_stories: {
+        Row: {
+          created_at: string
+          date: string
+          description: string | null
+          done: boolean
+          done_at: string | null
+          id: string
+          notes: string | null
+          scope: Database["public"]["Enums"]["scope_type"]
+          slot: Database["public"]["Enums"]["story_slot"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          description?: string | null
+          done?: boolean
+          done_at?: string | null
+          id?: string
+          notes?: string | null
+          scope?: Database["public"]["Enums"]["scope_type"]
+          slot?: Database["public"]["Enums"]["story_slot"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          description?: string | null
+          done?: boolean
+          done_at?: string | null
+          id?: string
+          notes?: string | null
+          scope?: Database["public"]["Enums"]["scope_type"]
+          slot?: Database["public"]["Enums"]["story_slot"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       daily_plans: {
         Row: {
           created_at: string
@@ -1010,6 +1100,15 @@ export type Database = {
       habit_frequency: "diaria" | "semanal"
       recurrence_freq: "diaria" | "semanal" | "mensal" | "anual"
       scope_type: "pessoal" | "profissional"
+      story_slot:
+        | "bastidores"
+        | "rotina"
+        | "pergunta"
+        | "interacao"
+        | "reflexao"
+        | "dica"
+        | "divulgacao"
+        | "outro"
       task_priority: "alta" | "media" | "baixa"
       task_status: "pendente" | "em_andamento" | "concluida"
       txn_nature: "fixo" | "variavel"
@@ -1163,6 +1262,16 @@ export const Constants = {
       habit_frequency: ["diaria", "semanal"],
       recurrence_freq: ["diaria", "semanal", "mensal", "anual"],
       scope_type: ["pessoal", "profissional"],
+      story_slot: [
+        "bastidores",
+        "rotina",
+        "pergunta",
+        "interacao",
+        "reflexao",
+        "dica",
+        "divulgacao",
+        "outro",
+      ],
       task_priority: ["alta", "media", "baixa"],
       task_status: ["pendente", "em_andamento", "concluida"],
       txn_nature: ["fixo", "variavel"],
