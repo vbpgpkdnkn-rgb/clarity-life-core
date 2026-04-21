@@ -146,6 +146,7 @@ export default function PlannerDiario() {
                 </span>
                 <span className="text-sm flex-1 truncate">{e.title}</span>
                 {e.location && <span className="text-xs text-muted-foreground hidden sm:inline">· {e.location}</span>}
+                <ScopeBadge scope={e.scope} />
                 <button
                   onClick={() => deleteEvent.mutate(e.id)}
                   className="opacity-0 group-hover:opacity-100 transition-opacity"

@@ -8,6 +8,8 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from "
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { useHabits, useHabitLogs, useUpsertHabit, useDeleteHabit, useToggleHabitLog } from "@/hooks/usePlanner";
 import { useGoals } from "@/hooks/useData";
+import { useScope, filterByScope, defaultScope } from "@/contexts/ScopeContext";
+import { ScopeBadge } from "@/components/ScopeBadge";
 import { startOfWeekFor, weekDates, dayName, dayNumber, isToday } from "@/lib/week";
 import { todayISO, addDaysISO } from "@/lib/format";
 import { Plus, Check, Flame, Trash2, ChevronLeft, ChevronRight } from "lucide-react";

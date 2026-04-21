@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScopeBadge } from "@/components/ScopeBadge";
 import { useTasks } from "@/hooks/useData";
 import { useEvents, useWeeklyPlan, useUpsertWeeklyPlan } from "@/hooks/usePlanner";
+import { useScope, filterByScope } from "@/contexts/ScopeContext";
 import { startOfWeekFor, addDays, weekDates, formatWeekRange, dayName, dayNumber, isToday } from "@/lib/week";
 import { todayISO } from "@/lib/format";
 import { ChevronLeft, ChevronRight, Plus, X, Heart, Briefcase, Activity, Wallet } from "lucide-react";
