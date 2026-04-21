@@ -41,14 +41,19 @@ import {
   Clapperboard,
   Brain,
   Link2,
+  Rocket,
+  MessageCircle,
+  CalendarCheck,
 } from "lucide-react";
 import { StoriesTab } from "@/components/conteudo/StoriesTab";
 import { IntelligenceTab } from "@/components/conteudo/IntelligenceTab";
 import { ReferencesTab } from "@/components/conteudo/ReferencesTab";
+import { GrowthTab } from "@/components/conteudo/GrowthTab";
 import {
   ContentFormat,
   ContentPiece,
   ContentStatus,
+  CTA_TYPES,
   useContentIdeas,
   useContentIdeator,
   useContentMetrics,
@@ -121,8 +126,9 @@ export default function Conteudo() {
         </Card>
       </div>
 
-      <Tabs defaultValue="ideias" className="space-y-4">
+      <Tabs defaultValue="crescimento" className="space-y-4">
         <TabsList className="flex flex-wrap h-auto w-full justify-start gap-1">
+          <TabsTrigger value="crescimento"><Rocket className="h-3.5 w-3.5 mr-1" />Crescimento</TabsTrigger>
           <TabsTrigger value="ideias"><Lightbulb className="h-3.5 w-3.5 mr-1" />Ideias</TabsTrigger>
           <TabsTrigger value="editorial"><CalendarDays className="h-3.5 w-3.5 mr-1" />Editorial</TabsTrigger>
           <TabsTrigger value="producao"><Hammer className="h-3.5 w-3.5 mr-1" />Produção</TabsTrigger>
@@ -134,6 +140,7 @@ export default function Conteudo() {
           <TabsTrigger value="biblioteca"><Library className="h-3.5 w-3.5 mr-1" />Biblioteca</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="crescimento"><GrowthTab /></TabsContent>
         <TabsContent value="ideias"><IdeasTab ideas={ideas as any} /></TabsContent>
         <TabsContent value="editorial"><EditorialTab pieces={pieces} ideas={ideas as any} consistency={consistency} /></TabsContent>
         <TabsContent value="producao"><ProductionTab pieces={pieces} /></TabsContent>
@@ -602,6 +609,9 @@ function PieceDrawer({
     script: piece?.script ?? "",
     hook: piece?.hook ?? "",
     cta: piece?.cta ?? "",
+    cta_type: ((piece as any)?.cta_type ?? "") as string,
+    generated_dms: String((piece as any)?.generated_dms ?? ""),
+    booked_appointment: !!(piece as any)?.booked_appointment,
     notes: piece?.notes ?? "",
     priority: (piece?.priority ?? "media") as "alta" | "media" | "baixa",
     checklist: (piece?.checklist as any[]) ?? [],
@@ -612,6 +622,9 @@ function PieceDrawer({
     upsert.mutate(
       {
         ...form,
+        cta_type: form.cta_type || null,
+        generated_dms: Number(form.generated_dms) || 0,
+        booked_appointment: form.booked_appointment,
         planned_date: form.planned_date || null,
         scope: (piece?.scope ?? (scope === "todos" ? "profissional" : scope)) as any,
         generateTasks,
@@ -666,10 +679,57 @@ function PieceDrawer({
             <Label>Roteiro</Label>
             <Textarea rows={6} value={form.script} onChange={(e) => setForm({ ...form, script: e.target.value })} />
           </div>
-          <div>
-            <Label>CTA</Label>
-            <Input value={form.cta} onChange={(e) => setForm({ ...form, cta: e.target.value })} />
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label>CTA (texto)</Label>
+              <Input value={form.cta} onChange={(e) => setForm({ ...form, cta: e.target.value })} />
+            </div>
+            <div>
+              <Label>Tipo de CTA</Label>
+              <Select value={form.cta_type || "none"} onValueChange={(v) => setForm({ ...form, cta_type: v === "none" ? "" : v })}>
+                <SelectTrigger><SelectValue placeholder="Tipo…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— sem tipo —</SelectItem>
+                  {CTA_TYPES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+
+          {/* Captação */}
+          <div className="rounded border border-border p-3 bg-success/5">
+            <div className="flex items-center gap-1.5 mb-2">
+              <CalendarCheck className="h-3.5 w-3.5 text-success" />
+              <p className="text-xs font-medium">Captação deste post</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs flex items-center gap-1">
+                  <MessageCircle className="h-3 w-3" /> DMs geradas
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={form.generated_dms}
+                  onChange={(e) => setForm({ ...form, generated_dms: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Gerou agendamento?</Label>
+                <div className="flex items-center h-9 gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={form.booked_appointment ? "default" : "outline"}
+                    onClick={() => setForm({ ...form, booked_appointment: !form.booked_appointment })}
+                  >
+                    {form.booked_appointment ? "Sim ✓" : "Não"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div>
             <Label>Anotações</Label>
             <Textarea rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />

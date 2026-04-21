@@ -193,10 +193,13 @@ export type Database = {
       }
       content_pieces: {
         Row: {
+          booked_appointment: boolean
           checklist: Json
           created_at: string
           cta: string | null
+          cta_type: string | null
           format: Database["public"]["Enums"]["content_format"]
+          generated_dms: number
           goal_id: string | null
           hook: string | null
           id: string
@@ -214,10 +217,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          booked_appointment?: boolean
           checklist?: Json
           created_at?: string
           cta?: string | null
+          cta_type?: string | null
           format?: Database["public"]["Enums"]["content_format"]
+          generated_dms?: number
           goal_id?: string | null
           hook?: string | null
           id?: string
@@ -235,10 +241,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          booked_appointment?: boolean
           checklist?: Json
           created_at?: string
           cta?: string | null
+          cta_type?: string | null
           format?: Database["public"]["Enums"]["content_format"]
+          generated_dms?: number
           goal_id?: string | null
           hook?: string | null
           id?: string
@@ -611,6 +620,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      instagram_snapshots: {
+        Row: {
+          appointments_booked: number
+          created_at: string
+          dms_received: number
+          followers: number
+          followers_gained: number
+          followers_lost: number
+          id: string
+          impressions: number
+          notes: string | null
+          profile_visits: number
+          reach: number
+          scope: Database["public"]["Enums"]["scope_type"]
+          updated_at: string
+          website_clicks: number
+          week_start: string
+        }
+        Insert: {
+          appointments_booked?: number
+          created_at?: string
+          dms_received?: number
+          followers?: number
+          followers_gained?: number
+          followers_lost?: number
+          id?: string
+          impressions?: number
+          notes?: string | null
+          profile_visits?: number
+          reach?: number
+          scope?: Database["public"]["Enums"]["scope_type"]
+          updated_at?: string
+          website_clicks?: number
+          week_start: string
+        }
+        Update: {
+          appointments_booked?: number
+          created_at?: string
+          dms_received?: number
+          followers?: number
+          followers_gained?: number
+          followers_lost?: number
+          id?: string
+          impressions?: number
+          notes?: string | null
+          profile_visits?: number
+          reach?: number
+          scope?: Database["public"]["Enums"]["scope_type"]
+          updated_at?: string
+          website_clicks?: number
+          week_start?: string
+        }
+        Relationships: []
       }
       milestones: {
         Row: {
