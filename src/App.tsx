@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ScopeProvider } from "@/contexts/ScopeContext";
+import Foco from "./pages/Foco";
 import Dashboard from "./pages/Dashboard";
 import Tarefas from "./pages/Tarefas";
 import PlannerDiario from "./pages/PlannerDiario";
@@ -25,7 +26,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={<Foco />} />
+          <Route path="/visao-geral" element={<Dashboard />} />
           <Route path="/planner" element={<PlannerDiario />} />
           <Route path="/planner/semanal" element={<PlannerSemanal />} />
           <Route path="/planner/revisao" element={<PlannerRevisao />} />
