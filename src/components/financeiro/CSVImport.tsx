@@ -55,12 +55,12 @@ export function CSVImport({ accountId, scope }: { accountId: string; scope: "pes
           amount: Math.abs(r.amount),
           description: r.description,
           date: r.date,
-          status: "pendente", // imported = pending reconciliation
+          status: "pendente", // imported = pendente até conciliar
         });
         ok++;
       } catch (e) {}
     }
-    toast.success(`${ok} transações importadas (status: pendente)`);
+    toast.success(`${ok} transações importadas como pendentes`);
   };
 
   return (
