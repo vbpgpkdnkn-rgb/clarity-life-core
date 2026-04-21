@@ -245,7 +245,12 @@ export default function VidaLivros() {
             </>
           )}
 
-          {editing.id && <BookNotesSection book={editing} />}
+          {editing.id && (
+            <>
+              <BookNotesSection book={editing} />
+              <BookContentIdeasSection book={editing} />
+            </>
+          )}
 
           <div className="flex gap-2 mt-3">
             <Button size="sm" onClick={save}>Salvar</Button>
