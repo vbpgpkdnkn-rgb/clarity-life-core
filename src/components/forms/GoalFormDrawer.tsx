@@ -85,12 +85,13 @@ export function GoalFormDrawer({
                   <SelectItem value="tarefas">Por tarefas</SelectItem>
                   <SelectItem value="financeiro">Financeira</SelectItem>
                   <SelectItem value="marcos">Por marcos</SelectItem>
+                  <SelectItem value="hibrida">Híbrida (tarefas + financeiro)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            {form.kind === "financeiro" && (
+            {(form.kind === "financeiro" || form.kind === "hibrida") && (
               <div>
                 <Label>Valor alvo (R$)</Label>
                 <Input
@@ -98,6 +99,18 @@ export function GoalFormDrawer({
                   step="0.01"
                   value={form.target_value ?? ""}
                   onChange={(e) => setForm({ ...form, target_value: e.target.value })}
+                />
+              </div>
+            )}
+            {(form.kind === "tarefas" || form.kind === "hibrida") && (
+              <div>
+                <Label>Nº tarefas alvo {form.kind === "tarefas" && "(opcional)"}</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={form.target_tasks ?? ""}
+                  onChange={(e) => setForm({ ...form, target_tasks: e.target.value ? Number(e.target.value) : null })}
+                  placeholder="Auto: nº de tarefas vinculadas"
                 />
               </div>
             )}
@@ -110,6 +123,30 @@ export function GoalFormDrawer({
               />
             </div>
           </div>
+          {form.kind === "hibrida" && (
+            <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-muted/30 border border-border">
+              <div>
+                <Label className="text-xs">Peso financeiro (%)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={form.weight_financial ?? 50}
+                  onChange={(e) => setForm({ ...form, weight_financial: Number(e.target.value) })}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Peso tarefas (%)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={form.weight_tasks ?? 50}
+                  onChange={(e) => setForm({ ...form, weight_tasks: Number(e.target.value) })}
+                />
+              </div>
+            </div>
+          )}
           <div>
             <Label>Status</Label>
             <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
