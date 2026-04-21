@@ -17,6 +17,17 @@ import MetaDetalhe from "./pages/MetaDetalhe";
 import Financeiro from "./pages/Financeiro";
 import VisaoAnual from "./pages/VisaoAnual";
 import Conteudo from "./pages/Conteudo";
+import Vida from "./pages/Vida";
+import VidaAreas from "./pages/VidaAreas";
+import VidaDreamboard from "./pages/VidaDreamboard";
+import VidaGratidao from "./pages/VidaGratidao";
+import VidaBrainDump from "./pages/VidaBrainDump";
+import VidaCheckin from "./pages/VidaCheckin";
+import VidaRefeicoes from "./pages/VidaRefeicoes";
+import VidaLimpeza from "./pages/VidaLimpeza";
+import VidaDesejos from "./pages/VidaDesejos";
+import VidaLivros from "./pages/VidaLivros";
+import VidaDesafios from "./pages/VidaDesafios";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -42,6 +53,17 @@ const App = () => (
           <Route path="/financeiro" element={<Financeiro />} />
           <Route path="/anual" element={<VisaoAnual />} />
           <Route path="/conteudo" element={<Conteudo />} />
+          <Route path="/vida" element={<Vida />} />
+          <Route path="/vida/areas" element={<VidaAreas />} />
+          <Route path="/vida/dreamboard" element={<VidaDreamboard />} />
+          <Route path="/vida/gratidao" element={<VidaGratidao />} />
+          <Route path="/vida/brain-dump" element={<VidaBrainDump />} />
+          <Route path="/vida/checkin" element={<VidaCheckin />} />
+          <Route path="/vida/refeicoes" element={<VidaRefeicoes />} />
+          <Route path="/vida/limpeza" element={<VidaLimpeza />} />
+          <Route path="/vida/desejos" element={<VidaDesejos />} />
+          <Route path="/vida/livros" element={<VidaLivros />} />
+          <Route path="/vida/desafios" element={<VidaDesafios />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
