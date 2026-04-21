@@ -15,3 +15,9 @@ verify_jwt = false
 [functions.goal-redistribute]
 verify_jwt = false
 
+[functions.adaptive-performance]
+verify_jwt = false
+
+[functions.adaptive-evolution-narrative]
+verify_jwt = false
+
