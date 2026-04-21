@@ -5,8 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { todayISO, addDaysISO, formatDateLong } from "@/lib/format";
-import { startOfWeekISO } from "@/lib/week";
+import { todayISO, addDaysISO, formatDateLong, startOfWeekISO } from "@/lib/format";
 import { useMealPlan, useUpsertMealPlan, useMealPlanRange } from "@/hooks/useVida";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
