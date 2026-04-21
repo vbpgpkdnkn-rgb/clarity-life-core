@@ -101,6 +101,19 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <div className="mt-auto p-3 border-t border-sidebar-border">
+          <Button
+            variant="ghost"
+            size={collapsed ? "icon" : "sm"}
+            className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+            onClick={handleSignOut}
+            title={user?.email ?? "Sair"}
+          >
+            <LogOut className="h-4 w-4" />
+            {!collapsed && <span className="truncate text-xs">{user?.email ?? "Sair"}</span>}
+          </Button>
+        </div>
       </SidebarContent>
     </Sidebar>
   );
