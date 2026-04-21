@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScopeBadge } from "@/components/ScopeBadge";
 import { FocusSessionDialog } from "@/components/foco/FocusSessionDialog";
 import { StrategicInsights } from "@/components/foco/StrategicInsights";
@@ -29,6 +30,9 @@ import {
   Circle,
   ListChecks,
   TrendingUp,
+  ChevronDown,
+  Brain,
+  Clapperboard,
 } from "lucide-react";
 
 interface FocusItem {
