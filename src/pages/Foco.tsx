@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScopeBadge } from "@/components/ScopeBadge";
 import { FocusSessionDialog } from "@/components/foco/FocusSessionDialog";
+import { StrategicInsights } from "@/components/foco/StrategicInsights";
 import { supabase } from "@/integrations/supabase/client";
 import { useTasks, useUpsertTask } from "@/hooks/useData";
 import { useAllGoalsProgress } from "@/hooks/useGoalProgress";
