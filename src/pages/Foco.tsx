@@ -69,6 +69,8 @@ export default function Foco() {
   const { data: tasksAll = [] } = useTasks();
   const { data: eventsAll = [] } = useEvents(today, today);
   const goalsAll = useAllGoalsProgress();
+  const adjustmentsQ = useRecentAdjustments();
+  const pendingAdj = (adjustmentsQ.data ?? []).filter((a: any) => a.status === "sugerido");
 
   const tasks = useMemo(() => filterByScope(tasksAll, scope), [tasksAll, scope]);
   const events = useMemo(() => filterByScope(eventsAll, scope), [eventsAll, scope]);
