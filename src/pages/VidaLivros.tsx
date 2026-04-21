@@ -373,7 +373,7 @@ function BookNotesSection({ book }: { book: any }) {
                     <span className="text-[10px] text-muted-foreground">{kind.label}</span>
                     {n.page_ref && <span className="text-[10px] text-muted-foreground">p. {n.page_ref}</span>}
                     {n.sent_to_content && (
-                      <span className="text-[10px] text-emerald-600 flex items-center gap-0.5">
+                      <span className="text-[10px] text-accent flex items-center gap-0.5">
                         <CheckCircle2 className="h-2.5 w-2.5" /> em Conteúdo
                       </span>
                     )}
