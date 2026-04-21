@@ -1,5 +1,5 @@
 // quick-decision: chamada rápida do botão "O que devo fazer agora?".
-// Retorna 3 itens curtos: prioridade, erro a corrigir, ação imediata.
+// Versão enriquecida: prioridade, sequência, pontos cegos, decisão crítica.
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -10,15 +10,33 @@ const QUICK_TOOL = {
   type: "function",
   function: {
     name: "set_quick_decision",
-    description: "Decisão imediata em 3 pontos.",
+    description: "Decisão imediata estruturada como um chefe sênior de execução.",
     parameters: {
       type: "object",
       properties: {
-        priority: { type: "string", description: "1 prioridade clara para AGORA." },
-        mistake_to_fix: { type: "string", description: "1 erro/desvio a corrigir já." },
-        immediate_action: { type: "string", description: "1 ação concreta para fazer nos próximos 30min." },
+        priority: { type: "string", description: "1 prioridade clara para AGORA. Imperativa." },
+        immediate_action: { type: "string", description: "1 ação executável nos próximos 30 minutos." },
+        sequence: {
+          type: "array",
+          description: "Próximas 3 ações em ordem após a imediata. Cada uma curta e imperativa.",
+          items: { type: "string" },
+          minItems: 2,
+          maxItems: 4,
+        },
+        mistake_to_fix: { type: "string", description: "1 erro/desvio atual a corrigir. Nomeie o fato." },
+        blind_spot: { type: "string", description: "1 ponto cego que você está ignorando — o que não está vendo." },
+        critical_decision: { type: "string", description: "Uma decisão difícil que precisa ser tomada hoje (cortar, parar, escolher entre A ou B)." },
+        boss_question: { type: "string", description: "Pergunta provocativa estilo chefe para você responder mentalmente antes de agir." },
       },
-      required: ["priority", "mistake_to_fix", "immediate_action"],
+      required: [
+        "priority",
+        "immediate_action",
+        "sequence",
+        "mistake_to_fix",
+        "blind_spot",
+        "critical_decision",
+        "boss_question",
+      ],
       additionalProperties: false,
     },
   },
@@ -40,8 +58,11 @@ Deno.serve(async (req) => {
         prazo: t.due_date,
         p: t.priority,
         s: t.status,
+        e: t.scope,
       })),
-      metas_criticas: (body.goals ?? []).filter((g: any) => g.pace === "atrasada" || (g.pct ?? 100) < 30),
+      metas_criticas: (body.goals ?? []).filter(
+        (g: any) => g.pace === "atrasada" || (g.pct ?? 100) < 30,
+      ),
       saldo: body.balance ?? null,
       proximo_evento: body.next_event ?? null,
     };
@@ -51,33 +72,37 @@ Deno.serve(async (req) => {
     let aiResp: Response;
     try {
       aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      signal: ac.signal,
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        messages: [
-          {
-            role: "system",
-            content:
-              `Você é o CHEFE DE EXECUÇÃO. Não é coach, não é assistente. Direciona, cobra, decide.
+        method: "POST",
+        signal: ac.signal,
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            {
+              role: "system",
+              content:
+                `Você é o CHEFE SÊNIOR DE EXECUÇÃO. Não é coach, não é assistente. Direciona, cobra, decide, expõe pontos cegos.
 
-TOM: imperativo, direto, factual. Frases de 6–18 palavras. Português do Brasil.
-PROIBIDO: "você pode", "tente", "considere", "que tal", "talvez", motivação genérica.
-OBRIGATÓRIO: verbos no imperativo ("Conclua", "Pare", "Execute", "Corte"), nomear o fato antes da ordem.
+TOM: imperativo, direto, factual. Frases curtas (6-20 palavras). Português do Brasil.
+PROIBIDO: "você pode", "tente", "considere", "que tal", "talvez", motivação genérica, frases vazias.
+OBRIGATÓRIO: verbos no imperativo ("Conclua", "Pare", "Execute", "Corte", "Decida"), nomeie o fato antes da ordem, separe pessoal de profissional quando relevante.
 
 CAMPOS:
-- priority: a tarefa/foco que DEVE ser feito agora. Específica. Ex: "Conclua a proposta do cliente X antes de qualquer outra coisa."
-- mistake_to_fix: o erro/desvio atual nomeado. Ex: "Você adiou a tarefa Y por 3 dias. Pare de empurrar."
-- immediate_action: ação concreta executável em 30min. Ex: "Abra o documento agora e escreva os 3 primeiros parágrafos."
+- priority: a tarefa/foco que DEVE ser feito agora. Específica.
+- immediate_action: ação concreta executável em 30min. Sem ambiguidade.
+- sequence: as 3 próximas ações em ordem após a imediata. Cada uma uma frase curta. Use a lógica de dependência.
+- mistake_to_fix: nomeie o erro/desvio atual concretamente. Ex: "Adiou tarefa X por 4 dias. Pare de empurrar."
+- blind_spot: o que o usuário não está vendo. Olhe gaps entre metas atrasadas, tarefas órfãs, sobrecarga não declarada, dependências invisíveis.
+- critical_decision: a decisão difícil de hoje. Algo do tipo "Cortar projeto Y", "Parar de aceitar reuniões antes das 11h", "Definir se mantém meta Z ou abandona".
+- boss_question: pergunta provocativa que o usuário precisa se fazer ANTES de agir. Ex: "Por que essa tarefa ainda existe na sua lista?", "O que muda no resultado final se você não fizer isso hoje?".
 
-Use o contexto (tarefas, metas, saldo) para decidir. NUNCA dê resposta vaga.`,
-          },
-          { role: "user", content: JSON.stringify(ctx) },
-        ],
-        tools: [QUICK_TOOL],
-        tool_choice: { type: "function", function: { name: "set_quick_decision" } },
-      }),
+Use TODO o contexto (tarefas, metas, saldo) para decidir. NUNCA dê resposta vaga ou motivacional.`,
+            },
+            { role: "user", content: JSON.stringify(ctx) },
+          ],
+          tools: [QUICK_TOOL],
+          tool_choice: { type: "function", function: { name: "set_quick_decision" } },
+        }),
       });
     } finally {
       clearTimeout(timeoutId);
@@ -118,7 +143,9 @@ Use o contexto (tarefas, metas, saldo) para decidir. NUNCA dê resposta vaga.`,
     console.error("quick-decision error:", e);
     const isAbort = e instanceof Error && (e.name === "AbortError" || e.message.includes("aborted"));
     return new Response(
-      JSON.stringify({ error: isAbort ? "IA demorou demais. Tente novamente." : (e instanceof Error ? e.message : "Erro") }),
+      JSON.stringify({
+        error: isAbort ? "IA demorou demais. Tente novamente." : e instanceof Error ? e.message : "Erro",
+      }),
       { status: isAbort ? 504 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
