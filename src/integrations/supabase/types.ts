@@ -665,6 +665,60 @@ export type Database = {
         }
         Relationships: []
       }
+      content_strategy: {
+        Row: {
+          created_at: string
+          forbidden_topics: string | null
+          goals: string | null
+          icp: string | null
+          id: string
+          niche: string | null
+          notes: string | null
+          offer: string | null
+          pillars: Json
+          posting_cadence: string | null
+          reference_brands: string | null
+          scope: Database["public"]["Enums"]["scope_type"]
+          signature_format: string | null
+          tone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          forbidden_topics?: string | null
+          goals?: string | null
+          icp?: string | null
+          id?: string
+          niche?: string | null
+          notes?: string | null
+          offer?: string | null
+          pillars?: Json
+          posting_cadence?: string | null
+          reference_brands?: string | null
+          scope?: Database["public"]["Enums"]["scope_type"]
+          signature_format?: string | null
+          tone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          forbidden_topics?: string | null
+          goals?: string | null
+          icp?: string | null
+          id?: string
+          niche?: string | null
+          notes?: string | null
+          offer?: string | null
+          pillars?: Json
+          posting_cadence?: string | null
+          reference_brands?: string | null
+          scope?: Database["public"]["Enums"]["scope_type"]
+          signature_format?: string | null
+          tone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       daily_checkins: {
         Row: {
           created_at: string
@@ -1446,57 +1500,81 @@ export type Database = {
       projects: {
         Row: {
           area_id: string | null
+          budget: number | null
           created_at: string
           deadline: string | null
           description: string | null
           end_date: string | null
           goal_id: string | null
           id: string
+          kpis: Json
+          milestones_text: string | null
           name: string
+          next_step: string | null
           notes: string | null
           priority: Database["public"]["Enums"]["task_priority"]
           progress: number
           resources: Json
+          risks: Json
           scope: Database["public"]["Enums"]["scope_type"]
+          stakeholders: Json
           start_date: string | null
           status: Database["public"]["Enums"]["project_status"]
+          success_criteria: string | null
           updated_at: string
+          vision: string | null
         }
         Insert: {
           area_id?: string | null
+          budget?: number | null
           created_at?: string
           deadline?: string | null
           description?: string | null
           end_date?: string | null
           goal_id?: string | null
           id?: string
+          kpis?: Json
+          milestones_text?: string | null
           name: string
+          next_step?: string | null
           notes?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           progress?: number
           resources?: Json
+          risks?: Json
           scope?: Database["public"]["Enums"]["scope_type"]
+          stakeholders?: Json
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
+          success_criteria?: string | null
           updated_at?: string
+          vision?: string | null
         }
         Update: {
           area_id?: string | null
+          budget?: number | null
           created_at?: string
           deadline?: string | null
           description?: string | null
           end_date?: string | null
           goal_id?: string | null
           id?: string
+          kpis?: Json
+          milestones_text?: string | null
           name?: string
+          next_step?: string | null
           notes?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           progress?: number
           resources?: Json
+          risks?: Json
           scope?: Database["public"]["Enums"]["scope_type"]
+          stakeholders?: Json
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
+          success_criteria?: string | null
           updated_at?: string
+          vision?: string | null
         }
         Relationships: [
           {

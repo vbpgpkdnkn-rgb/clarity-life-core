@@ -64,7 +64,15 @@ export default function Projetos() {
     setEditing({
       name: "",
       description: "",
-      scope: "pessoal",
+      vision: "",
+      success_criteria: "",
+      next_step: "",
+      milestones_text: "",
+      stakeholders: [],
+      risks: [],
+      kpis: [],
+      budget: null,
+      scope: scope === "todos" ? "pessoal" : scope,
       status: "planejado",
       priority: "media",
       area_id: null,
@@ -211,12 +219,38 @@ export default function Projetos() {
                 <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} autoFocus />
               </div>
               <div>
-                <Label>Descrição</Label>
+                <Label>Descrição curta</Label>
                 <Textarea
                   value={editing.description ?? ""}
                   onChange={(e) => setEditing({ ...editing, description: e.target.value })}
-                  placeholder="Por que esse projeto importa?"
+                  placeholder="Em uma frase, sobre o que é"
+                  rows={2}
+                />
+              </div>
+              <div>
+                <Label>Visão / por que esse projeto importa</Label>
+                <Textarea
+                  value={editing.vision ?? ""}
+                  onChange={(e) => setEditing({ ...editing, vision: e.target.value })}
+                  placeholder="Qual o impacto se entregue? O que muda quando acabar?"
                   rows={3}
+                />
+              </div>
+              <div>
+                <Label>Critérios de sucesso</Label>
+                <Textarea
+                  value={editing.success_criteria ?? ""}
+                  onChange={(e) => setEditing({ ...editing, success_criteria: e.target.value })}
+                  placeholder="Como você sabe que o projeto deu certo? Liste métricas/observáveis."
+                  rows={2}
+                />
+              </div>
+              <div>
+                <Label>Próximo passo concreto</Label>
+                <Input
+                  value={editing.next_step ?? ""}
+                  onChange={(e) => setEditing({ ...editing, next_step: e.target.value })}
+                  placeholder="Ação única que destrava o projeto agora"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -310,6 +344,49 @@ export default function Projetos() {
                     onChange={(e) => setEditing({ ...editing, deadline: e.target.value })}
                   />
                 </div>
+                <div>
+                  <Label>Orçamento (R$)</Label>
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    value={editing.budget ?? ""}
+                    onChange={(e) => setEditing({ ...editing, budget: e.target.value === "" ? null : Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+
+              {/* Stakeholders */}
+              <ListField
+                label="Stakeholders / pessoas envolvidas"
+                placeholder="Ex.: cliente X, sócio Y"
+                items={editing.stakeholders ?? []}
+                onChange={(arr) => setEditing({ ...editing, stakeholders: arr })}
+              />
+
+              {/* Riscos */}
+              <ListField
+                label="Riscos / o que pode dar errado"
+                placeholder="Ex.: prazo apertado, dependência externa"
+                items={editing.risks ?? []}
+                onChange={(arr) => setEditing({ ...editing, risks: arr })}
+              />
+
+              {/* KPIs */}
+              <ListField
+                label="KPIs / indicadores que importam"
+                placeholder="Ex.: 1000 leads, NPS 70"
+                items={editing.kpis ?? []}
+                onChange={(arr) => setEditing({ ...editing, kpis: arr })}
+              />
+
+              <div>
+                <Label>Marcos / fases</Label>
+                <Textarea
+                  value={editing.milestones_text ?? ""}
+                  onChange={(e) => setEditing({ ...editing, milestones_text: e.target.value })}
+                  placeholder="Liste 3-5 entregas-chave em ordem"
+                  rows={3}
+                />
               </div>
               <div className="flex justify-between gap-2 pt-4 border-t border-border">
                 {editing.id ? (
@@ -336,5 +413,57 @@ export default function Projetos() {
         </SheetContent>
       </Sheet>
     </AppLayout>
+  );
+}
+
+function ListField({
+  label,
+  placeholder,
+  items,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  items: string[];
+  onChange: (arr: string[]) => void;
+}) {
+  const [draft, setDraft] = useState("");
+  const add = () => {
+    const v = draft.trim();
+    if (!v) return;
+    onChange([...(items ?? []), v]);
+    setDraft("");
+  };
+  return (
+    <div>
+      <Label>{label}</Label>
+      <div className="flex gap-2 mt-1">
+        <Input
+          value={draft}
+          placeholder={placeholder}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+        />
+        <Button type="button" variant="outline" size="sm" onClick={add}>
+          <Plus className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      {(items ?? []).length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {items.map((it: string, i: number) => (
+            <Badge key={i} variant="outline" className="text-xs gap-1 pr-1">
+              {it}
+              <button
+                onClick={() => onChange(items.filter((_, idx) => idx !== i))}
+                className="ml-1 hover:text-destructive"
+                aria-label="remover"
+              >
+                ×
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

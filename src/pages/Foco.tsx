@@ -15,6 +15,7 @@ import { ContentTodayCard } from "@/components/foco/ContentTodayCard";
 import { EisenhowerMatrix } from "@/components/foco/EisenhowerMatrix";
 import { OneThreeFive } from "@/components/foco/OneThreeFive";
 import { PomodoroCard } from "@/components/foco/PomodoroCard";
+import { LifeCheckCard } from "@/components/foco/LifeCheckCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useTasks, useUpsertTask } from "@/hooks/useData";
 import { useAllGoalsProgress } from "@/hooks/useGoalProgress";
@@ -381,6 +382,9 @@ export default function Foco() {
           </Button>
         </Card>
       )}
+
+      {/* CHECKLIST VIDA — sempre visível para fechar o dia */}
+      <LifeCheckCard />
 
       {/* BLOCOS COMPLEMENTARES — recolhidos por padrão pra não competir com foco */}
       <div className="space-y-2 mb-6">
