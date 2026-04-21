@@ -363,6 +363,9 @@ export default function Foco() {
 
       {/* BLOCOS COMPLEMENTARES — recolhidos por padrão pra não competir com foco */}
       <div className="space-y-2 mb-6">
+        <CollapsibleBlock title="Matriz Eisenhower" icon={<LayoutGrid className="h-4 w-4" />}>
+          <EisenhowerMatrix tasks={tasks} />
+        </CollapsibleBlock>
         <CollapsibleBlock title="Conteúdo de hoje" icon={<Clapperboard className="h-4 w-4" />}>
           <ContentTodayCard />
         </CollapsibleBlock>
