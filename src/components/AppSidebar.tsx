@@ -1,4 +1,4 @@
-import { Sparkles, LayoutDashboard, CalendarDays, Target, Wallet, ListTodo, CalendarRange, Clapperboard } from "lucide-react";
+import { Sparkles, LayoutDashboard, CalendarDays, Target, Wallet, ListTodo, CalendarRange, Clapperboard, Heart } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
