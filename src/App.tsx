@@ -53,6 +53,17 @@ const App = () => (
           <Route path="/financeiro" element={<Financeiro />} />
           <Route path="/anual" element={<VisaoAnual />} />
           <Route path="/conteudo" element={<Conteudo />} />
+          <Route path="/vida" element={<Vida />} />
+          <Route path="/vida/areas" element={<VidaAreas />} />
+          <Route path="/vida/dreamboard" element={<VidaDreamboard />} />
+          <Route path="/vida/gratidao" element={<VidaGratidao />} />
+          <Route path="/vida/brain-dump" element={<VidaBrainDump />} />
+          <Route path="/vida/checkin" element={<VidaCheckin />} />
+          <Route path="/vida/refeicoes" element={<VidaRefeicoes />} />
+          <Route path="/vida/limpeza" element={<VidaLimpeza />} />
+          <Route path="/vida/desejos" element={<VidaDesejos />} />
+          <Route path="/vida/livros" element={<VidaLivros />} />
+          <Route path="/vida/desafios" element={<VidaDesafios />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
