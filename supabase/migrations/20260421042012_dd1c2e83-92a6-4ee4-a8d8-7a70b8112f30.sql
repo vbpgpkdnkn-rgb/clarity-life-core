@@ -1,0 +1,25 @@
+-- Limpeza completa de dados de teste (mantém estrutura/enums/funções)
+TRUNCATE TABLE
+  public.content_metrics,
+  public.content_references,
+  public.content_stories,
+  public.content_pieces,
+  public.content_ideas,
+  public.habit_logs,
+  public.habits,
+  public.milestones,
+  public.tasks,
+  public.transactions,
+  public.recurrences,
+  public.goals,
+  public.categories,
+  public.accounts,
+  public.events,
+  public.daily_plans,
+  public.weekly_plans,
+  public.weekly_reviews,
+  public.free_notes,
+  public.ai_insights,
+  public.performance_adjustments,
+  public.performance_profiles
+RESTART IDENTITY CASCADE;
