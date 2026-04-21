@@ -5,9 +5,17 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useUpsertGoal, useDeleteGoal, useMilestones, useUpsertMilestone, useDeleteMilestone } from "@/hooks/useData";
 import { GoalPlanPreview } from "./GoalPlanPreview";
-import { Trash2, Plus, Check, Lock } from "lucide-react";
+import { Trash2, Plus, Check, Lock, MoreVertical, Ban, RefreshCw, Archive } from "lucide-react";
+import { toast } from "sonner";
 
 export function GoalFormDrawer({
   open,
