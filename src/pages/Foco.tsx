@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTasks, useUpsertTask } from "@/hooks/useData";
 import { useAllGoalsProgress } from "@/hooks/useGoalProgress";
 import { useEvents } from "@/hooks/usePlanner";
+import { useRecentAdjustments } from "@/hooks/useAdaptive";
 import { useScope, filterByScope } from "@/contexts/ScopeContext";
 import { todayISO, formatDateLong } from "@/lib/format";
 import { toast } from "sonner";
