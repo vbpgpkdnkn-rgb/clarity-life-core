@@ -41,6 +41,9 @@ import {
   Clapperboard,
   Brain,
   Link2,
+  Rocket,
+  MessageCircle,
+  CalendarCheck,
 } from "lucide-react";
 import { StoriesTab } from "@/components/conteudo/StoriesTab";
 import { IntelligenceTab } from "@/components/conteudo/IntelligenceTab";
@@ -123,8 +126,9 @@ export default function Conteudo() {
         </Card>
       </div>
 
-      <Tabs defaultValue="ideias" className="space-y-4">
+      <Tabs defaultValue="crescimento" className="space-y-4">
         <TabsList className="flex flex-wrap h-auto w-full justify-start gap-1">
+          <TabsTrigger value="crescimento"><Rocket className="h-3.5 w-3.5 mr-1" />Crescimento</TabsTrigger>
           <TabsTrigger value="ideias"><Lightbulb className="h-3.5 w-3.5 mr-1" />Ideias</TabsTrigger>
           <TabsTrigger value="editorial"><CalendarDays className="h-3.5 w-3.5 mr-1" />Editorial</TabsTrigger>
           <TabsTrigger value="producao"><Hammer className="h-3.5 w-3.5 mr-1" />Produção</TabsTrigger>
@@ -136,6 +140,7 @@ export default function Conteudo() {
           <TabsTrigger value="biblioteca"><Library className="h-3.5 w-3.5 mr-1" />Biblioteca</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="crescimento"><GrowthTab /></TabsContent>
         <TabsContent value="ideias"><IdeasTab ideas={ideas as any} /></TabsContent>
         <TabsContent value="editorial"><EditorialTab pieces={pieces} ideas={ideas as any} consistency={consistency} /></TabsContent>
         <TabsContent value="producao"><ProductionTab pieces={pieces} /></TabsContent>
