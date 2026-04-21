@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Sparkles, Calendar, Target, Loader2, Check, X, Edit2 } from "lucide-react";
+import { Sparkles, Calendar, Target, Loader2, Check, X, Edit2, AlertCircle, Flag } from "lucide-react";
 import { useGenerateGoalPlan, persistExecutionPlan, type ExecutionPlan } from "@/hooks/useGoalPlanner";
 import { formatDateBR } from "@/lib/format";
 import { toast } from "sonner";
@@ -121,16 +121,62 @@ export function GoalPlanPreview({ goal, goalId, onApplied, onCreateGoal }: Props
 
   const totalTasks = plan.milestones.reduce((s, m) => s + m.tasks.length, 0);
 
+  const totalMilestones = plan.milestones.length;
+  const status: "pronto" | "aplicando" = applying ? "aplicando" : "pronto";
+
   return (
     <Card className="p-4 border-accent/40 bg-gradient-to-br from-accent/5 to-transparent">
+      {/* Barra de status */}
+      <div className="mb-3 rounded-md border border-accent/30 bg-background/60 overflow-hidden">
+        <div className="flex items-center justify-between px-3 py-2">
+          <div className="flex items-center gap-2">
+            {status === "aplicando" ? (
+              <Loader2 className="h-4 w-4 text-accent animate-spin" />
+            ) : (
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-60" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-success" />
+              </span>
+            )}
+            <div className="flex flex-col">
+              <span className="text-xs font-semibold">
+                {status === "aplicando" ? "Aplicando plano…" : "Plano pronto para revisão"}
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                {status === "aplicando"
+                  ? "Criando marcos e tarefas no calendário"
+                  : "Revise abaixo antes de aplicar — nada foi salvo ainda"}
+              </span>
+            </div>
+          </div>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setPlan(null)} disabled={applying}>
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        {/* Indicadores rápidos */}
+        <div className="grid grid-cols-3 divide-x divide-border border-t border-border bg-background/40">
+          <div className="flex items-center justify-center gap-1.5 py-1.5">
+            <Flag className="h-3 w-3 text-accent" />
+            <span className="text-[11px] font-medium tabular-nums">{totalMilestones}</span>
+            <span className="text-[10px] text-muted-foreground">marcos</span>
+          </div>
+          <div className="flex items-center justify-center gap-1.5 py-1.5">
+            <Target className="h-3 w-3 text-accent" />
+            <span className="text-[11px] font-medium tabular-nums">{totalTasks}</span>
+            <span className="text-[10px] text-muted-foreground">tarefas</span>
+          </div>
+          <div className="flex items-center justify-center gap-1.5 py-1.5">
+            <Calendar className="h-3 w-3 text-accent" />
+            <span className="text-[11px] font-medium tabular-nums">{formatDateBR(plan.suggested_deadline)}</span>
+          </div>
+        </div>
+      </div>
+
       <div className="flex items-start justify-between mb-3 gap-2">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-accent" />
           <h4 className="font-display font-semibold text-sm">Plano gerado pela IA</h4>
         </div>
-        <Button type="button" variant="ghost" size="sm" onClick={() => setPlan(null)}>
-          <X className="h-3.5 w-3.5" />
-        </Button>
       </div>
 
       {/* Resumo */}
@@ -223,7 +269,7 @@ export function GoalPlanPreview({ goal, goalId, onApplied, onCreateGoal }: Props
       </div>
 
       <div className="flex gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={run} disabled={generate.isPending}>
+        <Button type="button" variant="outline" size="sm" onClick={run} disabled={generate.isPending || applying}>
           <Sparkles className="h-3.5 w-3.5 mr-1" /> Regerar
         </Button>
         <Button type="button" size="sm" onClick={apply} disabled={applying || totalTasks === 0} className="flex-1">
@@ -234,6 +280,9 @@ export function GoalPlanPreview({ goal, goalId, onApplied, onCreateGoal }: Props
           )}
         </Button>
       </div>
+      <p className="flex items-center gap-1 text-[10px] text-muted-foreground mt-2 px-1">
+        <AlertCircle className="h-3 w-3" /> Os marcos e tarefas só são criados ao clicar em "Aplicar plano".
+      </p>
     </Card>
   );
 }
