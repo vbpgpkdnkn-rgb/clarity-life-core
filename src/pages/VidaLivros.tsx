@@ -31,8 +31,14 @@ import {
   Send,
   Loader2,
   CheckCircle2,
+  Clapperboard,
+  ExternalLink,
 } from "lucide-react";
 import { WeekdayPicker } from "@/components/vida/WeekdayPicker";
+import { PinButton } from "@/components/PinButton";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const STATUS = [
