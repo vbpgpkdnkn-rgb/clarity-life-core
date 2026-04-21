@@ -312,6 +312,9 @@ export default function Foco() {
         </>
       )}
 
+      {/* CONSELHEIRO ESTRATÉGICO */}
+      <StrategicInsights />
+
       {/* REVISÃO DO DIA */}
       {showReview && (
         <Card className="p-5 shadow-soft mb-6">
