@@ -204,7 +204,7 @@ export function TaskFormDrawer({
           </div>
 
           <div>
-            <Label>Categoria</Label>
+            <Label>Categoria <span className="text-[10px] text-muted-foreground">({form.scope})</span></Label>
             <Select
               value={form.category_id ?? "none"}
               onValueChange={(v) => setForm({ ...form, category_id: v === "none" ? null : v })}
@@ -212,9 +212,11 @@ export function TaskFormDrawer({
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Sem categoria</SelectItem>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
+                {categories
+                  .filter((c) => c.scope === form.scope)
+                  .map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
