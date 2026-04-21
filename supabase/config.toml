@@ -30,3 +30,12 @@ verify_jwt = false
 [functions.content-weekly-plan]
 verify_jwt = false
 
+[functions.content-insights]
+verify_jwt = false
+
+[functions.content-reference-analyzer]
+verify_jwt = false
+
+[functions.content-reuse-suggest]
+verify_jwt = false
+

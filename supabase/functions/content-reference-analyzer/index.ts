@@ -1,0 +1,136 @@
+// Content Reference Analyzer: analisa post de referência e adapta para o nicho da usuária
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+const TOOL = {
+  type: "function",
+  function: {
+    name: "adapt_reference",
+    description: "Analisa post de referência e adapta para o nicho da usuária.",
+    parameters: {
+      type: "object",
+      properties: {
+        source_analysis: {
+          type: "object",
+          description: "Análise do post original.",
+          properties: {
+            theme: { type: "string", description: "Tema central." },
+            structure: { type: "string", description: "Estrutura/formato do post original." },
+            why_it_works: { type: "string", description: "Por que esse post funciona (gancho, dor, prova social, etc)." },
+          },
+          required: ["theme", "structure", "why_it_works"],
+        },
+        adapted: {
+          type: "object",
+          description: "Versão adaptada para o nicho da usuária.",
+          properties: {
+            title: { type: "string", description: "Título/gancho adaptado." },
+            format: {
+              type: "string",
+              enum: ["reels", "carrossel", "texto", "stories", "video", "podcast", "newsletter"],
+            },
+            hook: { type: "string", description: "Frase de abertura forte." },
+            outline: { type: "string", description: "Estrutura/roteiro completo (3-7 pontos)." },
+            cta: { type: "string", description: "CTA final." },
+          },
+          required: ["title", "format", "hook", "outline", "cta"],
+        },
+        strategic_note: { type: "string", description: "1 frase: por que postar isso agora no contexto da usuária." },
+      },
+      required: ["source_analysis", "adapted", "strategic_note"],
+      additionalProperties: false,
+    },
+  },
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  try {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurado");
+
+    const body = await req.json();
+    const sourceText = body.source_text ?? "";
+    const sourceUrl = body.source_url ?? "";
+    const sourceAuthor = body.source_author ?? "";
+    const niche = body.niche ?? "psicologia clínica e comportamento";
+    const ownThemes: string[] = body.own_themes ?? [];
+
+    if (!sourceText && !sourceUrl) {
+      return new Response(JSON.stringify({ error: "Forneça source_text ou source_url" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const systemPrompt = `Você é diretora de conteúdo estratégica e direta.
+A usuária trabalha com: ${niche}.
+Temas que ela já trabalha: ${ownThemes.join(", ") || "(geral)"}.
+
+Sua tarefa:
+1. Analise o post de referência (entender por que funciona)
+2. Adapte para o nicho da usuária mantendo o ESQUELETO do que funciona
+3. NUNCA copie literalmente. Sempre traga para a área dela.
+4. Tom: direto, sem romantização, foco em transformação real.
+
+Português brasileiro.`;
+
+    const userMsg = `Post de referência:
+${sourceAuthor ? `Autor: ${sourceAuthor}\n` : ""}${sourceUrl ? `Link: ${sourceUrl}\n` : ""}
+${sourceText ? `Conteúdo:\n${sourceText}` : "(sem texto colado, use o contexto do link)"}`;
+
+    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMsg },
+        ],
+        tools: [TOOL],
+        tool_choice: { type: "function", function: { name: "adapt_reference" } },
+      }),
+    });
+
+    if (!aiResp.ok) {
+      const t = await aiResp.text();
+      console.error("AI error:", aiResp.status, t);
+      if (aiResp.status === 429)
+        return new Response(JSON.stringify({ error: "Limite de uso atingido. Tente novamente em alguns minutos." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      if (aiResp.status === 402)
+        return new Response(JSON.stringify({ error: "Créditos da IA esgotados." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      return new Response(JSON.stringify({ error: "Falha na IA" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const data = await aiResp.json();
+    const tc = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (!tc?.function?.arguments)
+      return new Response(JSON.stringify({ error: "IA não retornou estrutura" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    const result = JSON.parse(tc.function.arguments);
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    console.error("content-reference-analyzer error:", e);
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
