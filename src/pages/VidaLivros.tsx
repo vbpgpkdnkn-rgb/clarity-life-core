@@ -390,12 +390,20 @@ function BookNotesSection({ book }: { book: any }) {
                     )}
                   </div>
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                <div className="flex gap-1 items-center opacity-0 group-hover:opacity-100">
+                  <PinButton
+                    source_table="book_notes"
+                    source_id={n.id}
+                    title={n.content.length > 80 ? n.content.slice(0, 77) + "..." : n.content}
+                    subtitle={`${kind.label} — ${book.title}${n.page_ref ? ` (p. ${n.page_ref})` : ""}`}
+                    icon={n.kind}
+                    link="/vida/livros"
+                  />
                   {!n.sent_to_content && (
                     <button
                       onClick={() => sendToContent.mutate({ note: n, book })}
                       title="Enviar para Conteúdo > Ideias"
-                      className="text-accent hover:text-accent/70"
+                      className="p-1 rounded text-accent hover:bg-accent/10"
                       disabled={sendToContent.isPending}
                     >
                       <Send className="h-3 w-3" />
@@ -403,7 +411,7 @@ function BookNotesSection({ book }: { book: any }) {
                   )}
                   <button
                     onClick={() => delNote.mutate({ id: n.id, book_id: book.id })}
-                    className="text-muted-foreground hover:text-destructive"
+                    className="p-1 rounded text-muted-foreground hover:text-destructive"
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
