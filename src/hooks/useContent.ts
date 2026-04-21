@@ -330,7 +330,7 @@ export function useTodayContent() {
 export const useContentIdeator = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { area?: string; scope?: string; existing_themes?: string[] }) => {
+    mutationFn: async (input: { area?: string; scope?: string; existing_themes?: string[]; briefing?: string }) => {
       const { data, error } = await supabase.functions.invoke("content-ideator", { body: input });
       if (error) throw error;
       return data as {
@@ -350,6 +350,7 @@ export const useContentWeeklyPlan = () => {
       pieces: Pick<ContentPiece, "id" | "title" | "status" | "format" | "planned_date" | "theme">[];
       ideas: Pick<ContentIdea, "id" | "title" | "theme" | "suggested_format">[];
       consistency_pct: number;
+      briefing?: string;
     }) => {
       const { data, error } = await supabase.functions.invoke("content-weekly-plan", { body: input });
       if (error) throw error;
