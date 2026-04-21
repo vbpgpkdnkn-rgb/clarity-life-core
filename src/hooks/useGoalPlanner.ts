@@ -108,7 +108,7 @@ export async function persistExecutionPlan(
       title: t.title,
       due_date: t.due_date,
       priority: t.priority,
-      scope,
+      scope: scope as "pessoal" | "profissional",
       goal_id: goalId,
       milestone_id: msRow.id,
       status: "pendente" as const,
