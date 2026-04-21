@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Brain, Target, AlertTriangle, Zap, RefreshCw } from "lucide-react";
+import { Sparkles, Brain, Target, AlertTriangle, Zap, RefreshCw, Eye, GitBranch, HelpCircle, ListOrdered } from "lucide-react";
 import { useQuickDecision } from "@/hooks/useStrategicAI";
 import { toast } from "sonner";
 
@@ -43,11 +43,11 @@ export function QuickDecisionButton() {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-accent" />
-              Decisão estratégica
+              Direcionamento do chefe
             </DialogTitle>
           </DialogHeader>
 
@@ -62,13 +62,35 @@ export function QuickDecisionButton() {
           )}
 
           {d && !decision.isPending && (
-            <div className="space-y-4 pt-2">
+            <div className="space-y-3 pt-2">
               <DecisionItem
                 icon={<Target className="h-4 w-4" />}
-                label="Prioridade"
+                label="Prioridade agora"
                 text={d.priority}
                 tone="primary"
               />
+              <DecisionItem
+                icon={<Zap className="h-4 w-4" />}
+                label="Próximos 30 minutos"
+                text={d.immediate_action}
+                tone="success"
+              />
+              {d.sequence?.length > 0 && (
+                <div className="p-3 rounded-lg border border-border bg-muted/20">
+                  <div className="flex items-center gap-2 text-xs uppercase tracking-wide font-semibold mb-2">
+                    <ListOrdered className="h-4 w-4" />
+                    Sequência depois disso
+                  </div>
+                  <ol className="space-y-1.5 text-sm">
+                    {d.sequence.map((s, i) => (
+                      <li key={i} className="flex gap-2">
+                        <span className="font-display text-muted-foreground tabular-nums">{i + 1}.</span>
+                        <span>{s}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
               <DecisionItem
                 icon={<AlertTriangle className="h-4 w-4" />}
                 label="Erro a corrigir"
@@ -76,11 +98,24 @@ export function QuickDecisionButton() {
                 tone="warning"
               />
               <DecisionItem
-                icon={<Zap className="h-4 w-4" />}
-                label="Ação imediata"
-                text={d.immediate_action}
-                tone="success"
+                icon={<Eye className="h-4 w-4" />}
+                label="Ponto cego"
+                text={d.blind_spot}
+                tone="warning"
               />
+              <DecisionItem
+                icon={<GitBranch className="h-4 w-4" />}
+                label="Decisão crítica de hoje"
+                text={d.critical_decision}
+                tone="primary"
+              />
+              <div className="p-3 rounded-lg border border-accent/40 bg-accent/10">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-wide font-semibold mb-1.5 text-accent">
+                  <HelpCircle className="h-4 w-4" />
+                  Pergunta do chefe
+                </div>
+                <p className="text-sm font-medium italic leading-relaxed">"{d.boss_question}"</p>
+              </div>
             </div>
           )}
 
@@ -113,7 +148,7 @@ function DecisionItem({
     success: "text-success border-success/30 bg-success/5",
   }[tone];
   return (
-    <div className={`p-4 rounded-lg border ${accent}`}>
+    <div className={`p-3 rounded-lg border ${accent}`}>
       <div className="flex items-center gap-2 text-xs uppercase tracking-wide font-semibold mb-1.5">
         {icon}
         {label}
