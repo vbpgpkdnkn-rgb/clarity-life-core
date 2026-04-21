@@ -167,6 +167,42 @@ export function TaskFormDrawer({
               </Select>
             </div>
           </div>
+          {/* Classificação automática (editável) */}
+          <div className="rounded-lg border border-accent/30 bg-accent/5 p-3 space-y-3">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-accent">
+              <Sparkles className="h-3 w-3" /> Classificação automática
+            </div>
+            <div>
+              <Label className="text-xs">Matriz Eisenhower</Label>
+              <Select
+                value={form.eisenhower ?? "nao_urgente_nao_importante"}
+                onValueChange={(v) => setForm({ ...form, eisenhower: v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(EISEN_LABEL) as (keyof typeof EISEN_LABEL)[]).map((k) => (
+                    <SelectItem key={k} value={k}>{EISEN_LABEL[k]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Regra 1-3-5 (foco do dia)</Label>
+              <Select
+                value={form.is_135 ?? "none"}
+                onValueChange={(v) => setForm({ ...form, is_135: v === "none" ? null : v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Não atribuir</SelectItem>
+                  <SelectItem value="1">1 grande (move o ponteiro)</SelectItem>
+                  <SelectItem value="3">3 médias (importantes)</SelectItem>
+                  <SelectItem value="5">5 pequenas (manutenção)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div>
             <Label>Categoria</Label>
             <Select
