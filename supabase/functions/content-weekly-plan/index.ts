@@ -61,14 +61,18 @@ Deno.serve(async (req) => {
     const pieces = body.pieces ?? [];
     const ideas = body.ideas ?? [];
     const consistency = body.consistency_pct ?? 0;
+    const briefing: string = body.briefing ?? "";
 
-    const systemPrompt = `Você é diretora de conteúdo direta. Tom: sem romantização, focado em execução.
-Monte um plano editorial semanal real, baseado em:
+    const systemPrompt = `Você é diretora de conteúdo direta, ESPECIALISTA no nicho da usuária.
+Tom: sem romantização, focado em execução.
+
+${briefing ? `BRIEFING DE ESTRATÉGIA:\n${briefing}\n\n` : ""}Monte um plano editorial semanal real, baseado em:
 - Meta: ${target} posts por semana
 - Consistência atual: ${consistency}%
 - Backlog de peças e ideias da usuária
 - Se atrasada, REDUZA a carga (não empilhe). Mantenha consistência.
 - Priorize peças que já existem antes de criar novas.
+- Distribua entre os pilares informados no briefing.
 - Action do dia: 1 frase direta sobre o que produzir HOJE.
 Português brasileiro.`;
 
