@@ -186,6 +186,7 @@ export const useAnalyzeReference = () => {
       scope?: "pessoal" | "profissional";
       niche?: string;
       own_themes?: string[];
+      briefing?: string;
     }) => {
       const { data, error } = await supabase.functions.invoke("content-reference-analyzer", { body: input });
       if (error) throw error;
