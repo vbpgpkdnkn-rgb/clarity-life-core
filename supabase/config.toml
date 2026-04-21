@@ -21,3 +21,6 @@ verify_jwt = false
 [functions.adaptive-evolution-narrative]
 verify_jwt = false
 
+[functions.annual-monthly-review]
+verify_jwt = false
+
