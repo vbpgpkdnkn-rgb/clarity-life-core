@@ -46,12 +46,19 @@ export function GoalPlanPreview({ goal, goalId, onApplied, onCreateGoal }: Props
   };
 
   const apply = async () => {
-    if (!plan || !goalId) return;
+    if (!plan) return;
     setApplying(true);
     try {
-      const r = await persistExecutionPlan(goalId, goal.scope ?? "pessoal", plan);
+      // Se a meta ainda não foi salva, cria agora
+      let id = goalId;
+      if (!id) {
+        if (!onCreateGoal) throw new Error("Salve a meta primeiro");
+        id = await onCreateGoal();
+        if (!id) throw new Error("Falha ao criar meta");
+      }
+      const r = await persistExecutionPlan(id, goal.scope ?? "pessoal", plan);
       qc.invalidateQueries({ queryKey: ["tasks"] });
-      qc.invalidateQueries({ queryKey: ["milestones", goalId] });
+      qc.invalidateQueries({ queryKey: ["milestones", id] });
       qc.invalidateQueries({ queryKey: ["milestones-all"] });
       qc.invalidateQueries({ queryKey: ["goals"] });
       toast.success(`Plano aplicado: ${r.milestones} etapas, ${r.tasks} tarefas`);
@@ -94,7 +101,7 @@ export function GoalPlanPreview({ goal, goalId, onApplied, onCreateGoal }: Props
               type="button"
               size="sm"
               onClick={run}
-              disabled={generate.isPending || !goalId}
+              disabled={generate.isPending || !goal?.name?.trim()}
               className="w-full"
             >
               {generate.isPending ? (
@@ -103,8 +110,8 @@ export function GoalPlanPreview({ goal, goalId, onApplied, onCreateGoal }: Props
                 <><Sparkles className="h-4 w-4 mr-2" /> Gerar plano com IA</>
               )}
             </Button>
-            {!goalId && (
-              <p className="text-[10px] text-muted-foreground mt-2">Salve a meta primeiro para gerar o plano.</p>
+            {!goal?.name?.trim() && (
+              <p className="text-[10px] text-muted-foreground mt-2">Defina o nome da meta para gerar o plano.</p>
             )}
           </div>
         </div>
