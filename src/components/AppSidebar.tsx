@@ -1,7 +1,9 @@
-import { Sparkles, LayoutDashboard, CalendarDays, Target, Wallet, ListTodo, CalendarRange, Clapperboard, Heart, FolderKanban } from "lucide-react";
+import { Sparkles, LayoutDashboard, CalendarDays, Target, Wallet, ListTodo, CalendarRange, Clapperboard, Heart, FolderKanban, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useRecentAdjustments } from "@/hooks/useAdaptive";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
