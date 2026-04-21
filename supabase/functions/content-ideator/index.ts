@@ -49,15 +49,18 @@ Deno.serve(async (req) => {
     const area = body.area ?? "psicologia clínica e comportamento";
     const scope = body.scope ?? "profissional";
     const existing: string[] = body.existing_themes ?? [];
+    const briefing: string = body.briefing ?? "";
 
-    const systemPrompt = `Você é uma diretora de conteúdo direta e estratégica.
-Sua usuária trabalha com: ${area}.
+    const systemPrompt = `Você é uma diretora de conteúdo direta, estratégica e ESPECIALISTA NO NICHO da usuária.
+
+${briefing ? `BRIEFING DE ESTRATÉGIA DA USUÁRIA:\n${briefing}\n\nUse esse briefing como sua bíblia. Toda ideia deve respeitar nicho, ICP, tom e pilares.\n` : `Sua usuária trabalha com: ${area}.\n`}
 Sugira 5 a 8 ideias de conteúdo que:
-- Resolvam dúvidas comuns do público
+- Resolvam dúvidas reais do ICP descrito
 - Tenham gancho forte logo no primeiro segundo
-- Sejam variadas em formato (reels, carrossel, texto)
+- Variedade de formato (reels, carrossel, texto)
 - Foquem em transformação real, sem romantização
-- Tom direto, focado em execução
+- Respeitem o tom assinatura
+- Conectem com a oferta principal sem soar comercial
 Português brasileiro. Evite repetir temas já trabalhados: ${existing.join(", ") || "(nenhum)"}.`;
 
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

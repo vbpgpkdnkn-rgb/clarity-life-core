@@ -58,6 +58,7 @@ Deno.serve(async (req) => {
     const sourceAuthor = body.source_author ?? "";
     const niche = body.niche ?? "psicologia clínica e comportamento";
     const ownThemes: string[] = body.own_themes ?? [];
+    const briefing: string = body.briefing ?? "";
 
     if (!sourceText && !sourceUrl) {
       return new Response(JSON.stringify({ error: "Forneça source_text ou source_url" }), {
@@ -66,14 +67,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    const systemPrompt = `Você é diretora de conteúdo estratégica e direta.
-A usuária trabalha com: ${niche}.
+    const systemPrompt = `Você é diretora de conteúdo estratégica e direta, ESPECIALISTA no nicho da usuária.
+
+${briefing ? `BRIEFING DE ESTRATÉGIA:\n${briefing}\n\n` : `A usuária trabalha com: ${niche}.\n`}
 Temas que ela já trabalha: ${ownThemes.join(", ") || "(geral)"}.
 
 Sua tarefa:
 1. Analise o post de referência (entender por que funciona)
-2. Adapte para o nicho da usuária mantendo o ESQUELETO do que funciona
-3. NUNCA copie literalmente. Sempre traga para a área dela.
+2. Adapte para o nicho/ICP/tom da usuária mantendo o ESQUELETO do que funciona
+3. NUNCA copie literalmente. Sempre traga para a área dela respeitando o tom assinatura.
 4. Tom: direto, sem romantização, foco em transformação real.
 
 Português brasileiro.`;
