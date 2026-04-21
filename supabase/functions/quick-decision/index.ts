@@ -116,9 +116,10 @@ Use o contexto (tarefas, metas, saldo) para decidir. NUNCA dê resposta vaga.`,
     });
   } catch (e) {
     console.error("quick-decision error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const isAbort = e instanceof Error && (e.name === "AbortError" || e.message.includes("aborted"));
+    return new Response(
+      JSON.stringify({ error: isAbort ? "IA demorou demais. Tente novamente." : (e instanceof Error ? e.message : "Erro") }),
+      { status: isAbort ? 504 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 });
