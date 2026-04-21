@@ -344,6 +344,49 @@ export default function Projetos() {
                     onChange={(e) => setEditing({ ...editing, deadline: e.target.value })}
                   />
                 </div>
+                <div>
+                  <Label>Orçamento (R$)</Label>
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    value={editing.budget ?? ""}
+                    onChange={(e) => setEditing({ ...editing, budget: e.target.value === "" ? null : Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+
+              {/* Stakeholders */}
+              <ListField
+                label="Stakeholders / pessoas envolvidas"
+                placeholder="Ex.: cliente X, sócio Y"
+                items={editing.stakeholders ?? []}
+                onChange={(arr) => setEditing({ ...editing, stakeholders: arr })}
+              />
+
+              {/* Riscos */}
+              <ListField
+                label="Riscos / o que pode dar errado"
+                placeholder="Ex.: prazo apertado, dependência externa"
+                items={editing.risks ?? []}
+                onChange={(arr) => setEditing({ ...editing, risks: arr })}
+              />
+
+              {/* KPIs */}
+              <ListField
+                label="KPIs / indicadores que importam"
+                placeholder="Ex.: 1000 leads, NPS 70"
+                items={editing.kpis ?? []}
+                onChange={(arr) => setEditing({ ...editing, kpis: arr })}
+              />
+
+              <div>
+                <Label>Marcos / fases</Label>
+                <Textarea
+                  value={editing.milestones_text ?? ""}
+                  onChange={(e) => setEditing({ ...editing, milestones_text: e.target.value })}
+                  placeholder="Liste 3-5 entregas-chave em ordem"
+                  rows={3}
+                />
               </div>
               <div className="flex justify-between gap-2 pt-4 border-t border-border">
                 {editing.id ? (
