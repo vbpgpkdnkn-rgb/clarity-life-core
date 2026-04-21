@@ -98,6 +98,180 @@ export type Database = {
         }
         Relationships: []
       }
+      content_ideas: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          scope: Database["public"]["Enums"]["scope_type"]
+          source: string | null
+          suggested_format: Database["public"]["Enums"]["content_format"] | null
+          theme: string | null
+          title: string
+          used: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          scope?: Database["public"]["Enums"]["scope_type"]
+          source?: string | null
+          suggested_format?:
+            | Database["public"]["Enums"]["content_format"]
+            | null
+          theme?: string | null
+          title: string
+          used?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          scope?: Database["public"]["Enums"]["scope_type"]
+          source?: string | null
+          suggested_format?:
+            | Database["public"]["Enums"]["content_format"]
+            | null
+          theme?: string | null
+          title?: string
+          used?: boolean
+        }
+        Relationships: []
+      }
+      content_metrics: {
+        Row: {
+          comments: number
+          created_at: string
+          engagement_rate: number
+          id: string
+          likes: number
+          measured_at: string
+          notes: string | null
+          piece_id: string
+          reach: number
+          saves: number
+          shares: number
+          views: number
+        }
+        Insert: {
+          comments?: number
+          created_at?: string
+          engagement_rate?: number
+          id?: string
+          likes?: number
+          measured_at?: string
+          notes?: string | null
+          piece_id: string
+          reach?: number
+          saves?: number
+          shares?: number
+          views?: number
+        }
+        Update: {
+          comments?: number
+          created_at?: string
+          engagement_rate?: number
+          id?: string
+          likes?: number
+          measured_at?: string
+          notes?: string | null
+          piece_id?: string
+          reach?: number
+          saves?: number
+          shares?: number
+          views?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_metrics_piece_id_fkey"
+            columns: ["piece_id"]
+            isOneToOne: false
+            referencedRelation: "content_pieces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_pieces: {
+        Row: {
+          checklist: Json
+          created_at: string
+          cta: string | null
+          format: Database["public"]["Enums"]["content_format"]
+          goal_id: string | null
+          hook: string | null
+          id: string
+          idea_id: string | null
+          notes: string | null
+          planned_date: string | null
+          platform: string | null
+          priority: Database["public"]["Enums"]["task_priority"]
+          published_at: string | null
+          scope: Database["public"]["Enums"]["scope_type"]
+          script: string | null
+          status: Database["public"]["Enums"]["content_status"]
+          theme: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          checklist?: Json
+          created_at?: string
+          cta?: string | null
+          format?: Database["public"]["Enums"]["content_format"]
+          goal_id?: string | null
+          hook?: string | null
+          id?: string
+          idea_id?: string | null
+          notes?: string | null
+          planned_date?: string | null
+          platform?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          published_at?: string | null
+          scope?: Database["public"]["Enums"]["scope_type"]
+          script?: string | null
+          status?: Database["public"]["Enums"]["content_status"]
+          theme?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          checklist?: Json
+          created_at?: string
+          cta?: string | null
+          format?: Database["public"]["Enums"]["content_format"]
+          goal_id?: string | null
+          hook?: string | null
+          id?: string
+          idea_id?: string | null
+          notes?: string | null
+          planned_date?: string | null
+          platform?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          published_at?: string | null
+          scope?: Database["public"]["Enums"]["scope_type"]
+          script?: string | null
+          status?: Database["public"]["Enums"]["content_status"]
+          theme?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_pieces_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_pieces_idea_id_fkey"
+            columns: ["idea_id"]
+            isOneToOne: false
+            referencedRelation: "content_ideas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_plans: {
         Row: {
           created_at: string
@@ -557,6 +731,7 @@ export type Database = {
         Row: {
           category_id: string | null
           completed_at: string | null
+          content_piece_id: string | null
           created_at: string
           due_date: string | null
           execution_minutes: number | null
@@ -572,6 +747,7 @@ export type Database = {
         Insert: {
           category_id?: string | null
           completed_at?: string | null
+          content_piece_id?: string | null
           created_at?: string
           due_date?: string | null
           execution_minutes?: number | null
@@ -587,6 +763,7 @@ export type Database = {
         Update: {
           category_id?: string | null
           completed_at?: string | null
+          content_piece_id?: string | null
           created_at?: string
           due_date?: string | null
           execution_minutes?: number | null
@@ -605,6 +782,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_content_piece_id_fkey"
+            columns: ["content_piece_id"]
+            isOneToOne: false
+            referencedRelation: "content_pieces"
             referencedColumns: ["id"]
           },
           {
@@ -807,7 +991,21 @@ export type Database = {
       }
     }
     Enums: {
-      goal_kind: "tarefas" | "financeiro" | "marcos" | "hibrida"
+      content_format:
+        | "reels"
+        | "carrossel"
+        | "texto"
+        | "stories"
+        | "video"
+        | "podcast"
+        | "newsletter"
+      content_status:
+        | "ideia"
+        | "em_producao"
+        | "pronto"
+        | "publicado"
+        | "arquivado"
+      goal_kind: "tarefas" | "financeiro" | "marcos" | "hibrida" | "conteudo"
       goal_status: "ativa" | "concluida" | "pausada"
       habit_frequency: "diaria" | "semanal"
       recurrence_freq: "diaria" | "semanal" | "mensal" | "anual"
@@ -944,7 +1142,23 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      goal_kind: ["tarefas", "financeiro", "marcos", "hibrida"],
+      content_format: [
+        "reels",
+        "carrossel",
+        "texto",
+        "stories",
+        "video",
+        "podcast",
+        "newsletter",
+      ],
+      content_status: [
+        "ideia",
+        "em_producao",
+        "pronto",
+        "publicado",
+        "arquivado",
+      ],
+      goal_kind: ["tarefas", "financeiro", "marcos", "hibrida", "conteudo"],
       goal_status: ["ativa", "concluida", "pausada"],
       habit_frequency: ["diaria", "semanal"],
       recurrence_freq: ["diaria", "semanal", "mensal", "anual"],
