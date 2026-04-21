@@ -7,7 +7,39 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCategories, useGoals, useUpsertTask, useDeleteTask } from "@/hooks/useData";
 import { todayISO } from "@/lib/format";
-import { Trash2 } from "lucide-react";
+import { Trash2, Sparkles } from "lucide-react";
+
+type Eisenhower =
+  | "urgente_importante"
+  | "importante_nao_urgente"
+  | "urgente_nao_importante"
+  | "nao_urgente_nao_importante";
+
+const EISEN_LABEL: Record<Eisenhower, string> = {
+  urgente_importante: "Fazer agora (urgente + importante)",
+  importante_nao_urgente: "Planejar (importante)",
+  urgente_nao_importante: "Delegar (urgente)",
+  nao_urgente_nao_importante: "Eliminar",
+};
+
+/** Sugere quadrante automaticamente a partir da prioridade e prazo */
+function suggestEisenhower(priority?: string, due_date?: string | null): Eisenhower {
+  const today = todayISO();
+  const urgent = !!due_date && due_date <= today;
+  const important = priority === "alta";
+  if (urgent && important) return "urgente_importante";
+  if (!urgent && important) return "importante_nao_urgente";
+  if (urgent && !important) return "urgente_nao_importante";
+  return "nao_urgente_nao_importante";
+}
+
+/** Sugere slot 1-3-5 a partir da prioridade */
+function suggest135(priority?: string): "1" | "3" | "5" | null {
+  if (priority === "alta") return "1";
+  if (priority === "media") return "3";
+  if (priority === "baixa") return "5";
+  return null;
+}
 
 export function TaskFormDrawer({
   open,
