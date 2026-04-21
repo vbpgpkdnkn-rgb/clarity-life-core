@@ -14,7 +14,334 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      accounts: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          initial_balance: number
+          name: string
+          scope: Database["public"]["Enums"]["scope_type"]
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          initial_balance?: number
+          name: string
+          scope?: Database["public"]["Enums"]["scope_type"]
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          initial_balance?: number
+          name?: string
+          scope?: Database["public"]["Enums"]["scope_type"]
+        }
+        Relationships: []
+      }
+      categories: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          kind: string
+          name: string
+          scope: Database["public"]["Enums"]["scope_type"]
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          name: string
+          scope?: Database["public"]["Enums"]["scope_type"]
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          name?: string
+          scope?: Database["public"]["Enums"]["scope_type"]
+        }
+        Relationships: []
+      }
+      goals: {
+        Row: {
+          created_at: string
+          current_value: number | null
+          deadline: string | null
+          description: string | null
+          id: string
+          kind: Database["public"]["Enums"]["goal_kind"]
+          name: string
+          scope: Database["public"]["Enums"]["scope_type"]
+          status: Database["public"]["Enums"]["goal_status"]
+          target_value: number | null
+        }
+        Insert: {
+          created_at?: string
+          current_value?: number | null
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["goal_kind"]
+          name: string
+          scope?: Database["public"]["Enums"]["scope_type"]
+          status?: Database["public"]["Enums"]["goal_status"]
+          target_value?: number | null
+        }
+        Update: {
+          created_at?: string
+          current_value?: number | null
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["goal_kind"]
+          name?: string
+          scope?: Database["public"]["Enums"]["scope_type"]
+          status?: Database["public"]["Enums"]["goal_status"]
+          target_value?: number | null
+        }
+        Relationships: []
+      }
+      milestones: {
+        Row: {
+          created_at: string
+          done: boolean
+          goal_id: string
+          id: string
+          name: string
+          position: number
+        }
+        Insert: {
+          created_at?: string
+          done?: boolean
+          goal_id: string
+          id?: string
+          name: string
+          position?: number
+        }
+        Update: {
+          created_at?: string
+          done?: boolean
+          goal_id?: string
+          id?: string
+          name?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "milestones_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recurrences: {
+        Row: {
+          account_id: string
+          active: boolean
+          amount: number
+          category_id: string | null
+          created_at: string
+          day_of_month: number | null
+          description: string
+          end_date: string | null
+          frequency: Database["public"]["Enums"]["recurrence_freq"]
+          id: string
+          scope: Database["public"]["Enums"]["scope_type"]
+          start_date: string
+          type: Database["public"]["Enums"]["txn_type"]
+        }
+        Insert: {
+          account_id: string
+          active?: boolean
+          amount: number
+          category_id?: string | null
+          created_at?: string
+          day_of_month?: number | null
+          description: string
+          end_date?: string | null
+          frequency?: Database["public"]["Enums"]["recurrence_freq"]
+          id?: string
+          scope?: Database["public"]["Enums"]["scope_type"]
+          start_date?: string
+          type: Database["public"]["Enums"]["txn_type"]
+        }
+        Update: {
+          account_id?: string
+          active?: boolean
+          amount?: number
+          category_id?: string | null
+          created_at?: string
+          day_of_month?: number | null
+          description?: string
+          end_date?: string | null
+          frequency?: Database["public"]["Enums"]["recurrence_freq"]
+          id?: string
+          scope?: Database["public"]["Enums"]["scope_type"]
+          start_date?: string
+          type?: Database["public"]["Enums"]["txn_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurrences_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurrences_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          category_id: string | null
+          completed_at: string | null
+          created_at: string
+          due_date: string | null
+          goal_id: string | null
+          id: string
+          notes: string | null
+          priority: Database["public"]["Enums"]["task_priority"]
+          scope: Database["public"]["Enums"]["scope_type"]
+          status: Database["public"]["Enums"]["task_status"]
+          title: string
+        }
+        Insert: {
+          category_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          due_date?: string | null
+          goal_id?: string | null
+          id?: string
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          scope?: Database["public"]["Enums"]["scope_type"]
+          status?: Database["public"]["Enums"]["task_status"]
+          title: string
+        }
+        Update: {
+          category_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          due_date?: string | null
+          goal_id?: string | null
+          id?: string
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          scope?: Database["public"]["Enums"]["scope_type"]
+          status?: Database["public"]["Enums"]["task_status"]
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          account_id: string
+          amount: number
+          category_id: string | null
+          created_at: string
+          date: string
+          description: string | null
+          external_ref: string | null
+          goal_id: string | null
+          id: string
+          nature: Database["public"]["Enums"]["txn_nature"]
+          scope: Database["public"]["Enums"]["scope_type"]
+          status: Database["public"]["Enums"]["txn_status"]
+          to_account_id: string | null
+          type: Database["public"]["Enums"]["txn_type"]
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          category_id?: string | null
+          created_at?: string
+          date?: string
+          description?: string | null
+          external_ref?: string | null
+          goal_id?: string | null
+          id?: string
+          nature?: Database["public"]["Enums"]["txn_nature"]
+          scope?: Database["public"]["Enums"]["scope_type"]
+          status?: Database["public"]["Enums"]["txn_status"]
+          to_account_id?: string | null
+          type: Database["public"]["Enums"]["txn_type"]
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          category_id?: string | null
+          created_at?: string
+          date?: string
+          description?: string | null
+          external_ref?: string | null
+          goal_id?: string | null
+          id?: string
+          nature?: Database["public"]["Enums"]["txn_nature"]
+          scope?: Database["public"]["Enums"]["scope_type"]
+          status?: Database["public"]["Enums"]["txn_status"]
+          to_account_id?: string | null
+          type?: Database["public"]["Enums"]["txn_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_to_account_id_fkey"
+            columns: ["to_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +350,15 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      goal_kind: "tarefas" | "financeiro" | "marcos"
+      goal_status: "ativa" | "concluida" | "pausada"
+      recurrence_freq: "diaria" | "semanal" | "mensal" | "anual"
+      scope_type: "pessoal" | "profissional"
+      task_priority: "alta" | "media" | "baixa"
+      task_status: "pendente" | "em_andamento" | "concluida"
+      txn_nature: "fixo" | "variavel"
+      txn_status: "conciliado" | "pendente"
+      txn_type: "entrada" | "saida" | "transferencia"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +485,16 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      goal_kind: ["tarefas", "financeiro", "marcos"],
+      goal_status: ["ativa", "concluida", "pausada"],
+      recurrence_freq: ["diaria", "semanal", "mensal", "anual"],
+      scope_type: ["pessoal", "profissional"],
+      task_priority: ["alta", "media", "baixa"],
+      task_status: ["pendente", "em_andamento", "concluida"],
+      txn_nature: ["fixo", "variavel"],
+      txn_status: ["conciliado", "pendente"],
+      txn_type: ["entrada", "saida", "transferencia"],
+    },
   },
 } as const
