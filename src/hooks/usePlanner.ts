@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { syncRecurringTasks, clearRecurringTasks } from "@/lib/recurrence";
 
 // ===================== EVENTS =====================
 export const useEvents = (from?: string, to?: string) =>
@@ -75,16 +76,30 @@ export const useUpsertHabit = () => {
       const payload = { ...h };
       if (payload.target_value === "") payload.target_value = null;
       if (payload.target_per_week === "") payload.target_per_week = null;
-      if (h.id) {
-        const { error } = await supabase.from("habits").update(payload).eq("id", h.id);
+      let id = h.id;
+      if (id) {
+        const { error } = await supabase.from("habits").update(payload).eq("id", id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("habits").insert(payload);
+        const { data, error } = await supabase.from("habits").insert(payload).select("id").single();
         if (error) throw error;
+        id = data.id;
       }
+      if (Array.isArray(payload.weekdays)) {
+        await syncRecurringTasks({
+          table: "habits",
+          id,
+          title: `✅ ${payload.name}`,
+          weekdays: payload.weekdays,
+          area_id: payload.area_id ?? null,
+          scope: payload.scope ?? "pessoal",
+        });
+      }
+      return id;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["habits"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
       toast.success("Hábito salvo");
     },
     onError: (e: any) => toast.error(e.message),
@@ -95,11 +110,13 @@ export const useDeleteHabit = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
+      await clearRecurringTasks("habits", id);
       const { error } = await supabase.from("habits").update({ archived: true }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["habits"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
       toast.success("Hábito arquivado");
     },
   });
