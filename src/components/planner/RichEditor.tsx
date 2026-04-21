@@ -31,7 +31,7 @@ export function RichEditor({ value, onChange, placeholder = "Escreva...", classN
 
   useEffect(() => {
     if (!editor) return;
-    if (value !== editor.getHTML()) editor.commands.setContent(value || "", false);
+    if (value !== editor.getHTML()) editor.commands.setContent(value || "", { emitUpdate: false });
   }, [value, editor]);
 
   if (!editor) return null;
