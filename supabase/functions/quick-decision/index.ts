@@ -78,7 +78,10 @@ Use o contexto (tarefas, metas, saldo) para decidir. NUNCA dê resposta vaga.`,
         tools: [QUICK_TOOL],
         tool_choice: { type: "function", function: { name: "set_quick_decision" } },
       }),
-    });
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!aiResp.ok) {
       const t = await aiResp.text();
