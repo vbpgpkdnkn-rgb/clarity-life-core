@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
+import { ScopeFilterToggle } from "./ScopeFilterToggle";
 import { formatDateLong } from "@/lib/format";
 
 export function AppLayout({ children, title, subtitle, action }: {
@@ -16,10 +17,13 @@ export function AppLayout({ children, title, subtitle, action }: {
         <div className="flex-1 flex flex-col min-w-0">
           <header className="h-14 flex items-center gap-3 border-b border-border bg-background/80 backdrop-blur sticky top-0 z-10 px-4">
             <SidebarTrigger />
-            <div className="text-xs text-muted-foreground capitalize hidden sm:block">
+            <div className="text-xs text-muted-foreground capitalize hidden md:block">
               {formatDateLong(new Date())}
             </div>
-            <div className="ml-auto">{action}</div>
+            <div className="ml-auto flex items-center gap-3">
+              <ScopeFilterToggle />
+              {action}
+            </div>
           </header>
           <main className="flex-1 px-4 sm:px-8 py-6 sm:py-10 max-w-7xl w-full mx-auto animate-fade-in">
             {title && (
