@@ -125,7 +125,7 @@ export function GoalPlanPreview({ goal, goalId, onApplied, onCreateGoal }: Props
   const status: "pronto" | "aplicando" = applying ? "aplicando" : "pronto";
 
   return (
-    <Card className="p-4 border-accent/40 bg-gradient-to-br from-accent/5 to-transparent">
+    <Card data-goal-plan-preview className="p-4 border-accent/40 bg-gradient-to-br from-accent/5 to-transparent">
       {/* Barra de status */}
       <div className="mb-3 rounded-md border border-accent/30 bg-background/60 overflow-hidden">
         <div className="flex items-center justify-between px-3 py-2">
