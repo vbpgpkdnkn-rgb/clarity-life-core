@@ -129,11 +129,13 @@ export const useUpsertGoal = () => {
   return useMutation({
     mutationFn: async (goal: any) => {
       if (goal.id) {
-        const { error } = await supabase.from("goals").update(goal).eq("id", goal.id);
+        const { data, error } = await supabase.from("goals").update(goal).eq("id", goal.id).select().single();
         if (error) throw error;
+        return data;
       } else {
-        const { error } = await supabase.from("goals").insert(goal);
+        const { data, error } = await supabase.from("goals").insert(goal).select().single();
         if (error) throw error;
+        return data;
       }
     },
     onSuccess: () => {

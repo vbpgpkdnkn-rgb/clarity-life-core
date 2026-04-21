@@ -187,13 +187,24 @@ export function GoalFormDrawer({
             />
           </div>
 
-          {/* IA EXECUTIVA */}
-          {goal && (form.kind === "tarefas" || form.kind === "hibrida" || form.kind === "marcos") && (
+          {/* IA EXECUTIVA — disponível também para metas novas (cria automaticamente ao aplicar) */}
+          {(form.kind === "tarefas" || form.kind === "hibrida" || form.kind === "marcos") && (
             <GoalPlanPreview
               goal={form}
-              goalId={goal.id}
+              goalId={goal?.id}
               onApplied={(newDeadline) => {
                 if (newDeadline && !form.deadline) setForm({ ...form, deadline: newDeadline });
+              }}
+              onCreateGoal={async () => {
+                // Cria a meta com os dados atuais do form e devolve o id
+                if (!form.name?.trim()) throw new Error("Defina o nome da meta primeiro");
+                const payload = { ...form };
+                if (payload.target_value === "") payload.target_value = null;
+                else if (payload.target_value != null) payload.target_value = Number(payload.target_value);
+                const created = await upsert.mutateAsync(payload);
+                // Atualiza o form com o id retornado para próximas operações
+                setForm((prev: any) => ({ ...prev, id: (created as any)?.id }));
+                return (created as any)?.id;
               }}
             />
           )}
