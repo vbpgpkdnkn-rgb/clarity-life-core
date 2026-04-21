@@ -41,6 +41,36 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_insights: {
+        Row: {
+          created_at: string
+          date: string
+          dismissed: boolean
+          id: string
+          kind: string
+          payload: Json
+          scope: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          dismissed?: boolean
+          id?: string
+          kind: string
+          payload?: Json
+          scope?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          dismissed?: boolean
+          id?: string
+          kind?: string
+          payload?: Json
+          scope?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           color: string | null
