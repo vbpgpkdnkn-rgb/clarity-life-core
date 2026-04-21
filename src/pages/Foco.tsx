@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTasks, useUpsertTask } from "@/hooks/useData";
 import { useAllGoalsProgress } from "@/hooks/useGoalProgress";
 import { useEvents } from "@/hooks/usePlanner";
+import { useRecentAdjustments } from "@/hooks/useAdaptive";
 import { useScope, filterByScope } from "@/contexts/ScopeContext";
 import { todayISO, formatDateLong } from "@/lib/format";
 import { toast } from "sonner";
@@ -68,6 +69,8 @@ export default function Foco() {
   const { data: tasksAll = [] } = useTasks();
   const { data: eventsAll = [] } = useEvents(today, today);
   const goalsAll = useAllGoalsProgress();
+  const adjustmentsQ = useRecentAdjustments();
+  const pendingAdj = (adjustmentsQ.data ?? []).filter((a: any) => a.status === "sugerido");
 
   const tasks = useMemo(() => filterByScope(tasksAll, scope), [tasksAll, scope]);
   const events = useMemo(() => filterByScope(eventsAll, scope), [eventsAll, scope]);
@@ -183,6 +186,24 @@ export default function Foco() {
         </div>
       }
     >
+      {/* Aviso de ajustes da IA pendentes — visível quando faz sentido decidir */}
+      {pendingAdj.length > 0 && (
+        <button
+          onClick={() => {
+            const el = document.getElementById("ia-adaptativa-block");
+            el?.scrollIntoView({ behavior: "smooth", block: "start" });
+            el?.querySelector("button")?.click();
+          }}
+          className="w-full mb-4 px-4 py-2.5 rounded-md border border-accent/40 bg-accent/5 text-sm flex items-center gap-2 hover:bg-accent/10 transition-colors text-left"
+        >
+          <Brain className="h-4 w-4 text-accent shrink-0" />
+          <span className="flex-1">
+            <strong className="font-medium">{pendingAdj.length} ajuste{pendingAdj.length > 1 ? "s" : ""}</strong> da IA aguardando sua decisão
+          </span>
+          <span className="text-xs text-muted-foreground">Ver →</span>
+        </button>
+      )}
+
       {/* Empty state */}
       {candidateTasks.length === 0 && (
         <Card className="p-10 text-center border-border/60 shadow-none">
@@ -369,9 +390,11 @@ export default function Foco() {
         <CollapsibleBlock title="Conteúdo de hoje" icon={<Clapperboard className="h-4 w-4" />}>
           <ContentTodayCard />
         </CollapsibleBlock>
-        <CollapsibleBlock title="IA adaptativa — seu padrão de execução" icon={<Brain className="h-4 w-4" />}>
-          <AdaptivePanel />
-        </CollapsibleBlock>
+        <div id="ia-adaptativa-block">
+          <CollapsibleBlock title="IA adaptativa — seu padrão de execução" icon={<Brain className="h-4 w-4" />}>
+            <AdaptivePanel />
+          </CollapsibleBlock>
+        </div>
         <CollapsibleBlock title="Conselheiro estratégico" icon={<Sparkles className="h-4 w-4" />}>
           <StrategicInsights />
         </CollapsibleBlock>

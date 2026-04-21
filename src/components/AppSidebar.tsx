@@ -1,6 +1,7 @@
 import { Sparkles, LayoutDashboard, CalendarDays, Target, Wallet, ListTodo, CalendarRange, Clapperboard, Heart, FolderKanban } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
+import { useRecentAdjustments } from "@/hooks/useAdaptive";
 import {
   Sidebar,
   SidebarContent,
@@ -30,6 +31,8 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const adjustmentsQ = useRecentAdjustments();
+  const pendingCount = (adjustmentsQ.data ?? []).filter((a) => a.status === "sugerido").length;
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -55,6 +58,7 @@ export function AppSidebar() {
                 const active = item.end
                   ? location.pathname === item.url
                   : location.pathname.startsWith(item.url);
+                const showBadge = item.url === "/" && pendingCount > 0;
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild className="h-11">
@@ -64,8 +68,22 @@ export function AppSidebar() {
                         className="flex items-center gap-3 rounded-md transition-colors hover:bg-sidebar-accent"
                         activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                       >
-                        <item.icon className={`h-5 w-5 ${active ? "text-accent" : ""}`} />
-                        {!collapsed && <span className="text-sm">{item.title}</span>}
+                        <div className="relative">
+                          <item.icon className={`h-5 w-5 ${active ? "text-accent" : ""}`} />
+                          {showBadge && collapsed && (
+                            <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-accent" />
+                          )}
+                        </div>
+                        {!collapsed && (
+                          <span className="text-sm flex-1 flex items-center justify-between gap-2">
+                            {item.title}
+                            {showBadge && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground tabular-nums">
+                                {pendingCount}
+                              </span>
+                            )}
+                          </span>
+                        )}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
