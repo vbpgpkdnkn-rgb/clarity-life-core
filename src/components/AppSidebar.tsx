@@ -1,4 +1,4 @@
-import { Home, CalendarDays, Target, Wallet, ListTodo } from "lucide-react";
+import { Sparkles, LayoutDashboard, CalendarDays, Target, Wallet, ListTodo } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/sidebar";
 
 const items = [
-  { title: "Dashboard", url: "/", icon: Home, end: true },
+  { title: "Foco do dia", url: "/", icon: Sparkles, end: true },
+  { title: "Visão geral", url: "/visao-geral", icon: LayoutDashboard },
   { title: "Planner", url: "/planner", icon: CalendarDays },
   { title: "Tarefas", url: "/tarefas", icon: ListTodo },
   { title: "Metas", url: "/metas", icon: Target },

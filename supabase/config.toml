@@ -1,1 +1,4 @@
 project_id = "nxdxhohadbboblbpjjts"
+
+[functions.daily-focus]
+verify_jwt = false
