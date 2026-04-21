@@ -122,20 +122,28 @@ export default function Conteudo() {
       </div>
 
       <Tabs defaultValue="ideias" className="space-y-4">
-        <TabsList className="grid grid-cols-3 md:grid-cols-6 w-full">
+        <TabsList className="flex flex-wrap h-auto w-full justify-start gap-1">
           <TabsTrigger value="ideias"><Lightbulb className="h-3.5 w-3.5 mr-1" />Ideias</TabsTrigger>
           <TabsTrigger value="editorial"><CalendarDays className="h-3.5 w-3.5 mr-1" />Editorial</TabsTrigger>
           <TabsTrigger value="producao"><Hammer className="h-3.5 w-3.5 mr-1" />Produção</TabsTrigger>
+          <TabsTrigger value="stories"><Clapperboard className="h-3.5 w-3.5 mr-1" />Stories</TabsTrigger>
           <TabsTrigger value="publicacao"><Send className="h-3.5 w-3.5 mr-1" />Publicação</TabsTrigger>
           <TabsTrigger value="performance"><BarChart3 className="h-3.5 w-3.5 mr-1" />Performance</TabsTrigger>
+          <TabsTrigger value="inteligencia"><Brain className="h-3.5 w-3.5 mr-1" />Inteligência</TabsTrigger>
+          <TabsTrigger value="referencias"><Link2 className="h-3.5 w-3.5 mr-1" />Referências</TabsTrigger>
           <TabsTrigger value="biblioteca"><Library className="h-3.5 w-3.5 mr-1" />Biblioteca</TabsTrigger>
         </TabsList>
 
         <TabsContent value="ideias"><IdeasTab ideas={ideas as any} /></TabsContent>
         <TabsContent value="editorial"><EditorialTab pieces={pieces} ideas={ideas as any} consistency={consistency} /></TabsContent>
         <TabsContent value="producao"><ProductionTab pieces={pieces} /></TabsContent>
+        <TabsContent value="stories"><StoriesTab /></TabsContent>
         <TabsContent value="publicacao"><PublishTab pieces={pieces} /></TabsContent>
         <TabsContent value="performance"><PerformanceTab pieces={pieces} metrics={metricsAll as any} /></TabsContent>
+        <TabsContent value="inteligencia"><IntelligenceTab pieces={pieces} metrics={metricsAll as any} /></TabsContent>
+        <TabsContent value="referencias">
+          <ReferencesTab ownThemes={Array.from(new Set(pieces.map((p) => p.theme).filter(Boolean) as string[]))} />
+        </TabsContent>
         <TabsContent value="biblioteca"><LibraryTab pieces={pieces} /></TabsContent>
       </Tabs>
     </AppLayout>
