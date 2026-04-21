@@ -16,13 +16,16 @@ import { Plus, Check, Flame, Trash2, ChevronLeft, ChevronRight } from "lucide-re
 
 export default function PlannerHabitos() {
   const [weekStart, setWeekStart] = useState<string>(startOfWeekFor(todayISO()));
+  const { scope } = useScope();
   const days = weekDates(weekStart);
-  const { data: habits = [] } = useHabits();
+  const { data: habitsAll = [] } = useHabits();
+  const habits = filterByScope(habitsAll, scope);
   const { data: logs = [] } = useHabitLogs(addDaysISO(weekStart, -60), days[6]);
   const toggle = useToggleHabitLog();
   const upsert = useUpsertHabit();
   const del = useDeleteHabit();
-  const { data: goals = [] } = useGoals();
+  const { data: goalsAll = [] } = useGoals();
+  const goals = filterByScope(goalsAll, scope);
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);

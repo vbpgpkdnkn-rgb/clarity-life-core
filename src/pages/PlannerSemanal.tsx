@@ -16,11 +16,14 @@ import { Link } from "react-router-dom";
 
 export default function PlannerSemanal() {
   const [weekStart, setWeekStart] = useState<string>(startOfWeekFor(todayISO()));
+  const { scope } = useScope();
   const days = weekDates(weekStart);
   const { data: plan } = useWeeklyPlan(weekStart);
   const upsertPlan = useUpsertWeeklyPlan();
-  const { data: tasks = [] } = useTasks();
-  const { data: events = [] } = useEvents(days[0], days[6]);
+  const { data: tasksAll = [] } = useTasks();
+  const { data: eventsAll = [] } = useEvents(days[0], days[6]);
+  const tasks = filterByScope(tasksAll, scope);
+  const events = filterByScope(eventsAll, scope);
 
   const [focus, setFocus] = useState("");
   const [objectives, setObjectives] = useState<string[]>([]);
