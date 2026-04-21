@@ -250,9 +250,9 @@ export default function Financeiro() {
         </div>
       </div>
 
-      {/* KPIs */}
+      {/* KPIs principais */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <KpiCard label="Saldo total" value={formatBRL(balances.total)} icon={<Wallet className="h-4 w-4" />} sub={`Pessoal ${formatBRL(balances.pessoal)} · Prof ${formatBRL(balances.profissional)}`} />
+        <KpiCard label="Saldo total" value={formatBRL(balances.total)} icon={<Wallet className="h-4 w-4" />} />
         <KpiCard label="Receitas pagas" value={formatBRL(flow.receitas)} icon={<TrendingUp className="h-4 w-4" />} accent="success" />
         <KpiCard label="Despesas pagas" value={formatBRL(flow.despesas)} icon={<TrendingDown className="h-4 w-4" />} accent="destructive" />
         <KpiCard
@@ -261,6 +261,36 @@ export default function Financeiro() {
           icon={flow.lucro >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
           accent={flow.lucro >= 0 ? "success" : "destructive"}
         />
+      </div>
+
+      {/* Separação clara PF vs PJ — sempre visível, mesmo quando escopo = todos */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+        <Card className="p-4 border-l-4 border-l-pessoal shadow-soft">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+              <Heart className="h-3.5 w-3.5 text-pessoal" /> Pessoa Física
+            </div>
+            <span className="text-[10px] text-muted-foreground">
+              {accounts.filter((a) => a.scope === "pessoal").length} contas
+            </span>
+          </div>
+          <div className="font-display text-2xl font-semibold tabular-nums text-pessoal">
+            {formatBRL(balances.pessoal)}
+          </div>
+        </Card>
+        <Card className="p-4 border-l-4 border-l-profissional shadow-soft">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+              <Briefcase className="h-3.5 w-3.5 text-profissional" /> Pessoa Jurídica
+            </div>
+            <span className="text-[10px] text-muted-foreground">
+              {accounts.filter((a) => a.scope === "profissional").length} contas
+            </span>
+          </div>
+          <div className="font-display text-2xl font-semibold tabular-nums text-profissional">
+            {formatBRL(balances.profissional)}
+          </div>
+        </Card>
       </div>
 
       {/* Indicadores */}
