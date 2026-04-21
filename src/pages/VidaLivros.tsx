@@ -429,3 +429,115 @@ function BookNotesSection({ book }: { book: any }) {
     </div>
   );
 }
+
+/* ============== IDEIAS DE CONTEÚDO DO LIVRO ============== */
+function BookContentIdeasSection({ book }: { book: any }) {
+  const navigate = useNavigate();
+  const [newIdea, setNewIdea] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  const { data: ideas = [], refetch } = useQuery({
+    queryKey: ["content_ideas_from_book", book.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("content_ideas")
+        .select("*")
+        .eq("source", `livro:${book.id}`)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const addIdea = async () => {
+    if (!newIdea.trim()) return;
+    setAdding(true);
+    const { error } = await supabase.from("content_ideas").insert({
+      title: newIdea.trim().slice(0, 200),
+      theme: book.title,
+      notes: `Ideia do livro "${book.title}"${book.author ? ` — ${book.author}` : ""}`,
+      source: `livro:${book.id}`,
+      scope: "profissional",
+    });
+    setAdding(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setNewIdea("");
+    refetch();
+    toast.success("Ideia criada e enviada para Conteúdo");
+  };
+
+  return (
+    <div className="mt-4 pt-4 border-t border-border/40">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Clapperboard className="h-4 w-4 text-accent" />
+          <h4 className="text-sm font-display font-semibold">Ideias de Conteúdo</h4>
+          <span className="text-xs text-muted-foreground">({ideas.length})</span>
+        </div>
+        <button
+          onClick={() => navigate("/conteudo")}
+          className="text-[11px] text-accent hover:underline flex items-center gap-1"
+        >
+          Ver no módulo Conteúdo <ExternalLink className="h-2.5 w-2.5" />
+        </button>
+      </div>
+
+      <p className="text-[11px] text-muted-foreground mb-2">
+        Tudo que você adicionar aqui aparece automaticamente em <strong>Conteúdo → Ideias</strong>.
+      </p>
+
+      <div className="flex gap-2 mb-3">
+        <Input
+          placeholder="Nova ideia inspirada neste livro..."
+          value={newIdea}
+          onChange={(e) => setNewIdea(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addIdea()}
+          className="text-xs"
+        />
+        <Button size="sm" variant="outline" onClick={addIdea} disabled={adding || !newIdea.trim()}>
+          <Plus className="h-3 w-3 mr-1" /> Criar ideia
+        </Button>
+      </div>
+
+      <div className="space-y-1.5">
+        {ideas.map((i: any) => (
+          <div
+            key={i.id}
+            className="flex items-start gap-2 p-2 rounded-md border border-border/40 bg-card group"
+          >
+            <Clapperboard className="h-3.5 w-3.5 mt-0.5 text-accent shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium leading-snug">{i.title}</p>
+              {i.suggested_format && (
+                <span className="text-[10px] text-muted-foreground">{i.suggested_format}</span>
+              )}
+              {i.used && (
+                <span className="text-[10px] text-success ml-2 inline-flex items-center gap-0.5">
+                  <CheckCircle2 className="h-2.5 w-2.5" /> usada
+                </span>
+              )}
+            </div>
+            <div className="flex gap-1 items-center opacity-0 group-hover:opacity-100">
+              <PinButton
+                source_table="content_ideas"
+                source_id={i.id}
+                title={i.title}
+                subtitle={`Ideia do livro: ${book.title}`}
+                icon="content"
+                link="/conteudo"
+              />
+            </div>
+          </div>
+        ))}
+        {ideas.length === 0 && (
+          <p className="text-xs text-muted-foreground text-center py-3">
+            Nenhuma ideia ainda. Adicione uma acima ou envie um insight com <Send className="inline h-2.5 w-2.5" />.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
