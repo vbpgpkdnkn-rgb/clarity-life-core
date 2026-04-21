@@ -14,6 +14,7 @@ import { startOfWeekFor, weekDates, dayName, dayNumber, isToday } from "@/lib/we
 import { todayISO, addDaysISO } from "@/lib/format";
 import { Plus, Check, Flame, Trash2, ChevronLeft, ChevronRight, Calendar, Clock } from "lucide-react";
 import { WeekdayPicker } from "@/components/vida/WeekdayPicker";
+import { HabitGapPanel } from "@/components/planner/HabitGapPanel";
 
 export default function PlannerHabitos() {
   const [weekStart, setWeekStart] = useState<string>(startOfWeekFor(todayISO()));
@@ -142,6 +143,12 @@ export default function PlannerHabitos() {
             </tbody>
           </table>
         </Card>
+      )}
+
+      {habits.length > 0 && (
+        <div className="mt-6">
+          <HabitGapPanel habits={habits} logs={logs} />
+        </div>
       )}
 
       <HabitDrawer
