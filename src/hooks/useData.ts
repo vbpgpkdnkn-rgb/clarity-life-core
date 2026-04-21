@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { accountBalance } from "@/lib/finance";
+import { generateNextAfterCompletion } from "@/lib/recurrence";
 
 export type Scope = "pessoal" | "profissional";
 export type TaskPriority = "alta" | "media" | "baixa";
@@ -65,12 +66,30 @@ export const useUpsertTask = () => {
   return useMutation({
     mutationFn: async (task: any) => {
       const payload = { ...task };
+      // Detecta conclusão de tarefa recorrente para gerar a próxima ocorrência
+      let triggerNext: { table: any; sourceId: string; due: string } | null = null;
       if (task.id) {
+        const { data: prev } = await supabase
+          .from("tasks")
+          .select("status, recurrence_source_table, recurrence_source_id, due_date")
+          .eq("id", task.id)
+          .maybeSingle();
+        const becomingDone = prev && prev.status !== "concluida" && payload.status === "concluida";
+        if (becomingDone && prev?.recurrence_source_table && prev?.recurrence_source_id && prev?.due_date) {
+          triggerNext = {
+            table: prev.recurrence_source_table,
+            sourceId: prev.recurrence_source_id,
+            due: prev.due_date,
+          };
+        }
         const { error } = await supabase.from("tasks").update(payload).eq("id", task.id);
         if (error) throw error;
       } else {
         const { error } = await supabase.from("tasks").insert(payload);
         if (error) throw error;
+      }
+      if (triggerNext) {
+        await generateNextAfterCompletion(triggerNext.table, triggerNext.sourceId, triggerNext.due);
       }
     },
     onSuccess: () => {
