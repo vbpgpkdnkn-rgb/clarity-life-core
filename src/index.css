@@ -107,13 +107,26 @@
   * {
     @apply border-border;
   }
+  html, body {
+    /* Evita zoom acidental por duplo-toque no iPad e melhora resposta de toque */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-y: none;
+  }
   body {
     @apply bg-background text-foreground font-sans;
     font-feature-settings: "ss01", "cv11";
+    /* Safe-area do iPad (notch / home indicator quando instalado) */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
   h1, h2, h3, .font-display {
     font-family: 'Fraunces', Georgia, serif;
     letter-spacing: -0.02em;
+  }
+  /* Inputs iOS: previne zoom ao focar (font-size >=16px) */
+  input, textarea, select {
+    font-size: 16px;
   }
 }
 
@@ -129,4 +142,6 @@
   .gradient-warm { background: var(--gradient-warm); }
   .gradient-cool { background: var(--gradient-cool); }
   .gradient-card { background: var(--gradient-card); }
+  /* Canvas de desenho — bloqueia gestos do navegador para o Pencil/dedo */
+  .pencil-surface { touch-action: none; -webkit-user-select: none; user-select: none; }
 }
