@@ -169,15 +169,32 @@ export const useUpsertBook = () => {
     mutationFn: async (b: any) => {
       const payload = { ...b };
       ["started_at", "finished_at"].forEach((k) => { if (payload[k] === "") payload[k] = null; });
-      if (b.id) {
-        const { error } = await supabase.from("books").update(payload).eq("id", b.id);
+      let id = b.id;
+      if (id) {
+        const { error } = await supabase.from("books").update(payload).eq("id", id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("books").insert(payload);
+        const { data, error } = await supabase.from("books").insert(payload).select("id").single();
         if (error) throw error;
+        id = data.id;
       }
+      if (Array.isArray(payload.weekdays)) {
+        await syncRecurringTasks({
+          table: "books",
+          id,
+          title: `📖 Ler: ${payload.title}`,
+          weekdays: payload.weekdays,
+          area_id: payload.area_id ?? null,
+          notes: payload.session_minutes ? `${payload.session_minutes} min de leitura` : null,
+          scope: "pessoal",
+        });
+      }
+      return id;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["books"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["books"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
     onError: (e: any) => toast.error(e.message),
   });
 };
@@ -186,10 +203,14 @@ export const useDeleteBook = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
+      await clearRecurringTasks("books", id);
       const { error } = await supabase.from("books").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["books"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["books"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
   });
 };
 
