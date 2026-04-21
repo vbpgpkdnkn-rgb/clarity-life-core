@@ -211,6 +211,7 @@ export type Database = {
           description: string | null
           id: string
           kind: Database["public"]["Enums"]["goal_kind"]
+          locked: boolean
           name: string
           scope: Database["public"]["Enums"]["scope_type"]
           status: Database["public"]["Enums"]["goal_status"]
@@ -226,6 +227,7 @@ export type Database = {
           description?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["goal_kind"]
+          locked?: boolean
           name: string
           scope?: Database["public"]["Enums"]["scope_type"]
           status?: Database["public"]["Enums"]["goal_status"]
@@ -241,6 +243,7 @@ export type Database = {
           description?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["goal_kind"]
+          locked?: boolean
           name?: string
           scope?: Database["public"]["Enums"]["scope_type"]
           status?: Database["public"]["Enums"]["goal_status"]
@@ -383,6 +386,110 @@ export type Database = {
           },
         ]
       }
+      performance_adjustments: {
+        Row: {
+          area: string
+          created_at: string
+          decided_at: string | null
+          goal_id: string | null
+          id: string
+          kind: string
+          payload: Json
+          rationale: string
+          scope: string
+          status: string
+        }
+        Insert: {
+          area: string
+          created_at?: string
+          decided_at?: string | null
+          goal_id?: string | null
+          id?: string
+          kind: string
+          payload?: Json
+          rationale: string
+          scope?: string
+          status?: string
+        }
+        Update: {
+          area?: string
+          created_at?: string
+          decided_at?: string | null
+          goal_id?: string | null
+          id?: string
+          kind?: string
+          payload?: Json
+          rationale?: string
+          scope?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_adjustments_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_profiles: {
+        Row: {
+          abandonment_rate: number
+          avg_tasks_per_day: number
+          consistency_score: number
+          created_at: string
+          execution_rate: number
+          id: string
+          insights: Json
+          narrative: string | null
+          overload_score: number
+          productive_days: number
+          profile: string
+          recommended_load: number
+          scope: string
+          unproductive_days: number
+          week_start: string
+          window_days: number
+        }
+        Insert: {
+          abandonment_rate?: number
+          avg_tasks_per_day?: number
+          consistency_score?: number
+          created_at?: string
+          execution_rate?: number
+          id?: string
+          insights?: Json
+          narrative?: string | null
+          overload_score?: number
+          productive_days?: number
+          profile: string
+          recommended_load?: number
+          scope?: string
+          unproductive_days?: number
+          week_start: string
+          window_days?: number
+        }
+        Update: {
+          abandonment_rate?: number
+          avg_tasks_per_day?: number
+          consistency_score?: number
+          created_at?: string
+          execution_rate?: number
+          id?: string
+          insights?: Json
+          narrative?: string | null
+          overload_score?: number
+          productive_days?: number
+          profile?: string
+          recommended_load?: number
+          scope?: string
+          unproductive_days?: number
+          week_start?: string
+          window_days?: number
+        }
+        Relationships: []
+      }
       recurrences: {
         Row: {
           account_id: string
@@ -452,6 +559,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           due_date: string | null
+          execution_minutes: number | null
           goal_id: string | null
           id: string
           milestone_id: string | null
@@ -466,6 +574,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           due_date?: string | null
+          execution_minutes?: number | null
           goal_id?: string | null
           id?: string
           milestone_id?: string | null
@@ -480,6 +589,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           due_date?: string | null
+          execution_minutes?: number | null
           goal_id?: string | null
           id?: string
           milestone_id?: string | null
