@@ -71,6 +71,47 @@ export type Database = {
         }
         Relationships: []
       }
+      book_notes: {
+        Row: {
+          book_id: string
+          content: string
+          content_idea_id: string | null
+          created_at: string
+          id: string
+          kind: string
+          page_ref: number | null
+          sent_to_content: boolean
+        }
+        Insert: {
+          book_id: string
+          content: string
+          content_idea_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          page_ref?: number | null
+          sent_to_content?: boolean
+        }
+        Update: {
+          book_id?: string
+          content?: string
+          content_idea_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          page_ref?: number | null
+          sent_to_content?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_notes_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       books: {
         Row: {
           area_id: string | null
@@ -82,6 +123,8 @@ export type Database = {
           finished_at: string | null
           id: string
           pages: number | null
+          pages_per_session: number | null
+          plan_notes: string | null
           rating: number | null
           recommend: boolean | null
           session_minutes: number | null
@@ -89,6 +132,7 @@ export type Database = {
           status: string
           summary: string | null
           takeaways: string | null
+          target_finish_date: string | null
           time_of_day: string | null
           title: string
           updated_at: string
@@ -104,6 +148,8 @@ export type Database = {
           finished_at?: string | null
           id?: string
           pages?: number | null
+          pages_per_session?: number | null
+          plan_notes?: string | null
           rating?: number | null
           recommend?: boolean | null
           session_minutes?: number | null
@@ -111,6 +157,7 @@ export type Database = {
           status?: string
           summary?: string | null
           takeaways?: string | null
+          target_finish_date?: string | null
           time_of_day?: string | null
           title: string
           updated_at?: string
@@ -126,6 +173,8 @@ export type Database = {
           finished_at?: string | null
           id?: string
           pages?: number | null
+          pages_per_session?: number | null
+          plan_notes?: string | null
           rating?: number | null
           recommend?: boolean | null
           session_minutes?: number | null
@@ -133,6 +182,7 @@ export type Database = {
           status?: string
           summary?: string | null
           takeaways?: string | null
+          target_finish_date?: string | null
           time_of_day?: string | null
           title?: string
           updated_at?: string
