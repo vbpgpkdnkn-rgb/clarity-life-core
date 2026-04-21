@@ -946,6 +946,42 @@ export type Database = {
         }
         Relationships: []
       }
+      focus_pins: {
+        Row: {
+          icon: string | null
+          id: string
+          link: string | null
+          pinned_at: string
+          position: number
+          source_id: string
+          source_table: string
+          subtitle: string | null
+          title: string
+        }
+        Insert: {
+          icon?: string | null
+          id?: string
+          link?: string | null
+          pinned_at?: string
+          position?: number
+          source_id: string
+          source_table: string
+          subtitle?: string | null
+          title: string
+        }
+        Update: {
+          icon?: string | null
+          id?: string
+          link?: string | null
+          pinned_at?: string
+          position?: number
+          source_id?: string
+          source_table?: string
+          subtitle?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
       focus_sessions: {
         Row: {
           actual_minutes: number | null
