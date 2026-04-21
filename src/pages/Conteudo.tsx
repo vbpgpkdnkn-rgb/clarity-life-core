@@ -49,6 +49,7 @@ import { StoriesTab } from "@/components/conteudo/StoriesTab";
 import { IntelligenceTab } from "@/components/conteudo/IntelligenceTab";
 import { ReferencesTab } from "@/components/conteudo/ReferencesTab";
 import { GrowthTab } from "@/components/conteudo/GrowthTab";
+import { StrategyOnboarding } from "@/components/conteudo/StrategyOnboarding";
 import {
   ContentFormat,
   ContentPiece,

@@ -15,6 +15,7 @@ import { ContentTodayCard } from "@/components/foco/ContentTodayCard";
 import { EisenhowerMatrix } from "@/components/foco/EisenhowerMatrix";
 import { OneThreeFive } from "@/components/foco/OneThreeFive";
 import { PomodoroCard } from "@/components/foco/PomodoroCard";
+import { LifeCheckCard } from "@/components/foco/LifeCheckCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useTasks, useUpsertTask } from "@/hooks/useData";
 import { useAllGoalsProgress } from "@/hooks/useGoalProgress";
