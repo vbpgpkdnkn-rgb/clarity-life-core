@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUpsertGoal, useDeleteGoal, useMilestones, useUpsertMilestone, useDeleteMilestone } from "@/hooks/useData";
+import { GoalPlanPreview } from "./GoalPlanPreview";
 import { Trash2, Plus, Check } from "lucide-react";
 
 export function GoalFormDrawer({
@@ -164,8 +165,20 @@ export function GoalFormDrawer({
               value={form.description || ""}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               rows={2}
+              placeholder="Quanto mais contexto, melhor o plano da IA"
             />
           </div>
+
+          {/* IA EXECUTIVA */}
+          {goal && (form.kind === "tarefas" || form.kind === "hibrida" || form.kind === "marcos") && (
+            <GoalPlanPreview
+              goal={form}
+              goalId={goal.id}
+              onApplied={(newDeadline) => {
+                if (newDeadline && !form.deadline) setForm({ ...form, deadline: newDeadline });
+              }}
+            />
+          )}
 
           {goal && form.kind === "marcos" && (
             <div>

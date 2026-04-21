@@ -13,6 +13,7 @@ import PlannerRevisao from "./pages/PlannerRevisao";
 import PlannerHabitos from "./pages/PlannerHabitos";
 import PlannerNotas from "./pages/PlannerNotas";
 import Metas from "./pages/Metas";
+import MetaDetalhe from "./pages/MetaDetalhe";
 import Financeiro from "./pages/Financeiro";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/planner/notas" element={<PlannerNotas />} />
           <Route path="/tarefas" element={<Tarefas />} />
           <Route path="/metas" element={<Metas />} />
+          <Route path="/metas/:id" element={<MetaDetalhe />} />
           <Route path="/financeiro" element={<Financeiro />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

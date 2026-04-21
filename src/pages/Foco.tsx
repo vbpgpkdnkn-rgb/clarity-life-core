@@ -256,6 +256,7 @@ export default function Foco() {
                 {plan.top_three.map((it, i) => {
                   const full = candidateTasks.find((t: any) => t.id === it.task_id) as any;
                   const done = full?.status === "concluida";
+                  const linkedGoal = full?.goal_id ? goals.find((g: any) => g.id === full.goal_id) : null;
                   return (
                     <li key={it.task_id} className="flex gap-3 items-start group">
                       <button
@@ -270,12 +271,21 @@ export default function Foco() {
                         )}
                       </button>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-display text-xl text-accent w-5">{i + 1}</span>
                           <span className={`text-sm font-medium ${done ? "line-through text-muted-foreground" : ""}`}>
                             {it.title}
                           </span>
                           {full?.scope && <ScopeBadge scope={full.scope} />}
+                          {linkedGoal && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); navigate(`/metas/${linkedGoal.id}`); }}
+                              className="text-[10px] px-1.5 py-0.5 rounded bg-accent/10 text-accent hover:bg-accent/20 flex items-center gap-1"
+                              title={`Meta: ${linkedGoal.name}`}
+                            >
+                              <TargetIcon className="h-2.5 w-2.5" /> {linkedGoal.name}
+                            </button>
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground ml-7 mt-0.5">{it.reason}</p>
                       </div>

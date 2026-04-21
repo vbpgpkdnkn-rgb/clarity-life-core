@@ -348,6 +348,7 @@ export type Database = {
       milestones: {
         Row: {
           created_at: string
+          deadline: string | null
           done: boolean
           goal_id: string
           id: string
@@ -356,6 +357,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deadline?: string | null
           done?: boolean
           goal_id: string
           id?: string
@@ -364,6 +366,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deadline?: string | null
           done?: boolean
           goal_id?: string
           id?: string
@@ -451,6 +454,7 @@ export type Database = {
           due_date: string | null
           goal_id: string | null
           id: string
+          milestone_id: string | null
           notes: string | null
           priority: Database["public"]["Enums"]["task_priority"]
           scope: Database["public"]["Enums"]["scope_type"]
@@ -464,6 +468,7 @@ export type Database = {
           due_date?: string | null
           goal_id?: string | null
           id?: string
+          milestone_id?: string | null
           notes?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           scope?: Database["public"]["Enums"]["scope_type"]
@@ -477,6 +482,7 @@ export type Database = {
           due_date?: string | null
           goal_id?: string | null
           id?: string
+          milestone_id?: string | null
           notes?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           scope?: Database["public"]["Enums"]["scope_type"]
@@ -496,6 +502,13 @@ export type Database = {
             columns: ["goal_id"]
             isOneToOne: false
             referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "milestones"
             referencedColumns: ["id"]
           },
         ]

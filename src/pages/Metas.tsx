@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { formatBRL, formatDateBR, todayISO } from "@/lib/format";
 import { Plus, Target, Trophy, AlertCircle, Pause, TrendingUp } from "lucide-react";
 
 export default function Metas() {
+  const navigate = useNavigate();
   const goals = useAllGoalsProgress();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
@@ -43,9 +45,8 @@ export default function Metas() {
     setEditing(null);
     setOpen(true);
   };
-  const openEdit = (g: any) => {
-    setEditing(g);
-    setOpen(true);
+  const openDetail = (g: any) => {
+    navigate(`/metas/${g.id}`);
   };
 
   return (
@@ -82,7 +83,7 @@ export default function Metas() {
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((g) => (
-            <GoalCard key={g.id} goal={g} onClick={() => openEdit(g)} />
+            <GoalCard key={g.id} goal={g} onClick={() => openDetail(g)} />
           ))}
         </div>
       )}
