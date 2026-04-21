@@ -207,8 +207,12 @@ export function useQuickDecision() {
       if (error) throw error;
       return (data as any).decision as {
         priority: string;
-        mistake_to_fix: string;
         immediate_action: string;
+        sequence: string[];
+        mistake_to_fix: string;
+        blind_spot: string;
+        critical_decision: string;
+        boss_question: string;
       };
     },
   });
