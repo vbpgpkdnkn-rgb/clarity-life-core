@@ -276,20 +276,102 @@ export function GoalFormDrawer({
           <div className="flex gap-2 pt-4">
             <Button onClick={save} className="flex-1">Salvar</Button>
             {goal && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={async () => {
-                  await del.mutateAsync(goal.id);
-                  onOpenChange(false);
-                }}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      await upsert.mutateAsync({ ...form, status: "pausada" });
+                      toast.success("Meta pausada");
+                      onOpenChange(false);
+                    }}
+                  >
+                    <Ban className="h-4 w-4 mr-2" /> Pausar (preserva tudo)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      // "Cancelar" = arquivar como pausada + nota; mantém histórico
+                      await upsert.mutateAsync({
+                        ...form,
+                        status: "pausada",
+                        description: `[CANCELADA ${new Date().toLocaleDateString("pt-BR")}] ${form.description ?? ""}`.trim(),
+                      });
+                      toast.success("Meta cancelada — histórico preservado");
+                      onOpenChange(false);
+                    }}
+                  >
+                    <Archive className="h-4 w-4 mr-2" /> Cancelar (arquivar)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      // Replanejar = limpa prazo e abre IA preview no próprio drawer
+                      setForm((p: any) => ({ ...p, deadline: null }));
+                      toast.message("Defina novo prazo e use 'Plano com IA' abaixo para regerar.");
+                      // scroll até preview
+                      setTimeout(() => {
+                        document.querySelector("[data-goal-plan-preview]")?.scrollIntoView({ behavior: "smooth" });
+                      }, 100);
+                    }}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" /> Replanejar com IA
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <ConfirmDelete
+                    onConfirm={async () => {
+                      await del.mutateAsync(goal.id);
+                      onOpenChange(false);
+                    }}
+                  />
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function ConfirmDelete({ onConfirm }: { onConfirm: () => Promise<void> }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <DropdownMenuItem
+        onSelect={(e) => {
+          e.preventDefault();
+          setOpen(true);
+        }}
+        className="text-destructive focus:text-destructive"
+      >
+        <Trash2 className="h-4 w-4 mr-2" /> Apagar permanentemente
+      </DropdownMenuItem>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apagar meta permanentemente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação remove a meta e seus marcos. Tarefas vinculadas serão mantidas, apenas perdem o vínculo.
+              Não é possível desfazer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                await onConfirm();
+                setOpen(false);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Apagar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
