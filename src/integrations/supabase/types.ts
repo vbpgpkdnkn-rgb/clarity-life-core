@@ -71,6 +71,112 @@ export type Database = {
         }
         Relationships: []
       }
+      books: {
+        Row: {
+          area_id: string | null
+          author: string | null
+          cover_url: string | null
+          created_at: string
+          current_page: number | null
+          favorite_quotes: Json
+          finished_at: string | null
+          id: string
+          pages: number | null
+          rating: number | null
+          recommend: boolean | null
+          started_at: string | null
+          status: string
+          summary: string | null
+          takeaways: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          area_id?: string | null
+          author?: string | null
+          cover_url?: string | null
+          created_at?: string
+          current_page?: number | null
+          favorite_quotes?: Json
+          finished_at?: string | null
+          id?: string
+          pages?: number | null
+          rating?: number | null
+          recommend?: boolean | null
+          started_at?: string | null
+          status?: string
+          summary?: string | null
+          takeaways?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          area_id?: string | null
+          author?: string | null
+          cover_url?: string | null
+          created_at?: string
+          current_page?: number | null
+          favorite_quotes?: Json
+          finished_at?: string | null
+          id?: string
+          pages?: number | null
+          rating?: number | null
+          recommend?: boolean | null
+          started_at?: string | null
+          status?: string
+          summary?: string | null
+          takeaways?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "books_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "life_areas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brain_dump_items: {
+        Row: {
+          area_id: string | null
+          content: string
+          converted_id: string | null
+          converted_to: string | null
+          created_at: string
+          id: string
+          processed: boolean
+        }
+        Insert: {
+          area_id?: string | null
+          content: string
+          converted_id?: string | null
+          converted_to?: string | null
+          created_at?: string
+          id?: string
+          processed?: boolean
+        }
+        Update: {
+          area_id?: string | null
+          content?: string
+          converted_id?: string | null
+          converted_to?: string | null
+          created_at?: string
+          id?: string
+          processed?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brain_dump_items_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "life_areas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           color: string | null
@@ -95,6 +201,159 @@ export type Database = {
           kind?: string
           name?: string
           scope?: Database["public"]["Enums"]["scope_type"]
+        }
+        Relationships: []
+      }
+      challenge_logs: {
+        Row: {
+          challenge_id: string
+          created_at: string
+          date: string
+          done: boolean
+          id: string
+          note: string | null
+        }
+        Insert: {
+          challenge_id: string
+          created_at?: string
+          date?: string
+          done?: boolean
+          id?: string
+          note?: string | null
+        }
+        Update: {
+          challenge_id?: string
+          created_at?: string
+          date?: string
+          done?: boolean
+          id?: string
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_logs_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenges: {
+        Row: {
+          area_id: string | null
+          created_at: string
+          daily_action: string | null
+          description: string | null
+          duration_days: number
+          end_date: string | null
+          id: string
+          name: string
+          reflection: string | null
+          reward: string | null
+          start_date: string
+          status: Database["public"]["Enums"]["challenge_status"]
+          updated_at: string
+        }
+        Insert: {
+          area_id?: string | null
+          created_at?: string
+          daily_action?: string | null
+          description?: string | null
+          duration_days?: number
+          end_date?: string | null
+          id?: string
+          name: string
+          reflection?: string | null
+          reward?: string | null
+          start_date?: string
+          status?: Database["public"]["Enums"]["challenge_status"]
+          updated_at?: string
+        }
+        Update: {
+          area_id?: string | null
+          created_at?: string
+          daily_action?: string | null
+          description?: string | null
+          duration_days?: number
+          end_date?: string | null
+          id?: string
+          name?: string
+          reflection?: string | null
+          reward?: string | null
+          start_date?: string
+          status?: Database["public"]["Enums"]["challenge_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenges_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "life_areas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cleaning_logs: {
+        Row: {
+          cleaning_task_id: string
+          created_at: string
+          date: string
+          id: string
+          notes: string | null
+        }
+        Insert: {
+          cleaning_task_id: string
+          created_at?: string
+          date?: string
+          id?: string
+          notes?: string | null
+        }
+        Update: {
+          cleaning_task_id?: string
+          created_at?: string
+          date?: string
+          id?: string
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cleaning_logs_cleaning_task_id_fkey"
+            columns: ["cleaning_task_id"]
+            isOneToOne: false
+            referencedRelation: "cleaning_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cleaning_tasks: {
+        Row: {
+          active: boolean
+          area: string | null
+          created_at: string
+          frequency: string
+          id: string
+          last_done: string | null
+          name: string
+        }
+        Insert: {
+          active?: boolean
+          area?: string | null
+          created_at?: string
+          frequency?: string
+          id?: string
+          last_done?: string | null
+          name: string
+        }
+        Update: {
+          active?: boolean
+          area?: string | null
+          created_at?: string
+          frequency?: string
+          id?: string
+          last_done?: string | null
+          name?: string
         }
         Relationships: []
       }
@@ -371,6 +630,51 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_checkins: {
+        Row: {
+          created_at: string
+          date: string
+          day_rating: number | null
+          energy: Database["public"]["Enums"]["mood_level"]
+          for_tomorrow: string | null
+          id: string
+          mood: Database["public"]["Enums"]["mood_level"]
+          noticed: string | null
+          sleep_hours: number | null
+          stress: Database["public"]["Enums"]["mood_level"]
+          what_struggled: Json
+          what_went_well: Json
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          day_rating?: number | null
+          energy?: Database["public"]["Enums"]["mood_level"]
+          for_tomorrow?: string | null
+          id?: string
+          mood?: Database["public"]["Enums"]["mood_level"]
+          noticed?: string | null
+          sleep_hours?: number | null
+          stress?: Database["public"]["Enums"]["mood_level"]
+          what_struggled?: Json
+          what_went_well?: Json
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          day_rating?: number | null
+          energy?: Database["public"]["Enums"]["mood_level"]
+          for_tomorrow?: string | null
+          id?: string
+          mood?: Database["public"]["Enums"]["mood_level"]
+          noticed?: string | null
+          sleep_hours?: number | null
+          stress?: Database["public"]["Enums"]["mood_level"]
+          what_struggled?: Json
+          what_went_well?: Json
+        }
+        Relationships: []
+      }
       daily_plans: {
         Row: {
           created_at: string
@@ -403,6 +707,63 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      dreamboard_items: {
+        Row: {
+          achieved: boolean
+          achieved_at: string | null
+          area_id: string | null
+          category: string | null
+          created_at: string
+          description: string | null
+          goal_id: string | null
+          id: string
+          image_url: string | null
+          position: number
+          title: string
+        }
+        Insert: {
+          achieved?: boolean
+          achieved_at?: string | null
+          area_id?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          goal_id?: string | null
+          id?: string
+          image_url?: string | null
+          position?: number
+          title: string
+        }
+        Update: {
+          achieved?: boolean
+          achieved_at?: string | null
+          area_id?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          goal_id?: string | null
+          id?: string
+          image_url?: string | null
+          position?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dreamboard_items_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "life_areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dreamboard_items_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       events: {
         Row: {
@@ -446,6 +807,66 @@ export type Database = {
         }
         Relationships: []
       }
+      focus_sessions: {
+        Row: {
+          actual_minutes: number | null
+          completed: boolean
+          created_at: string
+          ended_at: string | null
+          id: string
+          interruptions: number
+          kind: string
+          notes: string | null
+          planned_minutes: number
+          project_id: string | null
+          started_at: string
+          task_id: string | null
+        }
+        Insert: {
+          actual_minutes?: number | null
+          completed?: boolean
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          interruptions?: number
+          kind?: string
+          notes?: string | null
+          planned_minutes?: number
+          project_id?: string | null
+          started_at?: string
+          task_id?: string | null
+        }
+        Update: {
+          actual_minutes?: number | null
+          completed?: boolean
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          interruptions?: number
+          kind?: string
+          notes?: string | null
+          planned_minutes?: number
+          project_id?: string | null
+          started_at?: string
+          task_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "focus_sessions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "focus_sessions_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       free_notes: {
         Row: {
           content_drawing: string | null
@@ -478,6 +899,7 @@ export type Database = {
       }
       goals: {
         Row: {
+          area_id: string | null
           created_at: string
           current_value: number | null
           deadline: string | null
@@ -494,6 +916,7 @@ export type Database = {
           weight_tasks: number | null
         }
         Insert: {
+          area_id?: string | null
           created_at?: string
           current_value?: number | null
           deadline?: string | null
@@ -510,6 +933,7 @@ export type Database = {
           weight_tasks?: number | null
         }
         Update: {
+          area_id?: string | null
           created_at?: string
           current_value?: number | null
           deadline?: string | null
@@ -524,6 +948,41 @@ export type Database = {
           target_value?: number | null
           weight_financial?: number | null
           weight_tasks?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "life_areas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gratitude_entries: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          items: Json
+          reflection: string | null
+          tiny_joys: Json
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          items?: Json
+          reflection?: string | null
+          tiny_joys?: Json
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          items?: Json
+          reflection?: string | null
+          tiny_joys?: Json
         }
         Relationships: []
       }
@@ -569,6 +1028,7 @@ export type Database = {
         Row: {
           active: boolean
           archived: boolean
+          area_id: string | null
           color: string | null
           created_at: string
           description: string | null
@@ -584,6 +1044,7 @@ export type Database = {
         Insert: {
           active?: boolean
           archived?: boolean
+          area_id?: string | null
           color?: string | null
           created_at?: string
           description?: string | null
@@ -599,6 +1060,7 @@ export type Database = {
         Update: {
           active?: boolean
           archived?: boolean
+          area_id?: string | null
           color?: string | null
           created_at?: string
           description?: string | null
@@ -612,6 +1074,13 @@ export type Database = {
           unit?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "habits_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "life_areas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "habits_goal_id_fkey"
             columns: ["goal_id"]
@@ -672,6 +1141,87 @@ export type Database = {
           updated_at?: string
           website_clicks?: number
           week_start?: string
+        }
+        Relationships: []
+      }
+      life_areas: {
+        Row: {
+          active: boolean
+          color: string | null
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          kind: Database["public"]["Enums"]["life_area_kind"]
+          name: string
+          position: number
+          target_weight: number | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["life_area_kind"]
+          name: string
+          position?: number
+          target_weight?: number | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["life_area_kind"]
+          name?: string
+          position?: number
+          target_weight?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      meal_plans: {
+        Row: {
+          breakfast: string | null
+          created_at: string
+          date: string
+          dinner: string | null
+          id: string
+          lunch: string | null
+          notes: string | null
+          shopping_list: Json
+          snack: string | null
+          updated_at: string
+        }
+        Insert: {
+          breakfast?: string | null
+          created_at?: string
+          date: string
+          dinner?: string | null
+          id?: string
+          lunch?: string | null
+          notes?: string | null
+          shopping_list?: Json
+          snack?: string | null
+          updated_at?: string
+        }
+        Update: {
+          breakfast?: string | null
+          created_at?: string
+          date?: string
+          dinner?: string | null
+          id?: string
+          lunch?: string | null
+          notes?: string | null
+          shopping_list?: Json
+          snack?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -817,6 +1367,113 @@ export type Database = {
         }
         Relationships: []
       }
+      project_okrs: {
+        Row: {
+          created_at: string
+          id: string
+          key_results: Json
+          objective: string
+          position: number
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key_results?: Json
+          objective: string
+          position?: number
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key_results?: Json
+          objective?: string
+          position?: number
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_okrs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          area_id: string | null
+          created_at: string
+          deadline: string | null
+          description: string | null
+          end_date: string | null
+          goal_id: string | null
+          id: string
+          name: string
+          notes: string | null
+          priority: Database["public"]["Enums"]["task_priority"]
+          progress: number
+          resources: Json
+          scope: Database["public"]["Enums"]["scope_type"]
+          start_date: string | null
+          status: Database["public"]["Enums"]["project_status"]
+          updated_at: string
+        }
+        Insert: {
+          area_id?: string | null
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          end_date?: string | null
+          goal_id?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          progress?: number
+          resources?: Json
+          scope?: Database["public"]["Enums"]["scope_type"]
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["project_status"]
+          updated_at?: string
+        }
+        Update: {
+          area_id?: string | null
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          end_date?: string | null
+          goal_id?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          progress?: number
+          resources?: Json
+          scope?: Database["public"]["Enums"]["scope_type"]
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["project_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "life_areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recurrences: {
         Row: {
           account_id: string
@@ -882,54 +1539,79 @@ export type Database = {
       }
       tasks: {
         Row: {
+          area_id: string | null
           category_id: string | null
           completed_at: string | null
           content_piece_id: string | null
           created_at: string
           due_date: string | null
+          eisenhower: Database["public"]["Enums"]["eisenhower_quadrant"] | null
+          energy: Database["public"]["Enums"]["energy_level"] | null
           execution_minutes: number | null
           goal_id: string | null
           id: string
+          is_135: string | null
+          kanban_column: Database["public"]["Enums"]["kanban_column"]
           milestone_id: string | null
           notes: string | null
           priority: Database["public"]["Enums"]["task_priority"]
+          project_id: string | null
           scope: Database["public"]["Enums"]["scope_type"]
           status: Database["public"]["Enums"]["task_status"]
           title: string
         }
         Insert: {
+          area_id?: string | null
           category_id?: string | null
           completed_at?: string | null
           content_piece_id?: string | null
           created_at?: string
           due_date?: string | null
+          eisenhower?: Database["public"]["Enums"]["eisenhower_quadrant"] | null
+          energy?: Database["public"]["Enums"]["energy_level"] | null
           execution_minutes?: number | null
           goal_id?: string | null
           id?: string
+          is_135?: string | null
+          kanban_column?: Database["public"]["Enums"]["kanban_column"]
           milestone_id?: string | null
           notes?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
+          project_id?: string | null
           scope?: Database["public"]["Enums"]["scope_type"]
           status?: Database["public"]["Enums"]["task_status"]
           title: string
         }
         Update: {
+          area_id?: string | null
           category_id?: string | null
           completed_at?: string | null
           content_piece_id?: string | null
           created_at?: string
           due_date?: string | null
+          eisenhower?: Database["public"]["Enums"]["eisenhower_quadrant"] | null
+          energy?: Database["public"]["Enums"]["energy_level"] | null
           execution_minutes?: number | null
           goal_id?: string | null
           id?: string
+          is_135?: string | null
+          kanban_column?: Database["public"]["Enums"]["kanban_column"]
           milestone_id?: string | null
           notes?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
+          project_id?: string | null
           scope?: Database["public"]["Enums"]["scope_type"]
           status?: Database["public"]["Enums"]["task_status"]
           title?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tasks_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "life_areas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tasks_category_id_fkey"
             columns: ["category_id"]
@@ -958,12 +1640,20 @@ export type Database = {
             referencedRelation: "milestones"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
         ]
       }
       transactions: {
         Row: {
           account_id: string
           amount: number
+          area_id: string | null
           category_id: string | null
           created_at: string
           date: string
@@ -980,6 +1670,7 @@ export type Database = {
         Insert: {
           account_id: string
           amount: number
+          area_id?: string | null
           category_id?: string | null
           created_at?: string
           date?: string
@@ -996,6 +1687,7 @@ export type Database = {
         Update: {
           account_id?: string
           amount?: number
+          area_id?: string | null
           category_id?: string | null
           created_at?: string
           date?: string
@@ -1015,6 +1707,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "life_areas"
             referencedColumns: ["id"]
           },
           {
@@ -1133,6 +1832,56 @@ export type Database = {
         }
         Relationships: []
       }
+      wishlist_items: {
+        Row: {
+          acquired: boolean
+          acquired_at: string | null
+          area_id: string | null
+          category: string | null
+          created_at: string
+          estimated_price: number | null
+          id: string
+          name: string
+          notes: string | null
+          priority: Database["public"]["Enums"]["task_priority"]
+          url: string | null
+        }
+        Insert: {
+          acquired?: boolean
+          acquired_at?: string | null
+          area_id?: string | null
+          category?: string | null
+          created_at?: string
+          estimated_price?: number | null
+          id?: string
+          name: string
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          url?: string | null
+        }
+        Update: {
+          acquired?: boolean
+          acquired_at?: string | null
+          area_id?: string | null
+          category?: string | null
+          created_at?: string
+          estimated_price?: number | null
+          id?: string
+          name?: string
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wishlist_items_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "life_areas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1144,6 +1893,7 @@ export type Database = {
       }
     }
     Enums: {
+      challenge_status: "ativo" | "concluido" | "abandonado"
       content_format:
         | "reels"
         | "carrossel"
@@ -1158,9 +1908,35 @@ export type Database = {
         | "pronto"
         | "publicado"
         | "arquivado"
+      eisenhower_quadrant:
+        | "urgente_importante"
+        | "importante_nao_urgente"
+        | "urgente_nao_importante"
+        | "nao_urgente_nao_importante"
+      energy_level: "leve" | "media" | "pesada"
       goal_kind: "tarefas" | "financeiro" | "marcos" | "hibrida" | "conteudo"
       goal_status: "ativa" | "concluida" | "pausada"
       habit_frequency: "diaria" | "semanal"
+      kanban_column: "todo" | "in_progress" | "review" | "done"
+      life_area_kind:
+        | "carreira"
+        | "financas"
+        | "saude"
+        | "relacionamentos"
+        | "familia"
+        | "desenvolvimento"
+        | "espiritualidade"
+        | "lazer"
+        | "contribuicao"
+        | "ambiente"
+      mood_level: "muito_baixo" | "baixo" | "neutro" | "alto" | "muito_alto"
+      project_status:
+        | "planejado"
+        | "em_andamento"
+        | "em_revisao"
+        | "concluido"
+        | "pausado"
+        | "arquivado"
       recurrence_freq: "diaria" | "semanal" | "mensal" | "anual"
       scope_type: "pessoal" | "profissional"
       story_slot:
@@ -1304,6 +2080,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      challenge_status: ["ativo", "concluido", "abandonado"],
       content_format: [
         "reels",
         "carrossel",
@@ -1320,9 +2097,38 @@ export const Constants = {
         "publicado",
         "arquivado",
       ],
+      eisenhower_quadrant: [
+        "urgente_importante",
+        "importante_nao_urgente",
+        "urgente_nao_importante",
+        "nao_urgente_nao_importante",
+      ],
+      energy_level: ["leve", "media", "pesada"],
       goal_kind: ["tarefas", "financeiro", "marcos", "hibrida", "conteudo"],
       goal_status: ["ativa", "concluida", "pausada"],
       habit_frequency: ["diaria", "semanal"],
+      kanban_column: ["todo", "in_progress", "review", "done"],
+      life_area_kind: [
+        "carreira",
+        "financas",
+        "saude",
+        "relacionamentos",
+        "familia",
+        "desenvolvimento",
+        "espiritualidade",
+        "lazer",
+        "contribuicao",
+        "ambiente",
+      ],
+      mood_level: ["muito_baixo", "baixo", "neutro", "alto", "muito_alto"],
+      project_status: [
+        "planejado",
+        "em_andamento",
+        "em_revisao",
+        "concluido",
+        "pausado",
+        "arquivado",
+      ],
       recurrence_freq: ["diaria", "semanal", "mensal", "anual"],
       scope_type: ["pessoal", "profissional"],
       story_slot: [
