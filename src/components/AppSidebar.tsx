@@ -1,7 +1,9 @@
-import { Sparkles, LayoutDashboard, CalendarDays, Target, Wallet, ListTodo, CalendarRange, Clapperboard, Heart, FolderKanban } from "lucide-react";
+import { Sparkles, LayoutDashboard, CalendarDays, Target, Wallet, ListTodo, CalendarRange, Clapperboard, Heart, FolderKanban, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useRecentAdjustments } from "@/hooks/useAdaptive";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -31,8 +33,15 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const adjustmentsQ = useRecentAdjustments();
   const pendingCount = (adjustmentsQ.data ?? []).filter((a) => a.status === "sugerido").length;
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth", { replace: true });
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -92,6 +101,19 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <div className="mt-auto p-3 border-t border-sidebar-border">
+          <Button
+            variant="ghost"
+            size={collapsed ? "icon" : "sm"}
+            className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+            onClick={handleSignOut}
+            title={user?.email ?? "Sair"}
+          >
+            <LogOut className="h-4 w-4" />
+            {!collapsed && <span className="truncate text-xs">{user?.email ?? "Sair"}</span>}
+          </Button>
+        </div>
       </SidebarContent>
     </Sidebar>
   );
