@@ -136,7 +136,7 @@ export function TaskFormDrawer({
             </div>
             <div>
               <Label>Prioridade</Label>
-              <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
+              <Select value={form.priority} onValueChange={(v) => updatePriorityOrDate({ priority: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="alta">Alta</SelectItem>
@@ -152,7 +152,7 @@ export function TaskFormDrawer({
               <Input
                 type="date"
                 value={form.due_date || ""}
-                onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+                onChange={(e) => updatePriorityOrDate({ due_date: e.target.value })}
               />
             </div>
             <div>
