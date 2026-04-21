@@ -150,7 +150,7 @@ export default function ProjetoDetalhe() {
       </div>
 
       {/* Resumo high-performance */}
-      {(project.vision || project.next_step || project.success_criteria || (project.kpis && project.kpis.length > 0) || (project.stakeholders && project.stakeholders.length > 0) || (project.risks && project.risks.length > 0)) && (
+      {(project.vision || project.next_step || project.success_criteria || (Array.isArray(project.kpis) && project.kpis.length > 0) || (Array.isArray(project.stakeholders) && project.stakeholders.length > 0) || (Array.isArray(project.risks) && project.risks.length > 0) || project.milestones_text) && (
         <Card className="p-5 mb-6 border-border/60 shadow-none">
           <div className="grid md:grid-cols-2 gap-5">
             {project.next_step && (
