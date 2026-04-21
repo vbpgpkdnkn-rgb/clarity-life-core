@@ -12,7 +12,8 @@ import { useScope, filterByScope, defaultScope } from "@/contexts/ScopeContext";
 import { ScopeBadge } from "@/components/ScopeBadge";
 import { startOfWeekFor, weekDates, dayName, dayNumber, isToday } from "@/lib/week";
 import { todayISO, addDaysISO } from "@/lib/format";
-import { Plus, Check, Flame, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Check, Flame, Trash2, ChevronLeft, ChevronRight, Calendar, Clock } from "lucide-react";
+import { WeekdayPicker } from "@/components/vida/WeekdayPicker";
 
 export default function PlannerHabitos() {
   const [weekStart, setWeekStart] = useState<string>(startOfWeekFor(todayISO()));
@@ -208,6 +209,27 @@ function HabitDrawer({ open, onOpenChange, habit, goals, onSave, onDelete }: any
               <label className="text-xs font-medium text-muted-foreground">Unidade</label>
               <Input value={form.unit || ""} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="Ex: L, min, pag" />
             </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
+              <Calendar className="h-3 w-3" />
+              Dias da semana (gera tarefa automática nesses dias por 4 semanas)
+            </label>
+            <WeekdayPicker
+              value={form.weekdays || []}
+              onChange={(weekdays) => setForm({ ...form, weekdays })}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
+              <Clock className="h-3 w-3" />
+              Horário sugerido (opcional)
+            </label>
+            <Input
+              type="time"
+              value={form.time_of_day || ""}
+              onChange={(e) => setForm({ ...form, time_of_day: e.target.value })}
+            />
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground">Vincular à meta (opcional)</label>
