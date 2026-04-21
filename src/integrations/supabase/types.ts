@@ -68,6 +68,111 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_plans: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          notes_drawing: string | null
+          notes_rich: string | null
+          reflection: string | null
+          top_priorities: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          notes_drawing?: string | null
+          notes_rich?: string | null
+          reflection?: string | null
+          top_priorities?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          notes_drawing?: string | null
+          notes_rich?: string | null
+          reflection?: string | null
+          top_priorities?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          all_day: boolean
+          color: string | null
+          created_at: string
+          date: string
+          description: string | null
+          end_time: string | null
+          id: string
+          location: string | null
+          scope: Database["public"]["Enums"]["scope_type"]
+          start_time: string | null
+          title: string
+        }
+        Insert: {
+          all_day?: boolean
+          color?: string | null
+          created_at?: string
+          date: string
+          description?: string | null
+          end_time?: string | null
+          id?: string
+          location?: string | null
+          scope?: Database["public"]["Enums"]["scope_type"]
+          start_time?: string | null
+          title: string
+        }
+        Update: {
+          all_day?: boolean
+          color?: string | null
+          created_at?: string
+          date?: string
+          description?: string | null
+          end_time?: string | null
+          id?: string
+          location?: string | null
+          scope?: Database["public"]["Enums"]["scope_type"]
+          start_time?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
+      free_notes: {
+        Row: {
+          content_drawing: string | null
+          content_rich: string | null
+          created_at: string
+          id: string
+          pinned: boolean
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          content_drawing?: string | null
+          content_rich?: string | null
+          created_at?: string
+          id?: string
+          pinned?: boolean
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          content_drawing?: string | null
+          content_rich?: string | null
+          created_at?: string
+          id?: string
+          pinned?: boolean
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       goals: {
         Row: {
           created_at: string
@@ -115,6 +220,100 @@ export type Database = {
           weight_tasks?: number | null
         }
         Relationships: []
+      }
+      habit_logs: {
+        Row: {
+          created_at: string
+          date: string
+          done: boolean
+          habit_id: string
+          id: string
+          note: string | null
+          value: number | null
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          done?: boolean
+          habit_id: string
+          id?: string
+          note?: string | null
+          value?: number | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          done?: boolean
+          habit_id?: string
+          id?: string
+          note?: string | null
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habit_logs_habit_id_fkey"
+            columns: ["habit_id"]
+            isOneToOne: false
+            referencedRelation: "habits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      habits: {
+        Row: {
+          active: boolean
+          archived: boolean
+          color: string | null
+          created_at: string
+          description: string | null
+          frequency: Database["public"]["Enums"]["habit_frequency"]
+          goal_id: string | null
+          id: string
+          name: string
+          scope: Database["public"]["Enums"]["scope_type"]
+          target_per_week: number | null
+          target_value: number | null
+          unit: string | null
+        }
+        Insert: {
+          active?: boolean
+          archived?: boolean
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          frequency?: Database["public"]["Enums"]["habit_frequency"]
+          goal_id?: string | null
+          id?: string
+          name: string
+          scope?: Database["public"]["Enums"]["scope_type"]
+          target_per_week?: number | null
+          target_value?: number | null
+          unit?: string | null
+        }
+        Update: {
+          active?: boolean
+          archived?: boolean
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          frequency?: Database["public"]["Enums"]["habit_frequency"]
+          goal_id?: string | null
+          id?: string
+          name?: string
+          scope?: Database["public"]["Enums"]["scope_type"]
+          target_per_week?: number | null
+          target_value?: number | null
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habits_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       milestones: {
         Row: {
@@ -351,6 +550,99 @@ export type Database = {
           },
         ]
       }
+      weekly_plans: {
+        Row: {
+          balance_financial: string | null
+          balance_health: string | null
+          balance_personal: string | null
+          balance_professional: string | null
+          created_at: string
+          focus: string | null
+          id: string
+          notes: string | null
+          objectives: Json
+          priorities: Json
+          updated_at: string
+          week_start: string
+        }
+        Insert: {
+          balance_financial?: string | null
+          balance_health?: string | null
+          balance_personal?: string | null
+          balance_professional?: string | null
+          created_at?: string
+          focus?: string | null
+          id?: string
+          notes?: string | null
+          objectives?: Json
+          priorities?: Json
+          updated_at?: string
+          week_start: string
+        }
+        Update: {
+          balance_financial?: string | null
+          balance_health?: string | null
+          balance_personal?: string | null
+          balance_professional?: string | null
+          created_at?: string
+          focus?: string | null
+          id?: string
+          notes?: string | null
+          objectives?: Json
+          priorities?: Json
+          updated_at?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
+      weekly_reviews: {
+        Row: {
+          biggest_lesson: string | null
+          biggest_mistake: string | null
+          consistency: number | null
+          created_at: string
+          id: string
+          important_decisions: string | null
+          next_week_changes: string | null
+          productivity: number | null
+          rating: number | null
+          updated_at: string
+          week_start: string
+          what_didnt: string | null
+          what_worked: string | null
+        }
+        Insert: {
+          biggest_lesson?: string | null
+          biggest_mistake?: string | null
+          consistency?: number | null
+          created_at?: string
+          id?: string
+          important_decisions?: string | null
+          next_week_changes?: string | null
+          productivity?: number | null
+          rating?: number | null
+          updated_at?: string
+          week_start: string
+          what_didnt?: string | null
+          what_worked?: string | null
+        }
+        Update: {
+          biggest_lesson?: string | null
+          biggest_mistake?: string | null
+          consistency?: number | null
+          created_at?: string
+          id?: string
+          important_decisions?: string | null
+          next_week_changes?: string | null
+          productivity?: number | null
+          rating?: number | null
+          updated_at?: string
+          week_start?: string
+          what_didnt?: string | null
+          what_worked?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -364,6 +656,7 @@ export type Database = {
     Enums: {
       goal_kind: "tarefas" | "financeiro" | "marcos" | "hibrida"
       goal_status: "ativa" | "concluida" | "pausada"
+      habit_frequency: "diaria" | "semanal"
       recurrence_freq: "diaria" | "semanal" | "mensal" | "anual"
       scope_type: "pessoal" | "profissional"
       task_priority: "alta" | "media" | "baixa"
@@ -500,6 +793,7 @@ export const Constants = {
     Enums: {
       goal_kind: ["tarefas", "financeiro", "marcos", "hibrida"],
       goal_status: ["ativa", "concluida", "pausada"],
+      habit_frequency: ["diaria", "semanal"],
       recurrence_freq: ["diaria", "semanal", "mensal", "anual"],
       scope_type: ["pessoal", "profissional"],
       task_priority: ["alta", "media", "baixa"],

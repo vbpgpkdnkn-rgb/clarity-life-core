@@ -1,4 +1,4 @@
-import { Home, CheckSquare, Target, Wallet } from "lucide-react";
+import { Home, CalendarDays, Target, Wallet, ListTodo } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -14,8 +14,9 @@ import {
 } from "@/components/ui/sidebar";
 
 const items = [
-  { title: "Dashboard", url: "/", icon: Home },
-  { title: "Planner", url: "/planner", icon: CheckSquare },
+  { title: "Dashboard", url: "/", icon: Home, end: true },
+  { title: "Planner", url: "/planner", icon: CalendarDays },
+  { title: "Tarefas", url: "/tarefas", icon: ListTodo },
   { title: "Metas", url: "/metas", icon: Target },
   { title: "Financeiro", url: "/financeiro", icon: Wallet },
 ];
@@ -46,13 +47,15 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => {
-                const active = location.pathname === item.url;
+                const active = item.end
+                  ? location.pathname === item.url
+                  : location.pathname.startsWith(item.url);
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild className="h-11">
                       <NavLink
                         to={item.url}
-                        end
+                        end={item.end}
                         className="flex items-center gap-3 rounded-md transition-colors hover:bg-sidebar-accent"
                         activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                       >
