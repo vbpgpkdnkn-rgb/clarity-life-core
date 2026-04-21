@@ -3,6 +3,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { ScopeFilterToggle } from "./ScopeFilterToggle";
 import { QuickDecisionButton } from "./foco/QuickDecisionButton";
+import { QuickCapture } from "./QuickCapture";
 import { formatDateLong } from "@/lib/format";
 
 export function AppLayout({ children, title, subtitle, action }: {
@@ -36,6 +37,7 @@ export function AppLayout({ children, title, subtitle, action }: {
             {children}
           </main>
           <QuickDecisionButton />
+          <QuickCapture />
         </div>
       </div>
     </SidebarProvider>
