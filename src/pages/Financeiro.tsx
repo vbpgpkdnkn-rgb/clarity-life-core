@@ -60,11 +60,13 @@ import {
   ReferenceLine,
 } from "recharts";
 
+import { useScope } from "@/contexts/ScopeContext";
+
 type ScopeFilter = "todos" | "pessoal" | "profissional";
 type Period = "mes" | "30d" | "90d" | "ano" | "tudo";
 
 export default function Financeiro() {
-  const [scopeFilter, setScopeFilter] = useState<ScopeFilter>("todos");
+  const { scope: scopeFilter } = useScope();
   const [period, setPeriod] = useState<Period>("mes");
   const [categoryFilter, setCategoryFilter] = useState<string>("todas");
   const [natureFilter, setNatureFilter] = useState<"todos" | "fixo" | "variavel">("todos");
