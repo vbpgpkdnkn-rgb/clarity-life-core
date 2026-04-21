@@ -243,16 +243,47 @@ export const useUpsertChallenge = () => {
     mutationFn: async (c: any) => {
       const payload = { ...c };
       if (payload.end_date === "") payload.end_date = null;
-      if (c.id) {
-        const { error } = await supabase.from("challenges").update(payload).eq("id", c.id);
+      let id = c.id;
+      if (id) {
+        const { error } = await supabase.from("challenges").update(payload).eq("id", id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("challenges").insert(payload);
+        const { data, error } = await supabase.from("challenges").insert(payload).select("id").single();
         if (error) throw error;
+        id = data.id;
       }
+      if (Array.isArray(payload.weekdays)) {
+        await syncRecurringTasks({
+          table: "challenges",
+          id,
+          title: `🎯 ${payload.name}${payload.daily_action ? `: ${payload.daily_action}` : ""}`,
+          weekdays: payload.weekdays,
+          area_id: payload.area_id ?? null,
+          scope: "pessoal",
+        });
+      }
+      return id;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["challenges"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["challenges"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
     onError: (e: any) => toast.error(e.message),
+  });
+};
+
+export const useDeleteChallenge = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await clearRecurringTasks("challenges", id);
+      const { error } = await supabase.from("challenges").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["challenges"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
   });
 };
 
