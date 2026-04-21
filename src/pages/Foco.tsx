@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScopeBadge } from "@/components/ScopeBadge";
 import { FocusSessionDialog } from "@/components/foco/FocusSessionDialog";
 import { StrategicInsights } from "@/components/foco/StrategicInsights";
+import { AdaptivePanel } from "@/components/foco/AdaptivePanel";
 import { supabase } from "@/integrations/supabase/client";
 import { useTasks, useUpsertTask } from "@/hooks/useData";
 import { useAllGoalsProgress } from "@/hooks/useGoalProgress";
@@ -321,6 +322,9 @@ export default function Foco() {
           </div>
         </>
       )}
+
+      {/* IA ADAPTATIVA */}
+      <AdaptivePanel />
 
       {/* CONSELHEIRO ESTRATÉGICO */}
       <StrategicInsights />
