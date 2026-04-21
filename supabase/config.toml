@@ -9,3 +9,9 @@ verify_jwt = false
 [functions.quick-decision]
 verify_jwt = false
 
+[functions.goal-planner]
+verify_jwt = false
+
+[functions.goal-redistribute]
+verify_jwt = false
+
