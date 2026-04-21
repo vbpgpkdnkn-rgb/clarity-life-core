@@ -12,6 +12,9 @@ import { FocusSessionDialog } from "@/components/foco/FocusSessionDialog";
 import { StrategicInsights } from "@/components/foco/StrategicInsights";
 import { AdaptivePanel } from "@/components/foco/AdaptivePanel";
 import { ContentTodayCard } from "@/components/foco/ContentTodayCard";
+import { EisenhowerMatrix } from "@/components/foco/EisenhowerMatrix";
+import { OneThreeFive } from "@/components/foco/OneThreeFive";
+import { PomodoroCard } from "@/components/foco/PomodoroCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useTasks, useUpsertTask } from "@/hooks/useData";
 import { useAllGoalsProgress } from "@/hooks/useGoalProgress";
@@ -33,6 +36,8 @@ import {
   ChevronDown,
   Brain,
   Clapperboard,
+  LayoutGrid,
+  Timer,
 } from "lucide-react";
 
 interface FocusItem {
