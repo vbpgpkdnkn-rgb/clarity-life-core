@@ -174,6 +174,7 @@ export default function Foco() {
         </div>
       }
     >
+      <ContentTodayCard />
       {/* Empty state */}
       {candidateTasks.length === 0 && (
         <Card className="p-10 text-center shadow-soft">
