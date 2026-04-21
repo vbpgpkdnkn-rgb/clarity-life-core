@@ -1,13 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { accountBalance } from "@/lib/finance";
 
 export type Scope = "pessoal" | "profissional";
 export type TaskPriority = "alta" | "media" | "baixa";
 export type TaskStatus = "pendente" | "em_andamento" | "concluida";
 export type TxnType = "entrada" | "saida" | "transferencia";
 export type TxnNature = "fixo" | "variavel";
-export type TxnStatus = "conciliado" | "pendente";
+export type TxnStatus = "pago" | "pendente" | "futuro";
 export type GoalKind = "tarefas" | "financeiro" | "marcos";
 export type GoalStatus = "ativa" | "concluida" | "pausada";
 
@@ -25,18 +26,10 @@ export const useAccounts = () =>
 export const useAccountBalances = () => {
   const { data: accounts = [] } = useAccounts();
   const { data: txns = [] } = useTransactions();
-  return accounts.map((a) => {
-    let bal = Number(a.initial_balance || 0);
-    for (const t of txns) {
-      if (t.account_id === a.id) {
-        if (t.type === "entrada") bal += Number(t.amount);
-        else if (t.type === "saida") bal -= Number(t.amount);
-        else if (t.type === "transferencia") bal -= Number(t.amount);
-      }
-      if (t.to_account_id === a.id && t.type === "transferencia") bal += Number(t.amount);
-    }
-    return { ...a, balance: bal };
-  });
+  return accounts.map((a) => ({
+    ...a,
+    balance: accountBalance(a as any, txns as any),
+  }));
 };
 
 // ---------- Categories ----------

@@ -7,23 +7,36 @@ import { ScopeBadge } from "@/components/ScopeBadge";
 import { GoalFormDrawer } from "@/components/forms/GoalFormDrawer";
 import { useAllGoalsProgress } from "@/hooks/useGoalProgress";
 import { formatBRL, formatDateBR, todayISO } from "@/lib/format";
-import { Plus, Target, Trophy, AlertCircle, Pause } from "lucide-react";
+import { Plus, Target, Trophy, AlertCircle, Pause, TrendingUp } from "lucide-react";
 
 export default function Metas() {
   const goals = useAllGoalsProgress();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const today = todayISO();
+  const [filter, setFilter] = useState<"todos" | "pessoal" | "profissional">("todos");
+
+  const filtered = goals.filter((g) => filter === "todos" || g.scope === filter);
 
   const stats = useMemo(() => {
-    const ativas = goals.filter((g) => g.status === "ativa");
-    const concluidas = goals.filter((g) => g.status === "concluida" || g.progress.pct >= 100);
-    const atrasadas = ativas.filter((g) => g.deadline && g.deadline < today && g.progress.pct < 100);
+    const ativas = filtered.filter((g) => g.status === "ativa");
+    const concluidas = filtered.filter((g) => g.status === "concluida" || g.progress.pct >= 100);
+    const atrasadas = ativas.filter((g) => g.progress.pace === "atrasada");
+    const noRitmo = ativas.filter((g) => g.progress.pace === "ok");
     const avgProgress = ativas.length
       ? Math.round(ativas.reduce((s, g) => s + g.progress.pct, 0) / ativas.length)
       : 0;
-    return { ativas: ativas.length, concluidas: concluidas.length, atrasadas: atrasadas.length, avgProgress };
-  }, [goals, today]);
+    const taxaAtingimento = filtered.length
+      ? Math.round((concluidas.length / filtered.length) * 100)
+      : 0;
+    return {
+      ativas: ativas.length,
+      concluidas: concluidas.length,
+      atrasadas: atrasadas.length,
+      noRitmo: noRitmo.length,
+      avgProgress,
+      taxaAtingimento,
+    };
+  }, [filtered]);
 
   const openNew = () => {
     setEditing(null);
@@ -44,24 +57,36 @@ export default function Metas() {
         </Button>
       }
     >
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-        <StatCard label="Atingimento médio" value={`${stats.avgProgress}%`} icon={<Target className="h-4 w-4" />} />
-        <StatCard label="Ativas" value={String(stats.ativas)} icon={<Target className="h-4 w-4" />} />
-        <StatCard label="Concluídas" value={String(stats.concluidas)} icon={<Trophy className="h-4 w-4 text-success" />} />
-        <StatCard
-          label="Atrasadas"
-          value={String(stats.atrasadas)}
-          icon={<AlertCircle className="h-4 w-4 text-destructive" />}
-          highlight={stats.atrasadas > 0}
-        />
+      <div className="flex gap-2 mb-6">
+        {(["todos", "pessoal", "profissional"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-colors ${
+              filter === f
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted hover:bg-muted/70 text-muted-foreground"
+            }`}
+          >
+            {f}
+          </button>
+        ))}
       </div>
 
-      {goals.length === 0 ? (
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
+        <StatCard label="Atingimento" value={`${stats.taxaAtingimento}%`} icon={<Trophy className="h-4 w-4 text-success" />} />
+        <StatCard label="Progresso médio" value={`${stats.avgProgress}%`} icon={<TrendingUp className="h-4 w-4" />} />
+        <StatCard label="No ritmo" value={String(stats.noRitmo)} icon={<Target className="h-4 w-4 text-success" />} />
+        <StatCard label="Atrasadas" value={String(stats.atrasadas)} icon={<AlertCircle className="h-4 w-4 text-destructive" />} highlight={stats.atrasadas > 0} />
+        <StatCard label="Concluídas" value={String(stats.concluidas)} icon={<Trophy className="h-4 w-4" />} />
+      </div>
+
+      {filtered.length === 0 ? (
         <Card className="p-12 text-center shadow-soft">
           <Target className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
           <h3 className="font-display text-xl mb-2">Comece pela sua primeira meta</h3>
           <p className="text-sm text-muted-foreground mb-4 max-w-sm mx-auto">
-            Defina metas por tarefas, valor financeiro ou marcos. O progresso é calculado automaticamente conforme você executa.
+            Defina metas por tarefas, valor financeiro, marcos ou híbridas. O progresso é calculado automaticamente.
           </p>
           <Button onClick={openNew}>
             <Plus className="h-4 w-4 mr-1" /> Criar meta
@@ -69,7 +94,7 @@ export default function Metas() {
         </Card>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {goals.map((g) => (
+          {filtered.map((g) => (
             <GoalCard key={g.id} goal={g} onClick={() => openEdit(g)} />
           ))}
         </div>
@@ -81,16 +106,13 @@ export default function Metas() {
 }
 
 function GoalCard({ goal, onClick }: { goal: any; onClick: () => void }) {
-  const today = todayISO();
-  const isOverdue = goal.deadline && goal.deadline < today && goal.progress.pct < 100 && goal.status === "ativa";
-  const isDone = goal.status === "concluida" || goal.progress.pct >= 100;
+  const isOverdue = goal.progress.pace === "atrasada";
+  const isDone = goal.progress.pace === "concluida";
 
   const progressLabel = useMemo(() => {
-    if (goal.kind === "financeiro" && goal.progress.target) {
+    if (goal.progress.detail) return goal.progress.detail;
+    if ((goal.kind === "financeiro" || goal.kind === "hibrida") && goal.progress.target) {
       return `${formatBRL(goal.progress.current)} de ${formatBRL(goal.progress.target)}`;
-    }
-    if (goal.kind === "tarefas" || goal.kind === "marcos") {
-      return `${goal.progress.current} de ${goal.progress.target} ${goal.kind === "tarefas" ? "tarefas" : "marcos"}`;
     }
     return null;
   }, [goal]);
@@ -109,6 +131,7 @@ function GoalCard({ goal, onClick }: { goal: any; onClick: () => void }) {
           {goal.status === "pausada" && <Pause className="h-3 w-3 text-muted-foreground" />}
         </div>
         {isDone && <Trophy className="h-4 w-4 text-success" />}
+        {isOverdue && <AlertCircle className="h-4 w-4 text-destructive" />}
       </div>
       <h3 className="font-display text-lg font-semibold mb-1 line-clamp-2">{goal.name}</h3>
       {progressLabel && <p className="text-xs text-muted-foreground mb-3 tabular-nums">{progressLabel}</p>}
@@ -119,13 +142,26 @@ function GoalCard({ goal, onClick }: { goal: any; onClick: () => void }) {
       {goal.deadline && (
         <p className={`text-xs mt-2 ${isOverdue ? "text-destructive font-medium" : "text-muted-foreground"}`}>
           Prazo: {formatDateBR(goal.deadline)}
+          {goal.progress.pace === "atrasada" && goal.progress.paceDelta < 0 && (
+            <> · {Math.abs(Math.round(goal.progress.paceDelta))}% abaixo do esperado</>
+          )}
         </p>
       )}
     </button>
   );
 }
 
-function StatCard({ label, value, icon, highlight }: { label: string; value: string; icon: React.ReactNode; highlight?: boolean }) {
+function StatCard({
+  label,
+  value,
+  icon,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+  highlight?: boolean;
+}) {
   return (
     <Card className={`p-4 shadow-soft ${highlight ? "border-destructive/40" : ""}`}>
       <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground mb-2">

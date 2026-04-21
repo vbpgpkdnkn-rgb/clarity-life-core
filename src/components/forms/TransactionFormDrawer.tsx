@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAccounts, useCategories, useGoals, useUpsertTransaction, useDeleteTransaction } from "@/hooks/useData";
 import { todayISO } from "@/lib/format";
 import { Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 export function TransactionFormDrawer({
   open,
@@ -27,15 +28,16 @@ export function TransactionFormDrawer({
 
   useEffect(() => {
     if (open) {
+      const today = todayISO();
       setForm(
         txn ?? {
           type: "saida",
           nature: "variavel",
           scope: "pessoal",
-          status: "conciliado",
+          status: "pago",
           amount: "",
           description: "",
-          date: todayISO(),
+          date: today,
           account_id: accounts[0]?.id,
           to_account_id: null,
           category_id: null,
@@ -46,8 +48,19 @@ export function TransactionFormDrawer({
   }, [open, txn, accounts]);
 
   const save = async () => {
-    if (!form.account_id || !form.amount) return;
-    await upsert.mutateAsync({ ...form, amount: Number(form.amount) });
+    if (!form.account_id || !form.amount) {
+      toast.error("Preencha conta e valor");
+      return;
+    }
+    // Categoria obrigatória (exceto transferências)
+    if (form.type !== "transferencia" && !form.category_id) {
+      toast.error("Categoria é obrigatória");
+      return;
+    }
+    // Auto-status baseado na data se for "pago" mas data futura
+    let status = form.status;
+    if (status === "pago" && form.date > todayISO()) status = "futuro";
+    await upsert.mutateAsync({ ...form, status, amount: Number(form.amount) });
     onOpenChange(false);
   };
 
@@ -178,8 +191,9 @@ export function TransactionFormDrawer({
               <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="conciliado">Conciliado</SelectItem>
+                  <SelectItem value="pago">Pago</SelectItem>
                   <SelectItem value="pendente">Pendente</SelectItem>
+                  <SelectItem value="futuro">Futuro</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -195,7 +209,7 @@ export function TransactionFormDrawer({
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Nenhuma</SelectItem>
-                  {goals.filter((g) => g.kind === "financeiro").map((g) => (
+                  {goals.filter((g) => g.kind === "financeiro" || g.kind === "hibrida").map((g) => (
                     <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
                   ))}
                 </SelectContent>

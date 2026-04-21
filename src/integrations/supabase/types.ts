@@ -79,7 +79,10 @@ export type Database = {
           name: string
           scope: Database["public"]["Enums"]["scope_type"]
           status: Database["public"]["Enums"]["goal_status"]
+          target_tasks: number | null
           target_value: number | null
+          weight_financial: number | null
+          weight_tasks: number | null
         }
         Insert: {
           created_at?: string
@@ -91,7 +94,10 @@ export type Database = {
           name: string
           scope?: Database["public"]["Enums"]["scope_type"]
           status?: Database["public"]["Enums"]["goal_status"]
+          target_tasks?: number | null
           target_value?: number | null
+          weight_financial?: number | null
+          weight_tasks?: number | null
         }
         Update: {
           created_at?: string
@@ -103,7 +109,10 @@ export type Database = {
           name?: string
           scope?: Database["public"]["Enums"]["scope_type"]
           status?: Database["public"]["Enums"]["goal_status"]
+          target_tasks?: number | null
           target_value?: number | null
+          weight_financial?: number | null
+          weight_tasks?: number | null
         }
         Relationships: []
       }
@@ -347,17 +356,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      account_balance: {
+        Args: { p_account: string; p_until?: string }
+        Returns: number
+      }
     }
     Enums: {
-      goal_kind: "tarefas" | "financeiro" | "marcos"
+      goal_kind: "tarefas" | "financeiro" | "marcos" | "hibrida"
       goal_status: "ativa" | "concluida" | "pausada"
       recurrence_freq: "diaria" | "semanal" | "mensal" | "anual"
       scope_type: "pessoal" | "profissional"
       task_priority: "alta" | "media" | "baixa"
       task_status: "pendente" | "em_andamento" | "concluida"
       txn_nature: "fixo" | "variavel"
-      txn_status: "conciliado" | "pendente"
+      txn_status: "pago" | "pendente" | "futuro"
       txn_type: "entrada" | "saida" | "transferencia"
     }
     CompositeTypes: {
@@ -486,14 +498,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      goal_kind: ["tarefas", "financeiro", "marcos"],
+      goal_kind: ["tarefas", "financeiro", "marcos", "hibrida"],
       goal_status: ["ativa", "concluida", "pausada"],
       recurrence_freq: ["diaria", "semanal", "mensal", "anual"],
       scope_type: ["pessoal", "profissional"],
       task_priority: ["alta", "media", "baixa"],
       task_status: ["pendente", "em_andamento", "concluida"],
       txn_nature: ["fixo", "variavel"],
-      txn_status: ["conciliado", "pendente"],
+      txn_status: ["pago", "pendente", "futuro"],
       txn_type: ["entrada", "saida", "transferencia"],
     },
   },
