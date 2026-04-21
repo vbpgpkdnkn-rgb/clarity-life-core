@@ -8,19 +8,24 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from "
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { useHabits, useHabitLogs, useUpsertHabit, useDeleteHabit, useToggleHabitLog } from "@/hooks/usePlanner";
 import { useGoals } from "@/hooks/useData";
+import { useScope, filterByScope, defaultScope } from "@/contexts/ScopeContext";
+import { ScopeBadge } from "@/components/ScopeBadge";
 import { startOfWeekFor, weekDates, dayName, dayNumber, isToday } from "@/lib/week";
 import { todayISO, addDaysISO } from "@/lib/format";
 import { Plus, Check, Flame, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function PlannerHabitos() {
   const [weekStart, setWeekStart] = useState<string>(startOfWeekFor(todayISO()));
+  const { scope } = useScope();
   const days = weekDates(weekStart);
-  const { data: habits = [] } = useHabits();
+  const { data: habitsAll = [] } = useHabits();
+  const habits = filterByScope(habitsAll, scope);
   const { data: logs = [] } = useHabitLogs(addDaysISO(weekStart, -60), days[6]);
   const toggle = useToggleHabitLog();
   const upsert = useUpsertHabit();
   const del = useDeleteHabit();
-  const { data: goals = [] } = useGoals();
+  const { data: goalsAll = [] } = useGoals();
+  const goals = filterByScope(goalsAll, scope);
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
@@ -48,7 +53,7 @@ export default function PlannerHabitos() {
   const isDone = (habitId: string, date: string) =>
     logs.some((l: any) => l.habit_id === habitId && l.date === date);
 
-  const openNew = () => { setEditing({ name: "", scope: "pessoal", frequency: "diaria" }); setOpen(true); };
+  const openNew = () => { setEditing({ name: "", scope: defaultScope(scope), frequency: "diaria" }); setOpen(true); };
   const openEdit = (h: any) => { setEditing(h); setOpen(true); };
 
   return (
@@ -95,8 +100,11 @@ export default function PlannerHabitos() {
               {habits.map((h: any) => (
                 <tr key={h.id} className="hover:bg-muted/20 group">
                   <td className="px-4 py-2">
-                    <button onClick={() => openEdit(h)} className="text-left">
-                      <div className="font-medium">{h.name}</div>
+                    <button onClick={() => openEdit(h)} className="text-left w-full">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{h.name}</span>
+                        <ScopeBadge scope={h.scope} />
+                      </div>
                       {h.target_value && <div className="text-xs text-muted-foreground">Meta: {h.target_value} {h.unit || ""}</div>}
                     </button>
                   </td>

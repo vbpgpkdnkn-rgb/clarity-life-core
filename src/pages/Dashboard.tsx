@@ -15,6 +15,7 @@ import {
   useRecurrences,
 } from "@/hooks/useData";
 import { useAllGoalsProgress } from "@/hooks/useGoalProgress";
+import { useScope, filterByScope } from "@/contexts/ScopeContext";
 import {
   formatBRL,
   todayISO,
@@ -36,14 +37,22 @@ import {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { scope } = useScope();
   const [taskOpen, setTaskOpen] = useState(false);
   const [txnOpen, setTxnOpen] = useState(false);
-  const { data: tasks = [] } = useTasks();
-  const { data: txns = [] } = useTransactions();
-  const { data: accounts = [] } = useAccounts();
-  const { data: recurrences = [] } = useRecurrences();
-  const goals = useAllGoalsProgress();
+  const { data: tasksAll = [] } = useTasks();
+  const { data: txnsAll = [] } = useTransactions();
+  const { data: accountsAll = [] } = useAccounts();
+  const { data: recurrencesAll = [] } = useRecurrences();
+  const goalsAll = useAllGoalsProgress();
   const upsertTask = useUpsertTask();
+
+  // Apply scope filter to all module data
+  const tasks = useMemo(() => filterByScope(tasksAll, scope), [tasksAll, scope]);
+  const txns = useMemo(() => filterByScope(txnsAll, scope), [txnsAll, scope]);
+  const accounts = useMemo(() => filterByScope(accountsAll, scope), [accountsAll, scope]);
+  const recurrences = useMemo(() => filterByScope(recurrencesAll, scope), [recurrencesAll, scope]);
+  const goals = useMemo(() => filterByScope(goalsAll, scope), [goalsAll, scope]);
 
   const today = todayISO();
   const monthStart = startOfMonthISO();

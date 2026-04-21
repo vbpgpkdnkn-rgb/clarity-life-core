@@ -10,15 +10,17 @@ import { TaskFormDrawer } from "@/components/forms/TaskFormDrawer";
 import { useTasks, useUpsertTask } from "@/hooks/useData";
 import { useDailyPlan, useUpsertDailyPlan, useEvents, useUpsertEvent, useDeleteEvent } from "@/hooks/usePlanner";
 import { todayISO, addDaysISO, formatDateLong } from "@/lib/format";
+import { useScope, filterByScope, defaultScope } from "@/contexts/ScopeContext";
 import { CheckCircle2, Circle, ChevronLeft, ChevronRight, Plus, Clock, Trash2, Calendar as CalIcon } from "lucide-react";
 
 export default function PlannerDiario() {
   const [date, setDate] = useState<string>(todayISO());
+  const { scope } = useScope();
   const { data: plan } = useDailyPlan(date);
   const upsertPlan = useUpsertDailyPlan();
-  const { data: tasks = [] } = useTasks();
+  const { data: tasksAll = [] } = useTasks();
   const upsertTask = useUpsertTask();
-  const { data: events = [] } = useEvents(date, date);
+  const { data: eventsAll = [] } = useEvents(date, date);
   const upsertEvent = useUpsertEvent();
   const deleteEvent = useDeleteEvent();
 
@@ -55,6 +57,8 @@ export default function PlannerDiario() {
     });
   };
 
+  const tasks = filterByScope(tasksAll, scope);
+  const events = filterByScope(eventsAll, scope);
   const dayTasks = tasks.filter((t: any) => t.due_date === date);
   const toggleTask = (t: any) => {
     const newStatus = t.status === "concluida" ? "pendente" : "concluida";
@@ -63,7 +67,7 @@ export default function PlannerDiario() {
 
   const addEvent = () => {
     if (!eventForm.title.trim()) return;
-    upsertEvent.mutate({ ...eventForm, date, scope: "pessoal" });
+    upsertEvent.mutate({ ...eventForm, date, scope: defaultScope(scope) });
     setEventForm({ title: "", start_time: "", end_time: "", location: "" });
   };
 
@@ -142,6 +146,7 @@ export default function PlannerDiario() {
                 </span>
                 <span className="text-sm flex-1 truncate">{e.title}</span>
                 {e.location && <span className="text-xs text-muted-foreground hidden sm:inline">· {e.location}</span>}
+                <ScopeBadge scope={e.scope} />
                 <button
                   onClick={() => deleteEvent.mutate(e.id)}
                   className="opacity-0 group-hover:opacity-100 transition-opacity"

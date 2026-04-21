@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { ScopeBadge } from "@/components/ScopeBadge";
 import { TaskFormDrawer } from "@/components/forms/TaskFormDrawer";
 import { useTasks, useUpsertTask } from "@/hooks/useData";
+import { useScope, filterByScope, defaultScope } from "@/contexts/ScopeContext";
 import { todayISO, formatDateBR, addDaysISO, startOfWeekISO, endOfWeekISO } from "@/lib/format";
 import { Plus, CheckCircle2, Circle, CircleDot, Calendar } from "lucide-react";
 
@@ -17,19 +18,19 @@ const PRIORITY_DOT: Record<string, string> = {
 
 export default function Planner() {
   const { data: tasks = [] } = useTasks();
+  const { scope } = useScope();
   const upsert = useUpsertTask();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [defaultDate, setDefaultDate] = useState<string>(todayISO());
-  const [filter, setFilter] = useState<"todos" | "pessoal" | "profissional">("todos");
   const [quickInput, setQuickInput] = useState("");
 
   const today = todayISO();
   const weekEnd = endOfWeekISO();
 
   const filtered = useMemo(
-    () => tasks.filter((t) => filter === "todos" || t.scope === filter),
-    [tasks, filter],
+    () => filterByScope(tasks, scope),
+    [tasks, scope],
   );
 
   const groups = useMemo(() => {
@@ -67,7 +68,7 @@ export default function Planner() {
     if (!quickInput.trim()) return;
     upsert.mutate({
       title: quickInput.trim(),
-      scope: filter === "profissional" ? "profissional" : "pessoal",
+      scope: defaultScope(scope),
       priority: "media",
       status: "pendente",
       due_date: today,
@@ -101,22 +102,7 @@ export default function Planner() {
         </Button>
       }
     >
-      {/* Filtros */}
-      <div className="flex gap-2 mb-4">
-        {(["todos", "pessoal", "profissional"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-colors ${
-              filter === f
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted hover:bg-muted/70 text-muted-foreground"
-            }`}
-          >
-            {f}
-          </button>
-        ))}
-      </div>
+      {/* Filtro global de escopo está no header */}
 
       {/* Quick add */}
       <Card className="p-3 mb-6 shadow-soft flex gap-2">

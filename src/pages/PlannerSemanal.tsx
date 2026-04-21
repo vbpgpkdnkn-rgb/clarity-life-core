@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScopeBadge } from "@/components/ScopeBadge";
 import { useTasks } from "@/hooks/useData";
 import { useEvents, useWeeklyPlan, useUpsertWeeklyPlan } from "@/hooks/usePlanner";
+import { useScope, filterByScope } from "@/contexts/ScopeContext";
 import { startOfWeekFor, addDays, weekDates, formatWeekRange, dayName, dayNumber, isToday } from "@/lib/week";
 import { todayISO } from "@/lib/format";
 import { ChevronLeft, ChevronRight, Plus, X, Heart, Briefcase, Activity, Wallet } from "lucide-react";
@@ -15,11 +16,14 @@ import { Link } from "react-router-dom";
 
 export default function PlannerSemanal() {
   const [weekStart, setWeekStart] = useState<string>(startOfWeekFor(todayISO()));
+  const { scope } = useScope();
   const days = weekDates(weekStart);
   const { data: plan } = useWeeklyPlan(weekStart);
   const upsertPlan = useUpsertWeeklyPlan();
-  const { data: tasks = [] } = useTasks();
-  const { data: events = [] } = useEvents(days[0], days[6]);
+  const { data: tasksAll = [] } = useTasks();
+  const { data: eventsAll = [] } = useEvents(days[0], days[6]);
+  const tasks = filterByScope(tasksAll, scope);
+  const events = filterByScope(eventsAll, scope);
 
   const [focus, setFocus] = useState("");
   const [objectives, setObjectives] = useState<string[]>([]);

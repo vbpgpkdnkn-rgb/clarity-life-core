@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScopeBadge } from "@/components/ScopeBadge";
 import { GoalFormDrawer } from "@/components/forms/GoalFormDrawer";
 import { useAllGoalsProgress } from "@/hooks/useGoalProgress";
+import { useScope, filterByScope } from "@/contexts/ScopeContext";
 import { formatBRL, formatDateBR, todayISO } from "@/lib/format";
 import { Plus, Target, Trophy, AlertCircle, Pause, TrendingUp } from "lucide-react";
 
@@ -57,21 +58,7 @@ export default function Metas() {
         </Button>
       }
     >
-      <div className="flex gap-2 mb-6">
-        {(["todos", "pessoal", "profissional"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-colors ${
-              filter === f
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted hover:bg-muted/70 text-muted-foreground"
-            }`}
-          >
-            {f}
-          </button>
-        ))}
-      </div>
+      {/* Filtro global de escopo está no header */}
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
         <StatCard label="Atingimento" value={`${stats.taxaAtingimento}%`} icon={<Trophy className="h-4 w-4 text-success" />} />
