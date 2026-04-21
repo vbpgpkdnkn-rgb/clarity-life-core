@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUpsertGoal, useDeleteGoal, useMilestones, useUpsertMilestone, useDeleteMilestone } from "@/hooks/useData";
 import { GoalPlanPreview } from "./GoalPlanPreview";
-import { Trash2, Plus, Check } from "lucide-react";
+import { Trash2, Plus, Check, Lock } from "lucide-react";
 
 export function GoalFormDrawer({
   open,
@@ -159,6 +159,24 @@ export function GoalFormDrawer({
               </SelectContent>
             </Select>
           </div>
+
+          {/* TRAVA: bloqueia ajustes automáticos da IA Adaptativa */}
+          <label className="flex items-start gap-3 p-3 rounded-lg border border-border bg-muted/20 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!form.locked}
+              onChange={(e) => setForm({ ...form, locked: e.target.checked })}
+              className="mt-1"
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-1.5 text-sm font-medium">
+                <Lock className="h-3.5 w-3.5" /> Travar meta
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                A IA não vai sugerir ajustes (prazo, escopo, redistribuição) nesta meta.
+              </p>
+            </div>
+          </label>
           <div>
             <Label>Descrição</Label>
             <Textarea
