@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { ScopeFilterToggle } from "./ScopeFilterToggle";
+import { QuickDecisionButton } from "./foco/QuickDecisionButton";
 import { formatDateLong } from "@/lib/format";
 
 export function AppLayout({ children, title, subtitle, action }: {
@@ -34,6 +35,7 @@ export function AppLayout({ children, title, subtitle, action }: {
             )}
             {children}
           </main>
+          <QuickDecisionButton />
         </div>
       </div>
     </SidebarProvider>

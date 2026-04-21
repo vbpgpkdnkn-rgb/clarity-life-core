@@ -2,3 +2,10 @@ project_id = "nxdxhohadbboblbpjjts"
 
 [functions.daily-focus]
 verify_jwt = false
+
+[functions.strategic-advisor]
+verify_jwt = false
+
+[functions.quick-decision]
+verify_jwt = false
+
