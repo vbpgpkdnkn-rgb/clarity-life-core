@@ -269,7 +269,7 @@ export function GoalPlanPreview({ goal, goalId, onApplied, onCreateGoal }: Props
       </div>
 
       <div className="flex gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={run} disabled={generate.isPending}>
+        <Button type="button" variant="outline" size="sm" onClick={run} disabled={generate.isPending || applying}>
           <Sparkles className="h-3.5 w-3.5 mr-1" /> Regerar
         </Button>
         <Button type="button" size="sm" onClick={apply} disabled={applying || totalTasks === 0} className="flex-1">
@@ -280,6 +280,9 @@ export function GoalPlanPreview({ goal, goalId, onApplied, onCreateGoal }: Props
           )}
         </Button>
       </div>
+      <p className="flex items-center gap-1 text-[10px] text-muted-foreground mt-2 px-1">
+        <AlertCircle className="h-3 w-3" /> Os marcos e tarefas só são criados ao clicar em "Aplicar plano".
+      </p>
     </Card>
   );
 }
