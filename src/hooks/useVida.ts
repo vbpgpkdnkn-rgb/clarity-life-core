@@ -214,6 +214,106 @@ export const useDeleteBook = () => {
   });
 };
 
+// ============== BOOK NOTES ==============
+export const useBookNotes = (book_id?: string) =>
+  useQuery({
+    queryKey: ["book_notes", book_id],
+    queryFn: async () => {
+      if (!book_id) return [];
+      const { data, error } = await (supabase as any)
+        .from("book_notes")
+        .select("*")
+        .eq("book_id", book_id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!book_id,
+  });
+
+export const useUpsertBookNote = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (n: any) => {
+      if (n.id) {
+        const { error } = await (supabase as any).from("book_notes").update(n).eq("id", n.id);
+        if (error) throw error;
+      } else {
+        const { error } = await (supabase as any).from("book_notes").insert(n);
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_, vars: any) => qc.invalidateQueries({ queryKey: ["book_notes", vars.book_id] }),
+    onError: (e: any) => toast.error(e.message),
+  });
+};
+
+export const useDeleteBookNote = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; book_id: string }) => {
+      const { error } = await (supabase as any).from("book_notes").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars: any) => qc.invalidateQueries({ queryKey: ["book_notes", vars.book_id] }),
+  });
+};
+
+// Envia uma nota de livro como ideia de conteúdo
+export const useSendBookNoteToContent = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ note, book }: { note: any; book: any }) => {
+      const title = note.content.length > 80 ? note.content.slice(0, 77) + "..." : note.content;
+      const { data: idea, error } = await (supabase as any)
+        .from("content_ideas")
+        .insert({
+          title,
+          theme: book.title,
+          notes: `${note.kind === "insight" ? "💡" : note.kind === "quote" ? "❝" : "📝"} ${note.content}\n\n— do livro "${book.title}"${book.author ? ` (${book.author})` : ""}${note.page_ref ? `, p. ${note.page_ref}` : ""}`,
+          source: `livro:${book.id}`,
+          scope: "profissional",
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      await (supabase as any)
+        .from("book_notes")
+        .update({ sent_to_content: true, content_idea_id: idea.id })
+        .eq("id", note.id);
+      return idea.id;
+    },
+    onSuccess: (_, vars: any) => {
+      qc.invalidateQueries({ queryKey: ["book_notes", vars.book.id] });
+      qc.invalidateQueries({ queryKey: ["content_ideas"] });
+      toast.success("Ideia enviada para Conteúdo");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+};
+
+// Gera plano de leitura via IA
+export const useBookReadingPlan = () =>
+  useMutation({
+    mutationFn: async (book: any) => {
+      const { data, error } = await supabase.functions.invoke("book-reading-plan", {
+        body: {
+          title: book.title,
+          author: book.author,
+          pages: book.pages,
+          current_page: book.current_page,
+          deadline: book.target_finish_date,
+          available_minutes_per_day: book.session_minutes ?? 30,
+          preferred_weekdays: book.weekdays,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
 // ============== CHALLENGES ==============
 export const useChallenges = () =>
   useQuery({
