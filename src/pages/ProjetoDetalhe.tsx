@@ -149,7 +149,65 @@ export default function ProjetoDetalhe() {
         </div>
       </div>
 
-      {/* OKRs */}
+      {/* Resumo high-performance */}
+      {(project.vision || project.next_step || project.success_criteria || (project.kpis && project.kpis.length > 0) || (project.stakeholders && project.stakeholders.length > 0) || (project.risks && project.risks.length > 0)) && (
+        <Card className="p-5 mb-6 border-border/60 shadow-none">
+          <div className="grid md:grid-cols-2 gap-5">
+            {project.next_step && (
+              <div className="md:col-span-2 p-3 rounded-md bg-accent/5 border border-accent/20">
+                <div className="text-[10px] uppercase tracking-widest text-accent mb-1">Próximo passo</div>
+                <p className="text-sm font-medium">{project.next_step}</p>
+              </div>
+            )}
+            {project.vision && (
+              <div>
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Visão</div>
+                <p className="text-sm">{project.vision}</p>
+              </div>
+            )}
+            {project.success_criteria && (
+              <div>
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Critérios de sucesso</div>
+                <p className="text-sm whitespace-pre-line">{project.success_criteria}</p>
+              </div>
+            )}
+            {Array.isArray(project.kpis) && project.kpis.length > 0 && (
+              <div>
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">KPIs</div>
+                <div className="flex flex-wrap gap-1">
+                  {project.kpis.map((k: string, i: number) => (
+                    <Badge key={i} variant="outline" className="text-[10px]">{k}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            {Array.isArray(project.stakeholders) && project.stakeholders.length > 0 && (
+              <div>
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Stakeholders</div>
+                <div className="flex flex-wrap gap-1">
+                  {project.stakeholders.map((s: string, i: number) => (
+                    <Badge key={i} variant="secondary" className="text-[10px]">{s}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            {Array.isArray(project.risks) && project.risks.length > 0 && (
+              <div className="md:col-span-2">
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Riscos</div>
+                <ul className="text-sm space-y-0.5 list-disc list-inside text-muted-foreground">
+                  {project.risks.map((r: string, i: number) => <li key={i}>{r}</li>)}
+                </ul>
+              </div>
+            )}
+            {project.milestones_text && (
+              <div className="md:col-span-2">
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Marcos / fases</div>
+                <p className="text-sm whitespace-pre-line">{project.milestones_text}</p>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
       <Card className="p-5 mb-6 border-border/60 shadow-none">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">

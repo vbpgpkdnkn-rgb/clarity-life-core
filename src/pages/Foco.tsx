@@ -383,6 +383,9 @@ export default function Foco() {
         </Card>
       )}
 
+      {/* CHECKLIST VIDA — sempre visível para fechar o dia */}
+      <LifeCheckCard />
+
       {/* BLOCOS COMPLEMENTARES — recolhidos por padrão pra não competir com foco */}
       <div className="space-y-2 mb-6">
         <CollapsibleBlock title="Matriz Eisenhower" icon={<LayoutGrid className="h-4 w-4" />}>

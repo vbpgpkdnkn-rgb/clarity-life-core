@@ -101,6 +101,7 @@ export default function Conteudo() {
 
   return (
     <AppLayout title="Conteúdo" subtitle="Sua máquina editorial — direta, sem desculpas">
+      <StrategyOnboarding scope={scope === "todos" ? "profissional" : (scope as any)} />
       {/* HEADER stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <Card className="p-4">
