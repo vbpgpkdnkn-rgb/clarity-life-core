@@ -5,25 +5,29 @@ import { useUpsertTask } from "@/hooks/useData";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LayoutGrid } from "lucide-react";
 
-type Quadrant = "q1" | "q2" | "q3" | "q4";
+type Quadrant =
+  | "urgente_importante"
+  | "importante_nao_urgente"
+  | "urgente_nao_importante"
+  | "nao_urgente_nao_importante";
 
 const META: Record<Quadrant, { label: string; sub: string; cls: string }> = {
-  q1: {
+  urgente_importante: {
     label: "Fazer agora",
     sub: "Urgente · Importante",
     cls: "border-destructive/30 bg-destructive/5",
   },
-  q2: {
+  importante_nao_urgente: {
     label: "Planejar",
     sub: "Não urgente · Importante",
     cls: "border-primary/30 bg-primary/5",
   },
-  q3: {
+  urgente_nao_importante: {
     label: "Delegar",
     sub: "Urgente · Não importante",
     cls: "border-warning/30 bg-warning/5",
   },
-  q4: {
+  nao_urgente_nao_importante: {
     label: "Eliminar",
     sub: "Não urgente · Não importante",
     cls: "border-muted bg-muted/40",
@@ -32,14 +36,13 @@ const META: Record<Quadrant, { label: string; sub: string; cls: string }> = {
 
 const inferQuadrant = (t: any): Quadrant => {
   if (t.eisenhower) return t.eisenhower as Quadrant;
-  // Heurística: prioridade alta + due_date próximo => Q1
   const today = new Date().toISOString().slice(0, 10);
   const urgent = t.due_date && t.due_date <= today;
   const important = t.priority === "alta";
-  if (urgent && important) return "q1";
-  if (!urgent && important) return "q2";
-  if (urgent && !important) return "q3";
-  return "q4";
+  if (urgent && important) return "urgente_importante";
+  if (!urgent && important) return "importante_nao_urgente";
+  if (urgent && !important) return "urgente_nao_importante";
+  return "nao_urgente_nao_importante";
 };
 
 export function EisenhowerMatrix({ tasks }: { tasks: any[] }) {
@@ -47,7 +50,12 @@ export function EisenhowerMatrix({ tasks }: { tasks: any[] }) {
   const upsert = useUpsertTask();
 
   const grouped = useMemo(() => {
-    const g: Record<Quadrant, any[]> = { q1: [], q2: [], q3: [], q4: [] };
+    const g: Record<Quadrant, any[]> = {
+      urgente_importante: [],
+      importante_nao_urgente: [],
+      urgente_nao_importante: [],
+      nao_urgente_nao_importante: [],
+    };
     tasks
       .filter((t) => t.status !== "concluida")
       .forEach((t) => {
@@ -66,7 +74,7 @@ export function EisenhowerMatrix({ tasks }: { tasks: any[] }) {
         <LayoutGrid className="h-4 w-4 text-muted-foreground" />
         <h3 className="font-display text-base font-semibold">Matriz Eisenhower</h3>
         <span className="text-xs text-muted-foreground">
-          · classifique e foque no que importa
+          · classificação automática por prioridade + prazo
         </span>
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -97,10 +105,10 @@ export function EisenhowerMatrix({ tasks }: { tasks: any[] }) {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="q1">Fazer agora</SelectItem>
-                        <SelectItem value="q2">Planejar</SelectItem>
-                        <SelectItem value="q3">Delegar</SelectItem>
-                        <SelectItem value="q4">Eliminar</SelectItem>
+                        <SelectItem value="urgente_importante">Fazer agora</SelectItem>
+                        <SelectItem value="importante_nao_urgente">Planejar</SelectItem>
+                        <SelectItem value="urgente_nao_importante">Delegar</SelectItem>
+                        <SelectItem value="nao_urgente_nao_importante">Eliminar</SelectItem>
                       </SelectContent>
                     </Select>
                   </li>
