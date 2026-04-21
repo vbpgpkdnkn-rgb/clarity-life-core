@@ -17,8 +17,10 @@ export function DrawCanvas({ value, onChange, height = 320, className }: Props) 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [tool, setTool] = useState<Tool>("pen");
+  const [pencilOnly, setPencilOnly] = useState(false);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const drawingRef = useRef<Stroke | null>(null);
+  const activePointerRef = useRef<number | null>(null);
   const dprRef = useRef<number>(1);
   const sizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
   const loadedRef = useRef(false);
@@ -92,19 +94,31 @@ export function DrawCanvas({ value, onChange, height = 320, className }: Props) 
 
   const getPos = (e: React.PointerEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect();
+    // Apple Pencil reporta pressão real (0..1). Mouse/dedo geralmente vem 0 ou 0.5.
+    const isPen = e.pointerType === "pen";
+    const pressure = isPen
+      ? (e.pressure && e.pressure > 0 ? e.pressure : 0.5)
+      : 0.5;
     return {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
-      p: e.pressure && e.pressure > 0 ? e.pressure : 0.5,
+      p: pressure,
     };
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
+    // Palm rejection: se pencilOnly e o input não é Pencil/Mouse, ignora
+    if (pencilOnly && e.pointerType !== "pen" && e.pointerType !== "mouse") return;
+    // Ignora dedo "extra" enquanto desenha (multi-toque acidental)
+    if (activePointerRef.current !== null) return;
     e.preventDefault();
+    activePointerRef.current = e.pointerId;
     canvasRef.current!.setPointerCapture(e.pointerId);
+    const isPen = e.pointerType === "pen";
     const stroke: Stroke = {
       tool,
-      size: tool === "eraser" ? 18 : 2.5,
+      // Pencil = linha mais fina, com pressão ampliando; dedo = linha mais cheia
+      size: tool === "eraser" ? 22 : isPen ? 1.8 : 3,
       color: tool === "eraser" ? "#000" : "hsl(var(--foreground))",
       points: [getPos(e)],
     };
@@ -114,11 +128,11 @@ export function DrawCanvas({ value, onChange, height = 320, className }: Props) 
 
   const onPointerMove = (e: React.PointerEvent) => {
     if (!drawingRef.current) return;
+    if (activePointerRef.current !== e.pointerId) return;
     const ctx = canvasRef.current!.getContext("2d")!;
     const last = drawingRef.current.points[drawingRef.current.points.length - 1];
     const p = getPos(e);
     drawingRef.current.points.push(p);
-    // resolve color now (foreground -> rgb)
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.globalCompositeOperation = drawingRef.current.tool === "eraser" ? "destination-out" : "source-over";
@@ -128,7 +142,9 @@ export function DrawCanvas({ value, onChange, height = 320, className }: Props) 
     } else {
       ctx.strokeStyle = "#000";
     }
-    ctx.lineWidth = drawingRef.current.size * (0.5 + p.p);
+    // Pressão amplifica espessura — dá sensação de caneta real no Pencil
+    const dynamic = drawingRef.current.size * (0.4 + p.p * 1.2);
+    ctx.lineWidth = dynamic;
     ctx.beginPath();
     ctx.moveTo(last.x, last.y);
     ctx.lineTo(p.x, p.y);
@@ -136,7 +152,9 @@ export function DrawCanvas({ value, onChange, height = 320, className }: Props) 
     ctx.globalCompositeOperation = "source-over";
   };
 
-  const finish = () => {
+  const finish = (e?: React.PointerEvent) => {
+    if (e && activePointerRef.current !== e.pointerId) return;
+    activePointerRef.current = null;
     if (!drawingRef.current) return;
     drawingRef.current = null;
     persist();
@@ -190,6 +208,17 @@ export function DrawCanvas({ value, onChange, height = 320, className }: Props) 
         <Button type="button" size="sm" variant={tool === "eraser" ? "secondary" : "ghost"} onClick={() => setTool("eraser")}>
           <Eraser className="h-4 w-4" />
         </Button>
+        <button
+          type="button"
+          onClick={() => setPencilOnly((v) => !v)}
+          className={cn(
+            "ml-2 text-[11px] font-medium px-2 py-1 rounded-md transition-colors",
+            pencilOnly ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted/50",
+          )}
+          title="Só Apple Pencil desenha (ignora toque do dedo / palm rejection)"
+        >
+          {pencilOnly ? "Só Pencil" : "Pencil + dedo"}
+        </button>
         <div className="ml-auto flex gap-1">
           <Button type="button" size="sm" variant="ghost" onClick={undo} title="Desfazer">
             <Undo2 className="h-4 w-4" />
@@ -199,7 +228,7 @@ export function DrawCanvas({ value, onChange, height = 320, className }: Props) 
           </Button>
         </div>
       </div>
-      <div ref={wrapperRef} className="w-full bg-muted/20" style={{ height }}>
+      <div ref={wrapperRef} className="w-full bg-muted/20 pencil-surface" style={{ height }}>
         <canvas
           ref={canvasRef}
           onPointerDown={onPointerDown}
@@ -207,7 +236,7 @@ export function DrawCanvas({ value, onChange, height = 320, className }: Props) 
           onPointerUp={finish}
           onPointerCancel={finish}
           onPointerLeave={finish}
-          className="touch-none cursor-crosshair"
+          className="touch-none cursor-crosshair pencil-surface"
           style={{ touchAction: "none" }}
         />
       </div>

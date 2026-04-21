@@ -33,6 +33,7 @@ import VidaLivros from "./pages/VidaLivros";
 import VidaDesafios from "./pages/VidaDesafios";
 import Projetos from "./pages/Projetos";
 import ProjetoDetalhe from "./pages/ProjetoDetalhe";
+import Instalar from "./pages/Instalar";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -78,6 +79,7 @@ const App = () => (
                       <Route path="/vida/desejos" element={<VidaDesejos />} />
                       <Route path="/vida/livros" element={<VidaLivros />} />
                       <Route path="/vida/desafios" element={<VidaDesafios />} />
+                      <Route path="/instalar" element={<Instalar />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </ProtectedRoute>
