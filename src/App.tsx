@@ -16,6 +16,7 @@ import Metas from "./pages/Metas";
 import MetaDetalhe from "./pages/MetaDetalhe";
 import Financeiro from "./pages/Financeiro";
 import VisaoAnual from "./pages/VisaoAnual";
+import Conteudo from "./pages/Conteudo";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
           <Route path="/metas/:id" element={<MetaDetalhe />} />
           <Route path="/financeiro" element={<Financeiro />} />
           <Route path="/anual" element={<VisaoAnual />} />
+          <Route path="/conteudo" element={<Conteudo />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
