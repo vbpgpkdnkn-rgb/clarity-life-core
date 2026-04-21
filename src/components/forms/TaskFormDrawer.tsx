@@ -60,22 +60,52 @@ export function TaskFormDrawer({
 
   useEffect(() => {
     if (open) {
-      setForm(
-        task ?? {
-          title: "",
-          notes: "",
-          scope: "pessoal",
-          priority: "media",
-          status: "pendente",
-          due_date: defaultDate ?? todayISO(),
-          category_id: null,
-          goal_id: null,
-        },
-      );
+      const base = task ?? {
+        title: "",
+        notes: "",
+        scope: "pessoal",
+        priority: "media",
+        status: "pendente",
+        due_date: defaultDate ?? todayISO(),
+        category_id: null,
+        goal_id: null,
+        eisenhower: null,
+        is_135: null,
+      };
+      // Auto-sugere se ainda não definido
+      if (!base.eisenhower) base.eisenhower = suggestEisenhower(base.priority, base.due_date);
+      if (!base.is_135) base.is_135 = suggest135(base.priority);
+      setForm(base);
     }
   }, [open, task, defaultDate]);
 
+  /** Atualiza prioridade ou data e re-sugere quadrante/slot se usuário não tocou manualmente */
+  const updatePriorityOrDate = (patch: Partial<any>) => {
+    setForm((prev: any) => {
+      const next = { ...prev, ...patch };
+      // Re-sugere apenas se o valor atual ainda corresponde à sugestão antiga (não foi customizado)
+      const oldSuggestion = suggestEisenhower(prev.priority, prev.due_date);
+      if (prev.eisenhower === oldSuggestion) {
+        next.eisenhower = suggestEisenhower(next.priority, next.due_date);
+      }
+      const old135 = suggest135(prev.priority);
+      if (prev.is_135 === old135) {
+        next.is_135 = suggest135(next.priority);
+      }
+      return next;
+    });
+  };
+
   const save = async () => {
+    if (!form.title?.trim()) return;
+    const payload = { ...form };
+    if (payload.status === "concluida" && !payload.completed_at) {
+      payload.completed_at = new Date().toISOString();
+    }
+    if (payload.status !== "concluida") payload.completed_at = null;
+    await upsert.mutateAsync(payload);
+    onOpenChange(false);
+  };
     if (!form.title?.trim()) return;
     const payload = { ...form };
     if (payload.status === "concluida" && !payload.completed_at) {
