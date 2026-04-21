@@ -9,7 +9,7 @@ import { GoalFormDrawer } from "@/components/forms/GoalFormDrawer";
 import { useAllGoalsProgress } from "@/hooks/useGoalProgress";
 import { useScope, filterByScope } from "@/contexts/ScopeContext";
 import { formatBRL, formatDateBR, todayISO } from "@/lib/format";
-import { Plus, Target, Trophy, AlertCircle, Pause, TrendingUp } from "lucide-react";
+import { Plus, Target, Trophy, AlertCircle, Pause, TrendingUp, Lock } from "lucide-react";
 
 export default function Metas() {
   const navigate = useNavigate();
@@ -117,6 +117,11 @@ function GoalCard({ goal, onClick }: { goal: any; onClick: () => void }) {
           <ScopeBadge scope={goal.scope} />
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{goal.kind}</span>
           {goal.status === "pausada" && <Pause className="h-3 w-3 text-muted-foreground" />}
+          {(goal as any).locked && (
+            <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground" title="Meta travada — IA não vai ajustar">
+              <Lock className="h-2.5 w-2.5" /> Travada
+            </span>
+          )}
         </div>
         {isDone && <Trophy className="h-4 w-4 text-success" />}
         {isOverdue && <AlertCircle className="h-4 w-4 text-destructive" />}

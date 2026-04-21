@@ -9,6 +9,7 @@ import { GoalFormDrawer } from "@/components/forms/GoalFormDrawer";
 import { useGoals, useTasks, useMilestones, useUpsertTask } from "@/hooks/useData";
 import { useAllGoalsProgress } from "@/hooks/useGoalProgress";
 import { useRedistributeGoal, applyRedistribution, type RedistributionResult } from "@/hooks/useGoalPlanner";
+import { useToggleGoalLock } from "@/hooks/useAdaptive";
 import { formatDateBR, todayISO } from "@/lib/format";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -25,6 +26,8 @@ import {
   Loader2,
   TrendingUp,
   Clock,
+  Lock,
+  Unlock,
 } from "lucide-react";
 
 const paceStyle: Record<string, string> = {
@@ -56,6 +59,7 @@ export default function MetaDetalhe() {
   const { data: milestones = [] } = useMilestones(id);
   const upsertTask = useUpsertTask();
   const redistribute = useRedistributeGoal();
+  const toggleLock = useToggleGoalLock();
 
   const [editing, setEditing] = useState(false);
   const [redistResult, setRedistResult] = useState<RedistributionResult | null>(null);
@@ -130,6 +134,27 @@ export default function MetaDetalhe() {
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => navigate("/metas")}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Metas
+          </Button>
+          <Button
+            variant={(goal as any).locked ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              const next = !(goal as any).locked;
+              toggleLock.mutate(
+                { goalId: goal.id, locked: next },
+                {
+                  onSuccess: () =>
+                    toast.success(next ? "Meta travada — IA não vai ajustar" : "Meta destravada"),
+                },
+              );
+            }}
+            title={(goal as any).locked ? "Destravar (permitir ajustes da IA)" : "Travar (impedir ajustes da IA)"}
+          >
+            {(goal as any).locked ? (
+              <><Lock className="h-4 w-4 mr-1" /> Travada</>
+            ) : (
+              <><Unlock className="h-4 w-4 mr-1" /> Destravada</>
+            )}
           </Button>
           <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
             <Edit2 className="h-4 w-4 mr-1" /> Editar
