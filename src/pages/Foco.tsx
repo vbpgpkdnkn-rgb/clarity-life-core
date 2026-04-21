@@ -327,6 +327,14 @@ export default function Foco() {
               )}
             </Card>
           </div>
+
+          {/* POMODORO + 1-3-5 — visíveis, são o coração da execução */}
+          <div className="grid lg:grid-cols-2 gap-4 mb-6">
+            <PomodoroCard tasks={tasks} />
+            <Card className="p-5 border-border/60 shadow-none">
+              <OneThreeFive tasks={tasks} />
+            </Card>
+          </div>
         </>
       )}
 
