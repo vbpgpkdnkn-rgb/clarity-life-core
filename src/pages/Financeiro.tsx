@@ -43,6 +43,8 @@ import {
   Building2,
   Pencil,
   X,
+  Heart,
+  Briefcase,
 } from "lucide-react";
 import {
   BarChart,
