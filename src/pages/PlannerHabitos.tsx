@@ -100,8 +100,11 @@ export default function PlannerHabitos() {
               {habits.map((h: any) => (
                 <tr key={h.id} className="hover:bg-muted/20 group">
                   <td className="px-4 py-2">
-                    <button onClick={() => openEdit(h)} className="text-left">
-                      <div className="font-medium">{h.name}</div>
+                    <button onClick={() => openEdit(h)} className="text-left w-full">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{h.name}</span>
+                        <ScopeBadge scope={h.scope} />
+                      </div>
                       {h.target_value && <div className="text-xs text-muted-foreground">Meta: {h.target_value} {h.unit || ""}</div>}
                     </button>
                   </td>
