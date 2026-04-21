@@ -16,6 +16,7 @@ import { EisenhowerMatrix } from "@/components/foco/EisenhowerMatrix";
 import { OneThreeFive } from "@/components/foco/OneThreeFive";
 import { PomodoroCard } from "@/components/foco/PomodoroCard";
 import { LifeCheckCard } from "@/components/foco/LifeCheckCard";
+import { PinnedItemsCard } from "@/components/foco/PinnedItemsCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useTasks, useUpsertTask } from "@/hooks/useData";
 import { useAllGoalsProgress } from "@/hooks/useGoalProgress";
@@ -187,6 +188,9 @@ export default function Foco() {
         </div>
       }
     >
+      {/* Itens fixados — sempre no topo, acessíveis em segundos */}
+      <PinnedItemsCard />
+
       {/* Aviso de ajustes da IA pendentes — visível quando faz sentido decidir */}
       {pendingAdj.length > 0 && (
         <button
