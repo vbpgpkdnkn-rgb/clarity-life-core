@@ -31,8 +31,8 @@ export const addDaysISO = (iso: string, days: number) => {
   return d.toISOString().slice(0, 10);
 };
 
-export const startOfWeekISO = () => {
-  const d = new Date();
+export const startOfWeekISO = (iso?: string) => {
+  const d = iso ? new Date(iso + "T00:00:00") : new Date();
   const day = d.getDay(); // 0 = sunday
   const diff = d.getDate() - day + (day === 0 ? -6 : 1); // monday start
   return new Date(d.setDate(diff)).toISOString().slice(0, 10);
