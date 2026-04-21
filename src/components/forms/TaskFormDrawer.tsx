@@ -106,15 +106,6 @@ export function TaskFormDrawer({
     await upsert.mutateAsync(payload);
     onOpenChange(false);
   };
-    if (!form.title?.trim()) return;
-    const payload = { ...form };
-    if (payload.status === "concluida" && !payload.completed_at) {
-      payload.completed_at = new Date().toISOString();
-    }
-    if (payload.status !== "concluida") payload.completed_at = null;
-    await upsert.mutateAsync(payload);
-    onOpenChange(false);
-  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
