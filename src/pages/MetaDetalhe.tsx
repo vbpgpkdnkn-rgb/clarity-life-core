@@ -84,7 +84,9 @@ export default function MetaDetalhe() {
   }
 
   const pace = goal.progress.pace;
-  const isLate = pace === "atrasada" || pace === "critica";
+  const isCritical = pace === "atrasada" && goal.progress.paceDelta < -25;
+  const displayPace = isCritical ? "critica" : pace;
+  const isLate = pace === "atrasada";
 
   const toggleTask = (t: any) => {
     const newStatus = t.status === "concluida" ? "pendente" : "concluida";
@@ -141,9 +143,9 @@ export default function MetaDetalhe() {
           <ScopeBadge scope={goal.scope} />
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{goal.kind}</span>
           <span
-            className={`ml-auto text-xs px-2 py-0.5 rounded-full border ${paceStyle[pace] ?? ""} font-medium`}
+            className={`ml-auto text-xs px-2 py-0.5 rounded-full border ${paceStyle[displayPace] ?? ""} font-medium`}
           >
-            {paceLabel[pace] ?? pace}
+            {paceLabel[displayPace] ?? displayPace}
           </span>
         </div>
         <div className="flex items-end gap-4 mb-3">
@@ -170,14 +172,14 @@ export default function MetaDetalhe() {
             <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
             <div className="flex-1">
               <h3 className="font-display font-semibold text-sm mb-1">
-                {pace === "critica"
+                {isCritical
                   ? "Risco crítico de não bater o prazo"
                   : overdue.length > 0
                     ? `${overdue.length} ${overdue.length === 1 ? "tarefa atrasada" : "tarefas atrasadas"}`
                     : "Você está atrás do plano"}
               </h3>
               <p className="text-xs text-muted-foreground mb-3">
-                {pace === "critica"
+                {isCritical
                   ? "Continuar assim significa não atingir a meta. Redistribua ou reduza escopo agora."
                   : "A IA pode reorganizar suas tarefas pendentes ou ajustar o prazo automaticamente."}
               </p>
