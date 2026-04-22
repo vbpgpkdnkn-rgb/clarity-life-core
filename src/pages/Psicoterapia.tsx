@@ -23,6 +23,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
+  ImageUp,
 } from "lucide-react";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -107,10 +108,12 @@ export default function Psicoterapia() {
 
   const openSession = (s: any) => {
     setEditingSession(s);
+    setSessionPatientId(undefined);
     setSessionOpen(true);
   };
-  const newSession = () => {
+  const newSession = (patientId?: string) => {
     setEditingSession(null);
+    setSessionPatientId(patientId);
     setSessionOpen(true);
   };
   const openPatient = (p: any) => {
