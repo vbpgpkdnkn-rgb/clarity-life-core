@@ -18,6 +18,7 @@ import { PomodoroCard } from "@/components/foco/PomodoroCard";
 import { LifeCheckCard } from "@/components/foco/LifeCheckCard";
 import { PinnedItemsCard } from "@/components/foco/PinnedItemsCard";
 import { VidaQuickCard } from "@/components/foco/VidaQuickCard";
+import { GoalsFocusCard } from "@/components/foco/GoalsFocusCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useTasks, useUpsertTask } from "@/hooks/useData";
 import { useAllGoalsProgress } from "@/hooks/useGoalProgress";
@@ -197,6 +198,9 @@ export default function Foco() {
 
       {/* Vida — check-in rápido + atalhos para sub-áreas (Livros, Faxina, etc.) */}
       <VidaQuickCard />
+
+      {/* Metas no radar — atrasadas/críticas + próxima ação executável */}
+      <GoalsFocusCard />
 
       {/* Aviso de ajustes da IA pendentes — visível quando faz sentido decidir */}
       {pendingAdj.length > 0 && (
