@@ -17,6 +17,7 @@ import { OneThreeFive } from "@/components/foco/OneThreeFive";
 import { PomodoroCard } from "@/components/foco/PomodoroCard";
 import { LifeCheckCard } from "@/components/foco/LifeCheckCard";
 import { PinnedItemsCard } from "@/components/foco/PinnedItemsCard";
+import { VidaQuickCard } from "@/components/foco/VidaQuickCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useTasks, useUpsertTask } from "@/hooks/useData";
 import { useAllGoalsProgress } from "@/hooks/useGoalProgress";
@@ -41,6 +42,9 @@ import {
   Clapperboard,
   LayoutGrid,
   Timer,
+  BookOpen,
+  Sparkle,
+  Heart,
 } from "lucide-react";
 
 interface FocusItem {
@@ -190,6 +194,9 @@ export default function Foco() {
     >
       {/* Itens fixados — sempre no topo, acessíveis em segundos */}
       <PinnedItemsCard />
+
+      {/* Vida — check-in rápido + atalhos para sub-áreas (Livros, Faxina, etc.) */}
+      <VidaQuickCard />
 
       {/* Aviso de ajustes da IA pendentes — visível quando faz sentido decidir */}
       {pendingAdj.length > 0 && (
@@ -409,10 +416,13 @@ export default function Foco() {
       </div>
 
       {/* Atalhos discretos */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
         <ShortcutBtn label="Tarefas" onClick={() => navigate("/tarefas")} icon={<ListChecks className="h-4 w-4" />} />
         <ShortcutBtn label="Planner" onClick={() => navigate("/planner")} icon={<Sparkles className="h-4 w-4" />} />
         <ShortcutBtn label="Metas" onClick={() => navigate("/metas")} icon={<TargetIcon className="h-4 w-4" />} />
+        <ShortcutBtn label="Vida" onClick={() => navigate("/vida")} icon={<Heart className="h-4 w-4" />} />
+        <ShortcutBtn label="Livros" onClick={() => navigate("/vida/livros")} icon={<BookOpen className="h-4 w-4" />} />
+        <ShortcutBtn label="Faxina" onClick={() => navigate("/vida/limpeza")} icon={<Sparkle className="h-4 w-4" />} />
         <ShortcutBtn label="Visão geral" onClick={() => navigate("/visao-geral")} icon={<TrendingUp className="h-4 w-4" />} />
       </div>
 
