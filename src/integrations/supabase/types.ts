@@ -101,6 +101,63 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_statement_entries: {
+        Row: {
+          account_id: string
+          amount: number
+          created_at: string
+          date: string
+          description: string | null
+          fitid: string | null
+          id: string
+          matched_transaction_id: string | null
+          raw: Json
+          status: string
+          type: string
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          created_at?: string
+          date: string
+          description?: string | null
+          fitid?: string | null
+          id?: string
+          matched_transaction_id?: string | null
+          raw?: Json
+          status?: string
+          type: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          created_at?: string
+          date?: string
+          description?: string | null
+          fitid?: string | null
+          id?: string
+          matched_transaction_id?: string | null
+          raw?: Json
+          status?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_statement_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_entries_matched_transaction_id_fkey"
+            columns: ["matched_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       book_notes: {
         Row: {
           book_id: string
@@ -2048,6 +2105,7 @@ export type Database = {
           account_id: string
           amount: number
           area_id: string | null
+          bank_ref: string | null
           category_id: string | null
           created_at: string
           date: string
@@ -2056,6 +2114,8 @@ export type Database = {
           goal_id: string | null
           id: string
           nature: Database["public"]["Enums"]["txn_nature"]
+          reconciled: boolean
+          reconciled_at: string | null
           scope: Database["public"]["Enums"]["scope_type"]
           status: Database["public"]["Enums"]["txn_status"]
           to_account_id: string | null
@@ -2065,6 +2125,7 @@ export type Database = {
           account_id: string
           amount: number
           area_id?: string | null
+          bank_ref?: string | null
           category_id?: string | null
           created_at?: string
           date?: string
@@ -2073,6 +2134,8 @@ export type Database = {
           goal_id?: string | null
           id?: string
           nature?: Database["public"]["Enums"]["txn_nature"]
+          reconciled?: boolean
+          reconciled_at?: string | null
           scope?: Database["public"]["Enums"]["scope_type"]
           status?: Database["public"]["Enums"]["txn_status"]
           to_account_id?: string | null
@@ -2082,6 +2145,7 @@ export type Database = {
           account_id?: string
           amount?: number
           area_id?: string | null
+          bank_ref?: string | null
           category_id?: string | null
           created_at?: string
           date?: string
@@ -2090,6 +2154,8 @@ export type Database = {
           goal_id?: string | null
           id?: string
           nature?: Database["public"]["Enums"]["txn_nature"]
+          reconciled?: boolean
+          reconciled_at?: string | null
           scope?: Database["public"]["Enums"]["scope_type"]
           status?: Database["public"]["Enums"]["txn_status"]
           to_account_id?: string | null

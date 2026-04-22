@@ -17,7 +17,6 @@ import {
   Users,
   Calendar as CalIcon,
   FileCheck2,
-  CircleDollarSign,
   Clock,
   ListChecks,
   ChevronLeft,
@@ -40,11 +39,6 @@ const STATUS_COLOR: Record<string, string> = {
   falta: "bg-destructive/10 text-destructive border-destructive/30",
 };
 
-const PAYMENT_LABEL: Record<string, string> = {
-  pendente: "Pagamento pendente",
-  pago: "Pago",
-  isento: "Isento",
-};
 
 export default function Psicoterapia() {
   const [date, setDate] = useState(todayISO());
@@ -87,19 +81,13 @@ export default function Psicoterapia() {
     (a.start_time || "99:99").localeCompare(b.start_time || "99:99"),
   );
 
-  // Métricas rápidas do dia
+  // Métricas rápidas do dia (sem dados financeiros — vivem só em Financeiro PJ)
   const dayStats = useMemo(() => {
     const total = todaySessions.length;
     const realizadas = todaySessions.filter((s) => s.status === "realizada").length;
     const evoluido = todaySessions.filter((s) => s.chart_updated).length;
-    const pendentePagamento = todaySessions.filter(
-      (s) => s.status === "realizada" && s.payment_status === "pendente",
-    ).length;
-    const recebidoHoje = todaySessions
-      .filter((s) => s.payment_status === "pago" && s.paid_at === date)
-      .reduce((acc, s) => acc + Number(s.price || 0), 0);
-    return { total, realizadas, evoluido, pendentePagamento, recebidoHoje };
-  }, [todaySessions, date]);
+    return { total, realizadas, evoluido };
+  }, [todaySessions]);
 
   // Sessões da próxima semana (visão da agenda)
   const upcoming = useMemo(() => {
@@ -164,8 +152,8 @@ export default function Psicoterapia() {
         </div>
       }
     >
-      {/* Resumo do dia */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+      {/* Resumo do dia (clínico — financeiro vive em Financeiro PJ) */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
         <Stat icon={<CalIcon className="h-4 w-4" />} label="Sessões hoje" value={String(dayStats.total)} />
         <Stat icon={<ListChecks className="h-4 w-4" />} label="Realizadas" value={`${dayStats.realizadas}/${dayStats.total}`} />
         <Stat
@@ -173,17 +161,6 @@ export default function Psicoterapia() {
           label="Prontuário ok"
           value={`${dayStats.evoluido}/${dayStats.realizadas}`}
           warning={dayStats.realizadas > 0 && dayStats.evoluido < dayStats.realizadas}
-        />
-        <Stat
-          icon={<CircleDollarSign className="h-4 w-4" />}
-          label="A receber"
-          value={String(dayStats.pendentePagamento)}
-          warning={dayStats.pendentePagamento > 0}
-        />
-        <Stat
-          icon={<CircleDollarSign className="h-4 w-4" />}
-          label="Recebido hoje"
-          value={`R$ ${dayStats.recebidoHoje.toFixed(2)}`}
         />
       </div>
 
@@ -231,16 +208,8 @@ export default function Psicoterapia() {
                           <Badge variant="outline" className={`text-[10px] ${STATUS_COLOR[s.status]}`}>
                             {STATUS_LABEL[s.status]}
                           </Badge>
-                          {s.payment_status === "pago" ? (
-                            <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/30">
-                              Pago R$ {Number(s.price || 0).toFixed(2)}
-                            </Badge>
-                          ) : s.payment_status === "isento" ? (
-                            <Badge variant="outline" className="text-[10px]">Isento</Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-[10px] bg-warning/10 text-warning border-warning/30">
-                              R$ {Number(s.price || 0).toFixed(2)} pendente
-                            </Badge>
+                          {s.modality && (
+                            <Badge variant="outline" className="text-[10px] capitalize">{s.modality}</Badge>
                           )}
                           {s.chart_updated && (
                             <Badge variant="outline" className="text-[10px] bg-accent/10 text-accent border-accent/30">
@@ -344,9 +313,6 @@ export default function Psicoterapia() {
                   const lastSession = sessionsOfPatient
                     .filter((s) => s.status === "realizada")
                     .sort((a, b) => b.date.localeCompare(a.date))[0];
-                  const pendingPayment = sessionsOfPatient.filter(
-                    (s) => s.status === "realizada" && s.payment_status === "pendente",
-                  ).length;
                   return (
                     <div key={p.id} className="py-3 flex items-center gap-3">
                       <div className="flex-1 min-w-0">
@@ -359,9 +325,6 @@ export default function Psicoterapia() {
                         <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3">
                           {p.phone && <span>{p.phone}</span>}
                           {p.email && <span>{p.email}</span>}
-                          {p.default_session_price > 0 && (
-                            <span>R$ {Number(p.default_session_price).toFixed(2)}/sessão</span>
-                          )}
                           {lastSession && (
                             <span>
                               Última:{" "}
@@ -370,21 +333,18 @@ export default function Psicoterapia() {
                           )}
                         </div>
                       </div>
-                      {pendingPayment > 0 && (
-                        <Badge variant="outline" className="text-[10px] bg-warning/10 text-warning border-warning/30">
-                          {pendingPayment} a receber
-                        </Badge>
-                      )}
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => {
-                          setEditingSession(null);
-                          setSessionOpen(true);
-                          setTimeout(() => {
-                            // pré-seleciona paciente abrindo o drawer
-                          }, 0);
-                        }}
+                        onClick={() => openPatient(p)}
+                        title="Editar paciente"
+                      >
+                        <Search className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => newSession(p.id)}
                         title="Nova sessão"
                       >
                         <CalIcon className="h-4 w-4" />

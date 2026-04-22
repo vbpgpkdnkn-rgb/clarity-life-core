@@ -11,7 +11,6 @@ import {
   usePatients,
   useUpsertTherapySession,
 } from "@/hooks/usePsicoterapia";
-import { useAccounts } from "@/hooks/useData";
 import { todayISO, addDaysISO } from "@/lib/format";
 import { ImageUp, Loader2, Sparkles, Trash2, AlertCircle, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -59,7 +58,6 @@ export function AgendaImportDrawer({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const { data: patients = [] } = usePatients();
-  const { data: accounts = [] } = useAccounts();
   const extract = useExtractAgenda();
   const upsertSession = useUpsertTherapySession();
   const qc = useQueryClient();
@@ -69,9 +67,6 @@ export function AgendaImportDrawer({
   const [imagePath, setImagePath] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [saving, setSaving] = useState(false);
-
-  const defaultAccount =
-    (accounts as any[]).find((a) => a.scope === "profissional") ?? (accounts as any[])[0];
 
   const reset = () => {
     setImageDataUrl(null);
@@ -167,9 +162,6 @@ export function AgendaImportDrawer({
           duration_minutes: r.duration_minutes ?? 50,
           modality: r.modality || "online",
           status: r.status,
-          price: r.price ?? 0,
-          payment_status: "pendente",
-          account_id: defaultAccount?.id ?? null,
           chart_updated: false,
           internal_notes: r.note || null,
         });
@@ -308,7 +300,7 @@ export function AgendaImportDrawer({
                           </Select>
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div className="grid grid-cols-3 gap-2">
                           <div>
                             <Label className="text-[10px]">Horário</Label>
                             <Input
@@ -329,19 +321,6 @@ export function AgendaImportDrawer({
                                 })
                               }
                               placeholder="50"
-                              className="h-8 text-xs"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-[10px]">Valor (R$)</Label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={r.price ?? ""}
-                              onChange={(e) =>
-                                updateRow(i, { price: e.target.value ? Number(e.target.value) : null })
-                              }
-                              placeholder="0,00"
                               className="h-8 text-xs"
                             />
                           </div>
