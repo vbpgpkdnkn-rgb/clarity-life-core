@@ -282,6 +282,63 @@ export function parsePatientsCSV(text: string) {
   return out;
 }
 
+// ---------- Agenda OCR ----------
+export type ExtractedSession = {
+  raw_name: string;
+  matched_name: string | null;
+  start_time: string | null;
+  duration_minutes: number | null;
+  modality: "online" | "presencial" | "hibrido" | null;
+  status: "agendada" | "realizada" | "cancelada" | "falta";
+  price: number | null;
+  note: string | null;
+};
+
+export const useExtractAgenda = () =>
+  useMutation({
+    mutationFn: async (params: { image_data_url: string; date: string; patient_names: string[] }) => {
+      const { data, error } = await supabase.functions.invoke("agenda-ocr", { body: params });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return ((data as any)?.sessions ?? []) as ExtractedSession[];
+    },
+  });
+
+/** Tarefa para a próxima sessão (cria task com vencimento +7 dias). */
+export const useCreateNextSessionTask = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: {
+      patient_id: string;
+      title: string;
+      session_date: string; // ISO da sessão atual; tarefa fica para +7 dias
+      session_id?: string;
+      notes?: string;
+    }) => {
+      const due = new Date(params.session_date + "T00:00:00");
+      due.setDate(due.getDate() + 7);
+      const dueISO = due.toISOString().slice(0, 10);
+      const { error } = await supabase.from("tasks").insert({
+        title: params.title,
+        notes: params.notes ?? null,
+        patient_id: params.patient_id,
+        therapy_session_id: params.session_id ?? null,
+        scope: "profissional",
+        due_date: dueISO,
+        priority: "media",
+        status: "pendente",
+      });
+      if (error) throw error;
+      return dueISO;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      toast.success("Tarefa criada para a próxima sessão");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+};
+
 export const useImportPatients = () => {
   const qc = useQueryClient();
   return useMutation({
