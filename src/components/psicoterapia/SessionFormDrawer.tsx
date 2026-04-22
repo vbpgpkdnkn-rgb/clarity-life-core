@@ -316,6 +316,8 @@ export function SessionFormDrawer({
             </p>
           </div>
 
+          <div className="flex gap-2 pt-4">
+            <Button onClick={save} className="flex-1">Salvar</Button>
             {session && (
               <Button
                 variant="outline"
