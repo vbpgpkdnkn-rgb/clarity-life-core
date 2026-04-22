@@ -9,7 +9,7 @@ import { ScopeBadge } from "@/components/ScopeBadge";
 import { TransactionFormDrawer } from "@/components/forms/TransactionFormDrawer";
 import { RecurrenceFormDrawer } from "@/components/forms/RecurrenceFormDrawer";
 import { AccountFormDrawer } from "@/components/forms/AccountFormDrawer";
-import { CSVImport } from "@/components/financeiro/CSVImport";
+import { ReconciliationPanel } from "@/components/financeiro/ReconciliationPanel";
 import {
   useAccounts,
   useTransactions,
@@ -601,53 +601,7 @@ export default function Financeiro() {
 
         {/* Conciliação */}
         <TabsContent value="conciliacao">
-          <Card className="p-5 shadow-soft mb-4">
-            <h3 className="font-display text-lg font-semibold mb-2">Importar extrato</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              CSV com colunas <span className="font-mono text-xs">Data, Descrição, Valor</span>. Lançamentos importados ficam{" "}
-              <strong>pendentes</strong> até você confirmar.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {accounts.map((a) => (
-                <CSVImport key={a.id} accountId={a.id} scope={a.scope} />
-              ))}
-            </div>
-          </Card>
-
-          <h3 className="font-display text-lg font-semibold mb-3">
-            Pendentes ({scopedTxns.filter((t) => t.status === "pendente").length})
-          </h3>
-          <Card className="divide-y divide-border shadow-soft overflow-hidden">
-            {scopedTxns.filter((t) => t.status === "pendente").length === 0 ? (
-              <div className="p-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
-                <CheckCircle2 className="h-6 w-6 text-success" /> Nenhuma pendente
-              </div>
-            ) : (
-              scopedTxns
-                .filter((t) => t.status === "pendente")
-                .map((t) => (
-                  <div key={t.id} className="flex items-center gap-3 px-4 py-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{t.description || "—"}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatDateBR(t.date)} · {accounts.find((a) => a.id === t.account_id)?.name}
-                      </div>
-                    </div>
-                    <span
-                      className={`font-display tabular-nums text-sm ${
-                        t.type === "entrada" ? "text-success" : "text-destructive"
-                      }`}
-                    >
-                      {t.type === "entrada" ? "+" : "-"}
-                      {formatBRL(Number(t.amount))}
-                    </span>
-                    <Button size="sm" variant="outline" onClick={() => reconcile(t)}>
-                      <CheckCircle2 className="h-4 w-4 mr-1" /> Marcar pago
-                    </Button>
-                  </div>
-                ))
-            )}
-          </Card>
+          <ReconciliationPanel />
         </TabsContent>
       </Tabs>
 
