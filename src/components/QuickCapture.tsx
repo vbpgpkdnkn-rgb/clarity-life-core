@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Plus, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { MicButton } from "@/components/MicButton";
 import { useAddBrainDump } from "@/hooks/useBrainDump";
 import { toast } from "sonner";
 
@@ -72,22 +73,27 @@ export function QuickCapture() {
               <X className="h-4 w-4" />
             </button>
           </div>
-          <Textarea
-            autoFocus
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onKeyDown={(e) => {
-              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                e.preventDefault();
-                submit();
-              }
-            }}
-            placeholder="O que está na sua cabeça?"
-            className="min-h-[88px] resize-none text-sm"
-          />
+          <div className="relative">
+            <Textarea
+              autoFocus
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              onKeyDown={(e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                  e.preventDefault();
+                  submit();
+                }
+              }}
+              placeholder="O que está na sua cabeça? (toque no mic pra ditar)"
+              className="min-h-[88px] resize-none text-sm pr-11"
+            />
+            <div className="absolute right-1.5 top-1.5">
+              <MicButton value={content} onChange={setContent} size="sm" />
+            </div>
+          </div>
           <div className="flex items-center justify-between mt-2">
             <span className="text-[10px] text-muted-foreground">
-              ⌘/Ctrl + Enter para salvar
+              ⌘/Ctrl + Enter • Mic pra ditar
             </span>
             <Button size="sm" onClick={submit} disabled={add.isPending || !content.trim()}>
               <Send className="h-3.5 w-3.5 mr-1" />

@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCategories, useGoals, useUpsertTask, useDeleteTask } from "@/hooks/useData";
 import { todayISO } from "@/lib/format";
 import { Trash2, Sparkles } from "lucide-react";
+import { MicButton } from "@/components/MicButton";
 
 type Eisenhower =
   | "urgente_importante"
@@ -116,12 +117,15 @@ export function TaskFormDrawer({
         <div className="space-y-4 mt-6">
           <div>
             <Label>Título</Label>
-            <Input
-              value={form.title || ""}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="O que precisa ser feito?"
-              autoFocus
-            />
+            <div className="flex gap-2">
+              <Input
+                value={form.title || ""}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                placeholder="O que precisa ser feito?"
+                autoFocus
+              />
+              <MicButton value={form.title || ""} onChange={(v) => setForm({ ...form, title: v })} size="md" />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -237,11 +241,17 @@ export function TaskFormDrawer({
           </div>
           <div>
             <Label>Notas</Label>
-            <Textarea
-              value={form.notes || ""}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              rows={3}
-            />
+            <div className="relative">
+              <Textarea
+                value={form.notes || ""}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                rows={3}
+                className="pr-11"
+              />
+              <div className="absolute right-1.5 top-1.5">
+                <MicButton value={form.notes || ""} onChange={(v) => setForm({ ...form, notes: v })} size="sm" />
+              </div>
+            </div>
           </div>
           <div className="flex gap-2 pt-4">
             <Button onClick={save} className="flex-1">Salvar</Button>
