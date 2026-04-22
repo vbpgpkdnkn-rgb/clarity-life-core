@@ -56,6 +56,7 @@ export function TaskFormDrawer({
   const [form, setForm] = useState<any>({});
   const { data: categories = [] } = useCategories("task");
   const { data: goals = [] } = useGoals();
+  const { data: milestones = [] } = useMilestones(form.goal_id ?? undefined);
   const upsert = useUpsertTask();
   const del = useDeleteTask();
 
