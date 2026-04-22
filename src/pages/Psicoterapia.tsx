@@ -9,6 +9,7 @@ import { usePatients, useTherapySessions, useUpsertTherapySession } from "@/hook
 import { PatientFormDrawer } from "@/components/psicoterapia/PatientFormDrawer";
 import { SessionFormDrawer } from "@/components/psicoterapia/SessionFormDrawer";
 import { PatientsCSVImport } from "@/components/psicoterapia/PatientsCSVImport";
+import { AgendaImportDrawer } from "@/components/psicoterapia/AgendaImportDrawer";
 import { TaskFormDrawer } from "@/components/forms/TaskFormDrawer";
 import { todayISO, addDaysISO, formatDateLong } from "@/lib/format";
 import {
