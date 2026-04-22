@@ -19,6 +19,7 @@ import { LifeCheckCard } from "@/components/foco/LifeCheckCard";
 import { PinnedItemsCard } from "@/components/foco/PinnedItemsCard";
 import { VidaQuickCard } from "@/components/foco/VidaQuickCard";
 import { GoalsFocusCard } from "@/components/foco/GoalsFocusCard";
+import { PsicoterapiaCard } from "@/components/foco/PsicoterapiaCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useTasks, useUpsertTask } from "@/hooks/useData";
 import { useAllGoalsProgress } from "@/hooks/useGoalProgress";
@@ -195,6 +196,9 @@ export default function Foco() {
     >
       {/* Itens fixados — sempre no topo, acessíveis em segundos */}
       <PinnedItemsCard />
+
+      {/* Psicoterapia — agenda do dia + ações rápidas */}
+      <PsicoterapiaCard />
 
       {/* Vida — check-in rápido + atalhos para sub-áreas (Livros, Faxina, etc.) */}
       <VidaQuickCard />
@@ -427,6 +431,7 @@ export default function Foco() {
         <ShortcutBtn label="Vida" onClick={() => navigate("/vida")} icon={<Heart className="h-4 w-4" />} />
         <ShortcutBtn label="Livros" onClick={() => navigate("/vida/livros")} icon={<BookOpen className="h-4 w-4" />} />
         <ShortcutBtn label="Faxina" onClick={() => navigate("/vida/limpeza")} icon={<Sparkle className="h-4 w-4" />} />
+        <ShortcutBtn label="Psico" onClick={() => navigate("/psicoterapia")} icon={<Brain className="h-4 w-4" />} />
         <ShortcutBtn label="Visão geral" onClick={() => navigate("/visao-geral")} icon={<TrendingUp className="h-4 w-4" />} />
       </div>
 

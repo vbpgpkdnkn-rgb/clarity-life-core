@@ -33,6 +33,7 @@ import VidaLivros from "./pages/VidaLivros";
 import VidaDesafios from "./pages/VidaDesafios";
 import Projetos from "./pages/Projetos";
 import ProjetoDetalhe from "./pages/ProjetoDetalhe";
+import Psicoterapia from "./pages/Psicoterapia";
 import Instalar from "./pages/Instalar";
 import QuickAdd from "./pages/QuickAdd";
 import NotFound from "./pages/NotFound.tsx";
@@ -64,6 +65,7 @@ const App = () => (
                       <Route path="/tarefas" element={<Tarefas />} />
                       <Route path="/projetos" element={<Projetos />} />
                       <Route path="/projetos/:id" element={<ProjetoDetalhe />} />
+                      <Route path="/psicoterapia" element={<Psicoterapia />} />
                       <Route path="/metas" element={<Metas />} />
                       <Route path="/metas/:id" element={<MetaDetalhe />} />
                       <Route path="/financeiro" element={<Financeiro />} />
