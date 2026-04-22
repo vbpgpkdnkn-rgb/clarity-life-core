@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCategories, useGoals, useUpsertTask, useDeleteTask, useMilestones } from "@/hooks/useData";
+import { usePatients } from "@/hooks/usePsicoterapia";
 import { todayISO } from "@/lib/format";
-import { Trash2, Sparkles, Target } from "lucide-react";
+import { Trash2, Sparkles, Target, Brain } from "lucide-react";
 import { MicButton } from "@/components/MicButton";
 
 type Eisenhower =
@@ -57,6 +58,7 @@ export function TaskFormDrawer({
   const { data: categories = [] } = useCategories("task");
   const { data: goals = [] } = useGoals();
   const { data: milestones = [] } = useMilestones(form.goal_id ?? undefined);
+  const { data: patients = [] } = usePatients();
   const upsert = useUpsertTask();
   const del = useDeleteTask();
 
@@ -73,10 +75,13 @@ export function TaskFormDrawer({
         goal_id: null,
         eisenhower: null,
         is_135: null,
+        patient_id: null,
       };
       // Auto-sugere se ainda não definido
       if (!base.eisenhower) base.eisenhower = suggestEisenhower(base.priority, base.due_date);
       if (!base.is_135) base.is_135 = suggest135(base.priority);
+      // Quando vem com patient_id pré-selecionado, força escopo profissional
+      if (base.patient_id && !task) base.scope = "profissional";
       setForm(base);
     }
   }, [open, task, defaultDate]);
@@ -283,6 +288,31 @@ export function TaskFormDrawer({
                 </Select>
               </div>
             )}
+          </div>
+          <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Brain className="h-3 w-3" /> Paciente (Psicoterapia)
+            </div>
+            <Select
+              value={form.patient_id ?? "none"}
+              onValueChange={(v) =>
+                setForm({
+                  ...form,
+                  patient_id: v === "none" ? null : v,
+                  scope: v !== "none" ? "profissional" : form.scope,
+                })
+              }
+            >
+              <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nenhum</SelectItem>
+                {(patients as any[])
+                  .filter((p) => p.status !== "encerrado")
+                  .map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label>Notas</Label>

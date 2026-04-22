@@ -9,9 +9,10 @@ import { ScopeBadge } from "@/components/ScopeBadge";
 import { TaskFormDrawer } from "@/components/forms/TaskFormDrawer";
 import { useTasks, useUpsertTask } from "@/hooks/useData";
 import { useDailyPlan, useUpsertDailyPlan, useEvents, useUpsertEvent, useDeleteEvent } from "@/hooks/usePlanner";
+import { useTherapySessions, usePatients } from "@/hooks/usePsicoterapia";
 import { todayISO, addDaysISO, formatDateLong } from "@/lib/format";
 import { useScope, filterByScope, defaultScope } from "@/contexts/ScopeContext";
-import { CheckCircle2, Circle, ChevronLeft, ChevronRight, Plus, Clock, Trash2, Calendar as CalIcon } from "lucide-react";
+import { CheckCircle2, Circle, ChevronLeft, ChevronRight, Plus, Clock, Trash2, Calendar as CalIcon, Brain } from "lucide-react";
 
 export default function PlannerDiario() {
   const [date, setDate] = useState<string>(todayISO());
@@ -23,6 +24,8 @@ export default function PlannerDiario() {
   const { data: eventsAll = [] } = useEvents(date, date);
   const upsertEvent = useUpsertEvent();
   const deleteEvent = useDeleteEvent();
+  const { data: therapySessions = [] } = useTherapySessions({ from: date, to: date });
+  const { data: patients = [] } = usePatients();
 
   const [priorities, setPriorities] = useState<string[]>(["", "", ""]);
   const [reflection, setReflection] = useState("");
@@ -137,7 +140,29 @@ export default function PlannerDiario() {
             <CalIcon className="h-4 w-4" /> Agenda
           </h2>
           <div className="space-y-1 mb-3">
-            {events.length === 0 && <p className="text-sm text-muted-foreground">Sem eventos.</p>}
+            {events.length === 0 && therapySessions.length === 0 && (
+              <p className="text-sm text-muted-foreground">Sem eventos.</p>
+            )}
+            {(therapySessions as any[])
+              .slice()
+              .sort((a, b) => (a.start_time || "99:99").localeCompare(b.start_time || "99:99"))
+              .map((s) => {
+                const p = (patients as any[]).find((x) => x.id === s.patient_id);
+                return (
+                  <div key={s.id} className="flex items-center gap-2 py-1.5 group">
+                    <Brain className="h-3.5 w-3.5 text-accent" />
+                    <span className="text-xs tabular-nums text-muted-foreground w-24">
+                      {s.start_time?.slice(0, 5) || "—"}
+                      {s.duration_minutes ? ` · ${s.duration_minutes}m` : ""}
+                    </span>
+                    <span className="text-sm flex-1 truncate">
+                      {p?.name ?? "Paciente"}
+                      <span className="text-xs text-muted-foreground ml-1">· sessão</span>
+                    </span>
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{s.status}</span>
+                  </div>
+                );
+              })}
             {events.map((e: any) => (
               <div key={e.id} className="flex items-center gap-2 py-1.5 group">
                 <Clock className="h-3.5 w-3.5 text-muted-foreground" />
