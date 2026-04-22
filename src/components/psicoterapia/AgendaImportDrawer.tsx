@@ -252,7 +252,7 @@ export function AgendaImportDrawer({
           {rows.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="font-display text-base font-semibold">Confira antes de salvar</h3>
+                <h3 className="font-display text-base font-semibold">Confira e edite antes de salvar</h3>
                 <div className="flex gap-1.5">
                   <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/30">
                     {includedCount} prontas
@@ -264,6 +264,9 @@ export function AgendaImportDrawer({
                   )}
                 </div>
               </div>
+              <p className="text-[11px] text-muted-foreground">
+                A IA pode errar nomes, horários ou valores. Revise cada linha — desmarque para ignorar ou ajuste os campos antes de salvar.
+              </p>
 
               <div className="space-y-2">
                 {rows.map((r, i) => (
@@ -280,59 +283,113 @@ export function AgendaImportDrawer({
                         onChange={(e) => updateRow(i, { include: e.target.checked })}
                         className="mt-1"
                       />
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 space-y-2">
                         <div className="text-xs text-muted-foreground">
-                          Lido: <span className="font-medium text-foreground">"{r.raw_name}"</span>
+                          Lido pela IA: <span className="font-medium text-foreground">"{r.raw_name}"</span>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1.5">
+
+                        <div>
+                          <Label className="text-[10px]">Paciente</Label>
+                          <Select
+                            value={r.patient_id ?? "none"}
+                            onValueChange={(v) => updateRow(i, { patient_id: v === "none" ? null : v })}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Selecionar" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">— sem match —</SelectItem>
+                              {(patients as any[]).map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                  {p.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           <div>
-                            <Label className="text-[10px]">Paciente</Label>
+                            <Label className="text-[10px]">Horário</Label>
+                            <Input
+                              value={r.start_time ?? ""}
+                              onChange={(e) => updateRow(i, { start_time: e.target.value })}
+                              placeholder="HH:MM"
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[10px]">Duração (min)</Label>
+                            <Input
+                              type="number"
+                              value={r.duration_minutes ?? ""}
+                              onChange={(e) =>
+                                updateRow(i, {
+                                  duration_minutes: e.target.value ? Number(e.target.value) : null,
+                                })
+                              }
+                              placeholder="50"
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[10px]">Valor (R$)</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={r.price ?? ""}
+                              onChange={(e) =>
+                                updateRow(i, { price: e.target.value ? Number(e.target.value) : null })
+                              }
+                              placeholder="0,00"
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[10px]">Status</Label>
                             <Select
-                              value={r.patient_id ?? "none"}
-                              onValueChange={(v) => updateRow(i, { patient_id: v === "none" ? null : v })}
+                              value={r.status}
+                              onValueChange={(v: any) => updateRow(i, { status: v })}
                             >
-                              <SelectTrigger className="h-8 text-xs">
-                                <SelectValue placeholder="Selecionar" />
-                              </SelectTrigger>
+                              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="none">— sem match —</SelectItem>
-                                {(patients as any[]).map((p) => (
-                                  <SelectItem key={p.id} value={p.id}>
-                                    {p.name}
-                                  </SelectItem>
-                                ))}
+                                <SelectItem value="agendada">Agendada</SelectItem>
+                                <SelectItem value="realizada">Realizada</SelectItem>
+                                <SelectItem value="cancelada">Cancelada</SelectItem>
+                                <SelectItem value="falta">Falta</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label className="text-[10px]">Horário</Label>
-                              <Input
-                                value={r.start_time ?? ""}
-                                onChange={(e) => updateRow(i, { start_time: e.target.value })}
-                                placeholder="HH:MM"
-                                className="h-8 text-xs"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-[10px]">Status</Label>
-                              <Select
-                                value={r.status}
-                                onValueChange={(v: any) => updateRow(i, { status: v })}
-                              >
-                                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="agendada">Agendada</SelectItem>
-                                  <SelectItem value="realizada">Realizada</SelectItem>
-                                  <SelectItem value="cancelada">Cancelada</SelectItem>
-                                  <SelectItem value="falta">Falta</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-[10px]">Modalidade</Label>
+                            <Select
+                              value={r.modality ?? "online"}
+                              onValueChange={(v: any) => updateRow(i, { modality: v })}
+                            >
+                              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="online">Online</SelectItem>
+                                <SelectItem value="presencial">Presencial</SelectItem>
+                                <SelectItem value="hibrido">Híbrido</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[10px]">Observação</Label>
+                            <Input
+                              value={r.note ?? ""}
+                              onChange={(e) => updateRow(i, { note: e.target.value })}
+                              placeholder="(opcional)"
+                              className="h-8 text-xs"
+                            />
                           </div>
                         </div>
+
                         {!r.patient_id && (
-                          <div className="flex items-center gap-1 text-[10px] text-warning mt-1.5">
+                          <div className="flex items-center gap-1 text-[10px] text-warning">
                             <AlertCircle className="h-3 w-3" />
                             Selecione um paciente ou desmarque a linha.
                           </div>
