@@ -25,17 +25,16 @@ export function PatientFormDrawer({
   useEffect(() => {
     if (open) {
       setForm(
-        patient ?? {
-          name: "",
-          email: "",
-          phone: "",
-          birth_date: "",
-          default_session_price: 0,
-          default_duration_minutes: 50,
-          status: "ativo",
-          notes: "",
-          external_ref: "",
-        },
+          patient ?? {
+            name: "",
+            email: "",
+            phone: "",
+            birth_date: "",
+            default_duration_minutes: 50,
+            status: "ativo",
+            notes: "",
+            external_ref: "",
+          },
       );
     }
   }, [open, patient]);
@@ -114,28 +113,15 @@ export function PatientFormDrawer({
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Valor padrão (R$)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={form.default_session_price ?? 0}
-                onChange={(e) =>
-                  setForm({ ...form, default_session_price: parseFloat(e.target.value) || 0 })
-                }
-              />
-            </div>
-            <div>
-              <Label>Duração padrão (min)</Label>
-              <Input
-                type="number"
-                value={form.default_duration_minutes ?? 50}
-                onChange={(e) =>
-                  setForm({ ...form, default_duration_minutes: parseInt(e.target.value) || 50 })
-                }
-              />
-            </div>
+          <div>
+            <Label>Duração padrão (min)</Label>
+            <Input
+              type="number"
+              value={form.default_duration_minutes ?? 50}
+              onChange={(e) =>
+                setForm({ ...form, default_duration_minutes: parseInt(e.target.value) || 50 })
+              }
+            />
           </div>
           <div>
             <Label>Referência externa <span className="text-[10px] text-muted-foreground">(ID do prontuário)</span></Label>
