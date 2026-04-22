@@ -87,12 +87,12 @@ export const useUpsertTherapySession = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (s: any) => {
-      // Carrega estado anterior para detectar transição "realizada + pago"
+      // Carrega estado anterior para detectar transição em chart_updated
       let prev: any = null;
       if (s.id) {
         const { data } = await supabase
           .from("therapy_sessions")
-          .select("*")
+          .select("chart_updated, chart_updated_at")
           .eq("id", s.id)
           .maybeSingle();
         prev = data;
@@ -117,71 +117,10 @@ export const useUpsertTherapySession = () => {
         savedId = data.id;
       }
 
-      // Integração com financeiro: cria/atualiza transação quando status do pagamento vira "pago"
-      const becomingPaid =
-        payload.payment_status === "pago" &&
-        (!prev || prev.payment_status !== "pago") &&
-        (payload.price ?? prev?.price ?? 0) > 0 &&
-        (payload.account_id ?? prev?.account_id);
-
-      if (becomingPaid) {
-        const accountId = payload.account_id ?? prev?.account_id;
-        const amount = Number(payload.price ?? prev?.price ?? 0);
-        const date = payload.paid_at ?? new Date().toISOString().slice(0, 10);
-        // Busca nome do paciente para descrição
-        const patientId = payload.patient_id ?? prev?.patient_id;
-        const { data: pat } = await supabase.from("patients").select("name").eq("id", patientId).maybeSingle();
-        const description = `Sessão — ${pat?.name ?? "paciente"}`;
-
-        if (prev?.transaction_id) {
-          await supabase
-            .from("transactions")
-            .update({
-              amount,
-              date,
-              description,
-              account_id: accountId,
-              status: "pago",
-              type: "entrada",
-              scope: "profissional",
-            })
-            .eq("id", prev.transaction_id);
-        } else {
-          const { data: txn } = await supabase
-            .from("transactions")
-            .insert({
-              account_id: accountId,
-              amount,
-              date,
-              description,
-              status: "pago",
-              type: "entrada",
-              nature: "variavel",
-              scope: "profissional",
-              external_ref: `therapy_session:${savedId}`,
-            })
-            .select("id")
-            .single();
-          if (txn?.id) {
-            await supabase
-              .from("therapy_sessions")
-              .update({ transaction_id: txn.id })
-              .eq("id", savedId!);
-          }
-        }
-      }
-
-      // Reverte: passou de "pago" para outro status → remove transação
-      if (prev?.transaction_id && payload.payment_status && payload.payment_status !== "pago") {
-        await supabase.from("transactions").delete().eq("id", prev.transaction_id);
-        await supabase.from("therapy_sessions").update({ transaction_id: null }).eq("id", savedId!);
-      }
-
       return savedId;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["therapy_sessions"] });
-      qc.invalidateQueries({ queryKey: ["transactions"] });
       toast.success("Sessão salva");
     },
     onError: (e: any) => toast.error(e.message),
@@ -192,20 +131,11 @@ export const useDeleteTherapySession = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { data: prev } = await supabase
-        .from("therapy_sessions")
-        .select("transaction_id")
-        .eq("id", id)
-        .maybeSingle();
-      if (prev?.transaction_id) {
-        await supabase.from("transactions").delete().eq("id", prev.transaction_id);
-      }
       const { error } = await supabase.from("therapy_sessions").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["therapy_sessions"] });
-      qc.invalidateQueries({ queryKey: ["transactions"] });
       toast.success("Sessão removida");
     },
   });
