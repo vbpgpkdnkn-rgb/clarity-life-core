@@ -426,6 +426,7 @@ export default function Psicoterapia() {
         task={taskPatientId ? { patient_id: taskPatientId, scope: "profissional" } : null}
         defaultDate={date}
       />
+      <AgendaImportDrawer open={agendaImportOpen} onOpenChange={setAgendaImportOpen} />
     </AppLayout>
   );
 }
