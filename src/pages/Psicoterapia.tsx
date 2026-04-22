@@ -9,6 +9,7 @@ import { usePatients, useTherapySessions, useUpsertTherapySession } from "@/hook
 import { PatientFormDrawer } from "@/components/psicoterapia/PatientFormDrawer";
 import { SessionFormDrawer } from "@/components/psicoterapia/SessionFormDrawer";
 import { PatientsCSVImport } from "@/components/psicoterapia/PatientsCSVImport";
+import { AgendaImportDrawer } from "@/components/psicoterapia/AgendaImportDrawer";
 import { TaskFormDrawer } from "@/components/forms/TaskFormDrawer";
 import { todayISO, addDaysISO, formatDateLong } from "@/lib/format";
 import {
@@ -22,6 +23,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
+  ImageUp,
 } from "lucide-react";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -58,9 +60,11 @@ export default function Psicoterapia() {
   const [editingPatient, setEditingPatient] = useState<any>(null);
   const [sessionOpen, setSessionOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<any>(null);
+  const [sessionPatientId, setSessionPatientId] = useState<string | undefined>();
   const [taskOpen, setTaskOpen] = useState(false);
   const [taskPatientId, setTaskPatientId] = useState<string | undefined>();
   const [search, setSearch] = useState("");
+  const [agendaImportOpen, setAgendaImportOpen] = useState(false);
 
   const patientById = useMemo(
     () => Object.fromEntries((patients as any[]).map((p) => [p.id, p])),
@@ -106,10 +110,12 @@ export default function Psicoterapia() {
 
   const openSession = (s: any) => {
     setEditingSession(s);
+    setSessionPatientId(undefined);
     setSessionOpen(true);
   };
-  const newSession = () => {
+  const newSession = (patientId?: string) => {
     setEditingSession(null);
+    setSessionPatientId(patientId);
     setSessionOpen(true);
   };
   const openPatient = (p: any) => {
@@ -149,7 +155,10 @@ export default function Psicoterapia() {
           <Button size="sm" variant="ghost" onClick={() => setDate(addDaysISO(date, 1))}>
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <Button size="sm" onClick={newSession} className="ml-2">
+          <Button size="sm" variant="outline" onClick={() => setAgendaImportOpen(true)} className="ml-2">
+            <ImageUp className="h-4 w-4 mr-1" /> Importar foto
+          </Button>
+          <Button size="sm" onClick={() => newSession()} className="ml-1">
             <Plus className="h-4 w-4 mr-1" /> Sessão
           </Button>
         </div>
@@ -193,7 +202,7 @@ export default function Psicoterapia() {
           <Card className="p-5 border-border/60 shadow-none">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-lg font-semibold">Sessões do dia</h2>
-              <Button size="sm" variant="outline" onClick={newSession}>
+              <Button size="sm" variant="outline" onClick={() => newSession()}>
                 <Plus className="h-4 w-4 mr-1" /> Nova sessão
               </Button>
             </div>
