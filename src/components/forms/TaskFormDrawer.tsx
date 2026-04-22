@@ -225,20 +225,64 @@ export function TaskFormDrawer({
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label>Vincular a meta</Label>
-            <Select
-              value={form.goal_id ?? "none"}
-              onValueChange={(v) => setForm({ ...form, goal_id: v === "none" ? null : v })}
-            >
-              <SelectTrigger><SelectValue placeholder="Nenhuma" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nenhuma</SelectItem>
-                {goals.filter((g) => g.kind === "tarefas").map((g) => (
-                  <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Target className="h-3 w-3" /> Vínculo com meta
+            </div>
+            <div>
+              <Label className="text-xs">Meta</Label>
+              <Select
+                value={form.goal_id ?? "none"}
+                onValueChange={(v) => {
+                  const goalId = v === "none" ? null : v;
+                  const linked = goals.find((g: any) => g.id === goalId);
+                  setForm({
+                    ...form,
+                    goal_id: goalId,
+                    milestone_id: null, // reseta marco ao trocar de meta
+                    // Sincroniza escopo automaticamente com a meta
+                    scope: linked?.scope ?? form.scope,
+                  });
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Nenhuma" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhuma</SelectItem>
+                  {goals
+                    .filter((g: any) => g.kind !== "financeiro" && g.status !== "concluida")
+                    .map((g: any) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        {g.name}
+                        <span className="text-[10px] text-muted-foreground ml-1">({g.scope})</span>
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {form.goal_id && milestones.length > 0 && (
+              <div>
+                <Label className="text-xs">Marco / etapa</Label>
+                <Select
+                  value={form.milestone_id ?? "none"}
+                  onValueChange={(v) => setForm({ ...form, milestone_id: v === "none" ? null : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Sem marco" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem marco específico</SelectItem>
+                    {milestones.map((m: any) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.name}
+                        {m.deadline && (
+                          <span className="text-[10px] text-muted-foreground ml-1">
+                            (até {new Date(m.deadline + "T00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })})
+                          </span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <div>
             <Label>Notas</Label>
