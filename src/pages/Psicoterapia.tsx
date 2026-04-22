@@ -155,7 +155,10 @@ export default function Psicoterapia() {
           <Button size="sm" variant="ghost" onClick={() => setDate(addDaysISO(date, 1))}>
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <Button size="sm" onClick={newSession} className="ml-2">
+          <Button size="sm" variant="outline" onClick={() => setAgendaImportOpen(true)} className="ml-2">
+            <ImageUp className="h-4 w-4 mr-1" /> Importar foto
+          </Button>
+          <Button size="sm" onClick={() => newSession()} className="ml-1">
             <Plus className="h-4 w-4 mr-1" /> Sessão
           </Button>
         </div>
@@ -199,7 +202,7 @@ export default function Psicoterapia() {
           <Card className="p-5 border-border/60 shadow-none">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-lg font-semibold">Sessões do dia</h2>
-              <Button size="sm" variant="outline" onClick={newSession}>
+              <Button size="sm" variant="outline" onClick={() => newSession()}>
                 <Plus className="h-4 w-4 mr-1" /> Nova sessão
               </Button>
             </div>
