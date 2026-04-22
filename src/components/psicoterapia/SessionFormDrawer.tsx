@@ -291,8 +291,31 @@ export function SessionFormDrawer({
             </div>
           </div>
 
-          <div className="flex gap-2 pt-4">
-            <Button onClick={save} className="flex-1">Salvar</Button>
+          {/* Tarefa para a próxima sessão (vira task com vencimento +7 dias) */}
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-medium text-primary">
+              <ListPlus className="h-3.5 w-3.5" /> Tarefa para a próxima sessão
+            </div>
+            <div className="relative">
+              <Input
+                value={nextTaskTitle}
+                onChange={(e) => setNextTaskTitle(e.target.value)}
+                placeholder="Ex.: Retomar combinado sobre limite com a mãe"
+                className="pr-11"
+              />
+              <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
+                <MicButton
+                  value={nextTaskTitle}
+                  onChange={setNextTaskTitle}
+                  size="sm"
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Ao salvar, vira uma tarefa profissional vinculada ao paciente, com vencimento 7 dias depois desta sessão.
+            </p>
+          </div>
+
             {session && (
               <Button
                 variant="outline"
