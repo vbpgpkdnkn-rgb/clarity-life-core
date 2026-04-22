@@ -41,6 +41,36 @@ export type Database = {
         }
         Relationships: []
       }
+      agenda_imports: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          image_path: string | null
+          notes: string | null
+          raw_extraction: Json
+          sessions_created: number
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          image_path?: string | null
+          notes?: string | null
+          raw_extraction?: Json
+          sessions_created?: number
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          image_path?: string | null
+          notes?: string | null
+          raw_extraction?: Json
+          sessions_created?: number
+        }
+        Relationships: []
+      }
       ai_insights: {
         Row: {
           created_at: string
