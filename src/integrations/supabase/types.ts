@@ -1444,6 +1444,54 @@ export type Database = {
           },
         ]
       }
+      patients: {
+        Row: {
+          birth_date: string | null
+          created_at: string
+          default_duration_minutes: number | null
+          default_session_price: number | null
+          email: string | null
+          external_ref: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          status: string
+          tags: Json
+          updated_at: string
+        }
+        Insert: {
+          birth_date?: string | null
+          created_at?: string
+          default_duration_minutes?: number | null
+          default_session_price?: number | null
+          email?: string | null
+          external_ref?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          tags?: Json
+          updated_at?: string
+        }
+        Update: {
+          birth_date?: string | null
+          created_at?: string
+          default_duration_minutes?: number | null
+          default_session_price?: number | null
+          email?: string | null
+          external_ref?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          tags?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       performance_adjustments: {
         Row: {
           area: string
@@ -1759,12 +1807,14 @@ export type Database = {
           kanban_column: Database["public"]["Enums"]["kanban_column"]
           milestone_id: string | null
           notes: string | null
+          patient_id: string | null
           priority: Database["public"]["Enums"]["task_priority"]
           project_id: string | null
           recurrence_source_id: string | null
           recurrence_source_table: string | null
           scope: Database["public"]["Enums"]["scope_type"]
           status: Database["public"]["Enums"]["task_status"]
+          therapy_session_id: string | null
           title: string
         }
         Insert: {
@@ -1783,12 +1833,14 @@ export type Database = {
           kanban_column?: Database["public"]["Enums"]["kanban_column"]
           milestone_id?: string | null
           notes?: string | null
+          patient_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
           recurrence_source_id?: string | null
           recurrence_source_table?: string | null
           scope?: Database["public"]["Enums"]["scope_type"]
           status?: Database["public"]["Enums"]["task_status"]
+          therapy_session_id?: string | null
           title: string
         }
         Update: {
@@ -1807,12 +1859,14 @@ export type Database = {
           kanban_column?: Database["public"]["Enums"]["kanban_column"]
           milestone_id?: string | null
           notes?: string | null
+          patient_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
           recurrence_source_id?: string | null
           recurrence_source_table?: string | null
           scope?: Database["public"]["Enums"]["scope_type"]
           status?: Database["public"]["Enums"]["task_status"]
+          therapy_session_id?: string | null
           title?: string
         }
         Relationships: [
@@ -1852,10 +1906,109 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tasks_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tasks_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_therapy_session_id_fkey"
+            columns: ["therapy_session_id"]
+            isOneToOne: false
+            referencedRelation: "therapy_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      therapy_sessions: {
+        Row: {
+          account_id: string | null
+          chart_updated: boolean
+          chart_updated_at: string | null
+          created_at: string
+          date: string
+          duration_minutes: number | null
+          id: string
+          internal_notes: string | null
+          modality: string | null
+          paid_at: string | null
+          patient_id: string
+          payment_method: string | null
+          payment_status: string
+          price: number | null
+          start_time: string | null
+          status: string
+          transaction_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          chart_updated?: boolean
+          chart_updated_at?: string | null
+          created_at?: string
+          date?: string
+          duration_minutes?: number | null
+          id?: string
+          internal_notes?: string | null
+          modality?: string | null
+          paid_at?: string | null
+          patient_id: string
+          payment_method?: string | null
+          payment_status?: string
+          price?: number | null
+          start_time?: string | null
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          chart_updated?: boolean
+          chart_updated_at?: string | null
+          created_at?: string
+          date?: string
+          duration_minutes?: number | null
+          id?: string
+          internal_notes?: string | null
+          modality?: string | null
+          paid_at?: string | null
+          patient_id?: string
+          payment_method?: string | null
+          payment_status?: string
+          price?: number | null
+          start_time?: string | null
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "therapy_sessions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "therapy_sessions_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "therapy_sessions_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
         ]
