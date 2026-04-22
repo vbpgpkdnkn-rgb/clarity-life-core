@@ -60,9 +60,11 @@ export default function Psicoterapia() {
   const [editingPatient, setEditingPatient] = useState<any>(null);
   const [sessionOpen, setSessionOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<any>(null);
+  const [sessionPatientId, setSessionPatientId] = useState<string | undefined>();
   const [taskOpen, setTaskOpen] = useState(false);
   const [taskPatientId, setTaskPatientId] = useState<string | undefined>();
   const [search, setSearch] = useState("");
+  const [agendaImportOpen, setAgendaImportOpen] = useState(false);
 
   const patientById = useMemo(
     () => Object.fromEntries((patients as any[]).map((p) => [p.id, p])),
