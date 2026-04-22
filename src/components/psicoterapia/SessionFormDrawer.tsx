@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useUpsertTherapySession, useDeleteTherapySession, usePatients } from "@/hooks/usePsicoterapia";
+import { useUpsertTherapySession, useDeleteTherapySession, usePatients, useCreateNextSessionTask } from "@/hooks/usePsicoterapia";
 import { useAccounts } from "@/hooks/useData";
 import { todayISO } from "@/lib/format";
 import { MicButton } from "@/components/MicButton";
-import { Trash2, FileCheck2 } from "lucide-react";
+import { Trash2, FileCheck2, ListPlus } from "lucide-react";
+import { toast } from "sonner";
 
 export function SessionFormDrawer({
   open,
@@ -26,8 +27,10 @@ export function SessionFormDrawer({
   defaultPatientId?: string;
 }) {
   const [form, setForm] = useState<any>({});
+  const [nextTaskTitle, setNextTaskTitle] = useState("");
   const upsert = useUpsertTherapySession();
   const del = useDeleteTherapySession();
+  const createNextTask = useCreateNextSessionTask();
   const { data: patients = [] } = usePatients();
   const { data: accounts = [] } = useAccounts();
 
@@ -60,6 +63,7 @@ export function SessionFormDrawer({
         }
       }
       setForm(base);
+      setNextTaskTitle("");
     }
   }, [open, session, defaultDate, defaultPatientId, defaultAccount?.id, patients]);
 
@@ -84,14 +88,33 @@ export function SessionFormDrawer({
   };
 
   const save = async () => {
-    if (!form.patient_id) return;
+    if (!form.patient_id) {
+      toast.error("Selecione um paciente para salvar a sessão.");
+      return;
+    }
+    if (!form.date) {
+      toast.error("Defina a data da sessão.");
+      return;
+    }
     const payload: any = { ...form };
     if (!payload.start_time) payload.start_time = null;
     if (!payload.paid_at) payload.paid_at = null;
     if (!payload.payment_method) payload.payment_method = null;
     if (!payload.account_id) payload.account_id = null;
-    await upsert.mutateAsync(payload);
-    onOpenChange(false);
+    try {
+      const savedId = await upsert.mutateAsync(payload);
+      if (nextTaskTitle.trim()) {
+        await createNextTask.mutateAsync({
+          patient_id: form.patient_id,
+          title: nextTaskTitle.trim(),
+          session_date: form.date,
+          session_id: (savedId as string) || session?.id,
+        });
+      }
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao salvar a sessão");
+    }
   };
 
   const patient = (patients as any[]).find((p) => p.id === form.patient_id);
