@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { usePatients, useTherapySessions, useUpsertTherapySession } from "@/hooks/usePsicoterapia";
@@ -10,6 +10,7 @@ import { PatientFormDrawer } from "@/components/psicoterapia/PatientFormDrawer";
 import { SessionFormDrawer } from "@/components/psicoterapia/SessionFormDrawer";
 import { PatientsCSVImport } from "@/components/psicoterapia/PatientsCSVImport";
 import { AgendaImportDrawer } from "@/components/psicoterapia/AgendaImportDrawer";
+import { SessionAnalysisDrawer } from "@/components/psicoterapia/SessionAnalysisDrawer";
 import { TaskFormDrawer } from "@/components/forms/TaskFormDrawer";
 import { todayISO, addDaysISO, formatDateLong } from "@/lib/format";
 import {
@@ -23,21 +24,10 @@ import {
   ChevronRight,
   Search,
   ImageUp,
+  Brain,
+  ListPlus,
 } from "lucide-react";
 
-const STATUS_LABEL: Record<string, string> = {
-  agendada: "Agendada",
-  realizada: "Realizada",
-  cancelada: "Cancelada",
-  falta: "Falta",
-};
-
-const STATUS_COLOR: Record<string, string> = {
-  agendada: "bg-muted text-muted-foreground",
-  realizada: "bg-success/15 text-success border-success/30",
-  cancelada: "bg-muted text-muted-foreground line-through",
-  falta: "bg-destructive/10 text-destructive border-destructive/30",
-};
 
 
 export default function Psicoterapia() {
@@ -59,6 +49,8 @@ export default function Psicoterapia() {
   const [taskPatientId, setTaskPatientId] = useState<string | undefined>();
   const [search, setSearch] = useState("");
   const [agendaImportOpen, setAgendaImportOpen] = useState(false);
+  const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [analysisPatient, setAnalysisPatient] = useState<{ id: string; name: string } | null>(null);
 
   const patientById = useMemo(
     () => Object.fromEntries((patients as any[]).map((p) => [p.id, p])),
@@ -128,6 +120,12 @@ export default function Psicoterapia() {
     setTaskOpen(true);
   };
 
+  const openAnalysis = (patientId: string) => {
+    const p = patientById[patientId];
+    setAnalysisPatient({ id: patientId, name: p?.name ?? "Paciente" });
+    setAnalysisOpen(true);
+  };
+
   return (
     <AppLayout
       title="Psicoterapia"
@@ -192,44 +190,33 @@ export default function Psicoterapia() {
                 {todaySessions.map((s) => {
                   const p = patientById[s.patient_id];
                   return (
-                    <div key={s.id} className="py-3 flex items-start gap-3">
-                      <div className="text-xs tabular-nums text-muted-foreground w-16 pt-0.5">
+                    <div key={s.id} className="py-2.5 flex items-center gap-3">
+                      <div className="text-xs tabular-nums text-muted-foreground w-16 shrink-0">
                         <Clock className="h-3 w-3 inline mr-1" />
                         {s.start_time?.slice(0, 5) || "—"}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <button
-                          onClick={() => openSession(s)}
-                          className="font-medium text-sm hover:text-accent text-left"
+                      <button
+                        onClick={() => openSession(s)}
+                        className="font-medium text-sm hover:text-accent text-left flex-1 min-w-0 truncate"
+                      >
+                        {p?.name ?? "Paciente"}
+                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openAnalysis(s.patient_id)}
+                          title="Assistente de IA — analisar sessão"
+                          className="text-accent hover:text-accent"
                         >
-                          {p?.name ?? "Paciente"}
-                        </button>
-                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                          <Badge variant="outline" className={`text-[10px] ${STATUS_COLOR[s.status]}`}>
-                            {STATUS_LABEL[s.status]}
-                          </Badge>
-                          {s.modality && (
-                            <Badge variant="outline" className="text-[10px] capitalize">{s.modality}</Badge>
-                          )}
-                          {s.chart_updated && (
-                            <Badge variant="outline" className="text-[10px] bg-accent/10 text-accent border-accent/30">
-                              <FileCheck2 className="h-2.5 w-2.5 mr-0.5" /> Prontuário
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {s.status !== "realizada" && (
-                          <Button size="sm" variant="ghost" onClick={() => markRealizada(s)} title="Marcar realizada">
-                            <ListChecks className="h-4 w-4" />
-                          </Button>
-                        )}
+                          <Brain className="h-4 w-4" />
+                        </Button>
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={() => toggleChart(s)}
-                          title={s.chart_updated ? "Desmarcar prontuário" : "Marcar prontuário evoluído"}
-                          className={s.chart_updated ? "text-accent" : ""}
+                          title={s.chart_updated ? "Prontuário evoluído (clique para desmarcar)" : "Marcar prontuário evoluído"}
+                          className={s.chart_updated ? "text-success" : ""}
                         >
                           <FileCheck2 className="h-4 w-4" />
                         </Button>
@@ -239,7 +226,7 @@ export default function Psicoterapia() {
                           onClick={() => newTaskForPatient(s.patient_id)}
                           title="Criar tarefa para este paciente"
                         >
-                          <Plus className="h-4 w-4" />
+                          <ListPlus className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -270,9 +257,9 @@ export default function Psicoterapia() {
                         {s.start_time?.slice(0, 5) || "—"}
                       </span>
                       <span className="text-sm flex-1 truncate">{p?.name ?? "Paciente"}</span>
-                      <Badge variant="outline" className={`text-[10px] ${STATUS_COLOR[s.status]}`}>
-                        {STATUS_LABEL[s.status]}
-                      </Badge>
+                      {s.chart_updated && (
+                        <FileCheck2 className="h-3.5 w-3.5 text-success shrink-0" />
+                      )}
                     </button>
                   );
                 })}
@@ -387,6 +374,18 @@ export default function Psicoterapia() {
         defaultDate={date}
       />
       <AgendaImportDrawer open={agendaImportOpen} onOpenChange={setAgendaImportOpen} />
+      {analysisPatient && (
+        <SessionAnalysisDrawer
+          open={analysisOpen}
+          onOpenChange={(v) => {
+            setAnalysisOpen(v);
+            if (!v) setAnalysisPatient(null);
+          }}
+          patientId={analysisPatient.id}
+          patientName={analysisPatient.name}
+          kind="single"
+        />
+      )}
     </AppLayout>
   );
 }
