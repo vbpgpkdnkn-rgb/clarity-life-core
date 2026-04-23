@@ -62,6 +62,8 @@ export default function Psicoterapia() {
   const [taskPatientId, setTaskPatientId] = useState<string | undefined>();
   const [search, setSearch] = useState("");
   const [agendaImportOpen, setAgendaImportOpen] = useState(false);
+  const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [analysisPatient, setAnalysisPatient] = useState<{ id: string; name: string } | null>(null);
 
   const patientById = useMemo(
     () => Object.fromEntries((patients as any[]).map((p) => [p.id, p])),
