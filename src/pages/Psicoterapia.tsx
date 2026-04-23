@@ -10,6 +10,7 @@ import { PatientFormDrawer } from "@/components/psicoterapia/PatientFormDrawer";
 import { SessionFormDrawer } from "@/components/psicoterapia/SessionFormDrawer";
 import { PatientsCSVImport } from "@/components/psicoterapia/PatientsCSVImport";
 import { AgendaImportDrawer } from "@/components/psicoterapia/AgendaImportDrawer";
+import { SessionAnalysisDrawer } from "@/components/psicoterapia/SessionAnalysisDrawer";
 import { TaskFormDrawer } from "@/components/forms/TaskFormDrawer";
 import { todayISO, addDaysISO, formatDateLong } from "@/lib/format";
 import {
@@ -23,6 +24,8 @@ import {
   ChevronRight,
   Search,
   ImageUp,
+  Brain,
+  ListPlus,
 } from "lucide-react";
 
 const STATUS_LABEL: Record<string, string> = {
