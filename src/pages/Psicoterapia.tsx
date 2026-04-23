@@ -203,44 +203,33 @@ export default function Psicoterapia() {
                 {todaySessions.map((s) => {
                   const p = patientById[s.patient_id];
                   return (
-                    <div key={s.id} className="py-3 flex items-start gap-3">
-                      <div className="text-xs tabular-nums text-muted-foreground w-16 pt-0.5">
+                    <div key={s.id} className="py-2.5 flex items-center gap-3">
+                      <div className="text-xs tabular-nums text-muted-foreground w-16 shrink-0">
                         <Clock className="h-3 w-3 inline mr-1" />
                         {s.start_time?.slice(0, 5) || "—"}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <button
-                          onClick={() => openSession(s)}
-                          className="font-medium text-sm hover:text-accent text-left"
+                      <button
+                        onClick={() => openSession(s)}
+                        className="font-medium text-sm hover:text-accent text-left flex-1 min-w-0 truncate"
+                      >
+                        {p?.name ?? "Paciente"}
+                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openAnalysis(s.patient_id)}
+                          title="Assistente de IA — analisar sessão"
+                          className="text-accent hover:text-accent"
                         >
-                          {p?.name ?? "Paciente"}
-                        </button>
-                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                          <Badge variant="outline" className={`text-[10px] ${STATUS_COLOR[s.status]}`}>
-                            {STATUS_LABEL[s.status]}
-                          </Badge>
-                          {s.modality && (
-                            <Badge variant="outline" className="text-[10px] capitalize">{s.modality}</Badge>
-                          )}
-                          {s.chart_updated && (
-                            <Badge variant="outline" className="text-[10px] bg-accent/10 text-accent border-accent/30">
-                              <FileCheck2 className="h-2.5 w-2.5 mr-0.5" /> Prontuário
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {s.status !== "realizada" && (
-                          <Button size="sm" variant="ghost" onClick={() => markRealizada(s)} title="Marcar realizada">
-                            <ListChecks className="h-4 w-4" />
-                          </Button>
-                        )}
+                          <Brain className="h-4 w-4" />
+                        </Button>
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={() => toggleChart(s)}
-                          title={s.chart_updated ? "Desmarcar prontuário" : "Marcar prontuário evoluído"}
-                          className={s.chart_updated ? "text-accent" : ""}
+                          title={s.chart_updated ? "Prontuário evoluído (clique para desmarcar)" : "Marcar prontuário evoluído"}
+                          className={s.chart_updated ? "text-success" : ""}
                         >
                           <FileCheck2 className="h-4 w-4" />
                         </Button>
@@ -250,7 +239,7 @@ export default function Psicoterapia() {
                           onClick={() => newTaskForPatient(s.patient_id)}
                           title="Criar tarefa para este paciente"
                         >
-                          <Plus className="h-4 w-4" />
+                          <ListPlus className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
