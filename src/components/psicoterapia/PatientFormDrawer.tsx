@@ -157,7 +157,35 @@ export function PatientFormDrawer({
               </div>
             </div>
           </div>
-          <div className="flex gap-2 pt-4">
+          {patient?.id && (
+            <Card className="p-4 border-accent/30 bg-accent/5 shadow-none space-y-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-accent" />
+                <div className="flex-1">
+                  <div className="font-display font-semibold text-sm">Assistente clínico</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Insights estratégicos a partir de transcrições. Não é prontuário, não é diagnóstico.
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button size="sm" variant="outline" onClick={() => openAnalysis("single")}>
+                  <Brain className="h-4 w-4 mr-1" /> Analisar última
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => openAnalysis("comparative")}>
+                  <Brain className="h-4 w-4 mr-1" /> Analisar últimas
+                </Button>
+              </div>
+              <div>
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">
+                  Histórico de análises
+                </div>
+                <SessionAnalysisHistory patientId={patient.id} />
+              </div>
+            </Card>
+          )}
+
+          <div className="flex gap-2 pt-2">
             <Button onClick={save} className="flex-1">Salvar</Button>
             {patient && (
               <Button
@@ -175,6 +203,16 @@ export function PatientFormDrawer({
           </div>
         </div>
       </SheetContent>
+
+      {patient?.id && (
+        <SessionAnalysisDrawer
+          open={analysisOpen}
+          onOpenChange={setAnalysisOpen}
+          patientId={patient.id}
+          patientName={patient.name || "Paciente"}
+          kind={analysisKind}
+        />
+      )}
     </Sheet>
   );
 }
