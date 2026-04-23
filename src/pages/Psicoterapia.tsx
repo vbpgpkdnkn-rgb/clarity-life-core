@@ -387,6 +387,18 @@ export default function Psicoterapia() {
         defaultDate={date}
       />
       <AgendaImportDrawer open={agendaImportOpen} onOpenChange={setAgendaImportOpen} />
+      {analysisPatient && (
+        <SessionAnalysisDrawer
+          open={analysisOpen}
+          onOpenChange={(v) => {
+            setAnalysisOpen(v);
+            if (!v) setAnalysisPatient(null);
+          }}
+          patientId={analysisPatient.id}
+          patientName={analysisPatient.name}
+          kind="single"
+        />
+      )}
     </AppLayout>
   );
 }
