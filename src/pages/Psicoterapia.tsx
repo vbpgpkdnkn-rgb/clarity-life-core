@@ -270,9 +270,9 @@ export default function Psicoterapia() {
                         {s.start_time?.slice(0, 5) || "—"}
                       </span>
                       <span className="text-sm flex-1 truncate">{p?.name ?? "Paciente"}</span>
-                      <Badge variant="outline" className={`text-[10px] ${STATUS_COLOR[s.status]}`}>
-                        {STATUS_LABEL[s.status]}
-                      </Badge>
+                      {s.chart_updated && (
+                        <FileCheck2 className="h-3.5 w-3.5 text-success shrink-0" />
+                      )}
                     </button>
                   );
                 })}
