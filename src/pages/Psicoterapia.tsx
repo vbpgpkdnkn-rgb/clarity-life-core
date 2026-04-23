@@ -133,6 +133,12 @@ export default function Psicoterapia() {
     setTaskOpen(true);
   };
 
+  const openAnalysis = (patientId: string) => {
+    const p = patientById[patientId];
+    setAnalysisPatient({ id: patientId, name: p?.name ?? "Paciente" });
+    setAnalysisOpen(true);
+  };
+
   return (
     <AppLayout
       title="Psicoterapia"
