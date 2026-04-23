@@ -23,8 +23,15 @@ export function PatientFormDrawer({
   patient?: any;
 }) {
   const [form, setForm] = useState<any>({});
+  const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [analysisKind, setAnalysisKind] = useState<AnalysisKind>("single");
   const upsert = useUpsertPatient();
   const del = useDeletePatient();
+
+  const openAnalysis = (kind: AnalysisKind) => {
+    setAnalysisKind(kind);
+    setAnalysisOpen(true);
+  };
 
   useEffect(() => {
     if (open) {
