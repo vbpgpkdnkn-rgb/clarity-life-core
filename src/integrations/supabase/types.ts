@@ -1877,6 +1877,45 @@ export type Database = {
           },
         ]
       }
+      session_analyses: {
+        Row: {
+          created_at: string
+          depth: string
+          id: string
+          kind: string
+          patient_id: string
+          result: Json
+          session_ids: Json
+          title: string | null
+          transcript: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          depth?: string
+          id?: string
+          kind?: string
+          patient_id: string
+          result?: Json
+          session_ids?: Json
+          title?: string | null
+          transcript: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          depth?: string
+          id?: string
+          kind?: string
+          patient_id?: string
+          result?: Json
+          session_ids?: Json
+          title?: string | null
+          transcript?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           area_id: string | null
