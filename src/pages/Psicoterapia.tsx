@@ -28,19 +28,6 @@ import {
   ListPlus,
 } from "lucide-react";
 
-const STATUS_LABEL: Record<string, string> = {
-  agendada: "Agendada",
-  realizada: "Realizada",
-  cancelada: "Cancelada",
-  falta: "Falta",
-};
-
-const STATUS_COLOR: Record<string, string> = {
-  agendada: "bg-muted text-muted-foreground",
-  realizada: "bg-success/15 text-success border-success/30",
-  cancelada: "bg-muted text-muted-foreground line-through",
-  falta: "bg-destructive/10 text-destructive border-destructive/30",
-};
 
 
 export default function Psicoterapia() {
