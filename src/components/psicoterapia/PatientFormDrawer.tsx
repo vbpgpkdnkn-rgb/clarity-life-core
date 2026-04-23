@@ -7,7 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUpsertPatient, useDeletePatient } from "@/hooks/usePsicoterapia";
 import { MicButton } from "@/components/MicButton";
-import { Trash2 } from "lucide-react";
+import { Trash2, Brain, Sparkles } from "lucide-react";
+import { SessionAnalysisDrawer } from "./SessionAnalysisDrawer";
+import { SessionAnalysisHistory } from "./SessionAnalysisHistory";
+import type { AnalysisKind } from "@/hooks/useSessionAnalyses";
+import { Card } from "@/components/ui/card";
 
 export function PatientFormDrawer({
   open,
