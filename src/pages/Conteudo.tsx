@@ -51,6 +51,7 @@ import { ReferencesTab } from "@/components/conteudo/ReferencesTab";
 import { GrowthTab } from "@/components/conteudo/GrowthTab";
 import { StrategyOnboarding } from "@/components/conteudo/StrategyOnboarding";
 import { DecisionTab } from "@/components/conteudo/DecisionTab";
+import { RelationalEngineTab } from "@/components/conteudo/RelationalEngineTab";
 import {
   ContentFormat,
   ContentPiece,
@@ -133,6 +134,7 @@ export default function Conteudo() {
         <TabsList className="flex flex-wrap h-auto w-full justify-start gap-1">
           <TabsTrigger value="crescimento"><Rocket className="h-3.5 w-3.5 mr-1" />Crescimento</TabsTrigger>
           <TabsTrigger value="decisao" className="data-[state=active]:bg-accent/15 data-[state=active]:text-accent"><Brain className="h-3.5 w-3.5 mr-1" />Decisão</TabsTrigger>
+          <TabsTrigger value="motor-relacional" className="data-[state=active]:bg-accent/15 data-[state=active]:text-accent"><MessageCircle className="h-3.5 w-3.5 mr-1" />Motor Relacional</TabsTrigger>
           <TabsTrigger value="ideias"><Lightbulb className="h-3.5 w-3.5 mr-1" />Ideias</TabsTrigger>
           <TabsTrigger value="editorial"><CalendarDays className="h-3.5 w-3.5 mr-1" />Editorial</TabsTrigger>
           <TabsTrigger value="producao"><Hammer className="h-3.5 w-3.5 mr-1" />Produção</TabsTrigger>
@@ -146,6 +148,7 @@ export default function Conteudo() {
 
         <TabsContent value="crescimento"><GrowthTab /></TabsContent>
         <TabsContent value="decisao"><DecisionTab /></TabsContent>
+        <TabsContent value="motor-relacional"><RelationalEngineTab /></TabsContent>
         <TabsContent value="ideias"><IdeasTab ideas={ideas as any} /></TabsContent>
         <TabsContent value="editorial"><EditorialTab pieces={pieces} ideas={ideas as any} consistency={consistency} /></TabsContent>
         <TabsContent value="producao"><ProductionTab pieces={pieces} /></TabsContent>
