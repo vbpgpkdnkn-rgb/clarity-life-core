@@ -1916,6 +1916,69 @@ export type Database = {
         }
         Relationships: []
       }
+      strategic_scripts: {
+        Row: {
+          approved: boolean
+          conflict: string | null
+          created_at: string
+          cta: string | null
+          decision: Json
+          format: string | null
+          hook: string | null
+          id: string
+          insight: string | null
+          intent: string | null
+          raw: Json
+          saved_as_idea_id: string | null
+          scope: string
+          score: number
+          script: string | null
+          theme: string | null
+          trigger: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved?: boolean
+          conflict?: string | null
+          created_at?: string
+          cta?: string | null
+          decision?: Json
+          format?: string | null
+          hook?: string | null
+          id?: string
+          insight?: string | null
+          intent?: string | null
+          raw?: Json
+          saved_as_idea_id?: string | null
+          scope?: string
+          score?: number
+          script?: string | null
+          theme?: string | null
+          trigger?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved?: boolean
+          conflict?: string | null
+          created_at?: string
+          cta?: string | null
+          decision?: Json
+          format?: string | null
+          hook?: string | null
+          id?: string
+          insight?: string | null
+          intent?: string | null
+          raw?: Json
+          saved_as_idea_id?: string | null
+          scope?: string
+          score?: number
+          script?: string | null
+          theme?: string | null
+          trigger?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           area_id: string | null
