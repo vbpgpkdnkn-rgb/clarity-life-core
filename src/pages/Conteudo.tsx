@@ -21,6 +21,7 @@ import {
   Clapperboard,
   Eye,
   Hammer,
+  Lightbulb,
   MessageCircle,
   Plus,
   Sparkles,
@@ -32,6 +33,7 @@ import { StoriesTab } from "@/components/conteudo/StoriesTab";
 import { IntelligenceTab } from "@/components/conteudo/IntelligenceTab";
 import { GrowthTab } from "@/components/conteudo/GrowthTab";
 import { RelationalEngineTab, RelationalSeed } from "@/components/conteudo/RelationalEngineTab";
+import { FloatingIdeaCapture, IdeasTab } from "@/components/conteudo/IdeasTab";
 import { useAudienceIntelligence, AudienceAngle, AudienceIdea } from "@/hooks/useAudienceIntelligence";
 import {
   ContentFormat,
@@ -45,6 +47,7 @@ import {
   useContentConsistency,
   useDeletePiece,
   useGenerateTasksForPiece,
+  useUpsertIdea,
   useUpsertMetric,
   useUpsertPiece,
 } from "@/hooks/useContent";
@@ -74,6 +77,7 @@ export default function Conteudo() {
   const { data: metricsAll = [] } = useContentMetrics();
   const [tab, setTab] = useState("audiencia");
   const [seed, setSeed] = useState<RelationalSeed | null>(null);
+  const upsertIdea = useUpsertIdea();
 
   const ideas = useMemo(() => filterByScope(ideasAll as any, scope), [ideasAll, scope]);
   const pieces = useMemo(() => filterByScope(piecesAll as any, scope), [piecesAll, scope]) as ContentPiece[];
@@ -86,13 +90,24 @@ export default function Conteudo() {
     .filter((p) => p.status === "publicado")
     .sort((a: any, b: any) => ((b.saves ?? 0) + (b.generated_dms ?? 0)) - ((a.saves ?? 0) + (a.generated_dms ?? 0)))[0];
 
-  const sendToMotor = (idea: AudienceIdea, context: string) => {
+  const sendAudienceToMotor = (idea: AudienceIdea, context: string) => {
     setSeed({
       theme: idea.title,
       hook: idea.hook,
       anchor: idea.clinical_anchor,
       format: idea.format,
       audienceContext: context,
+    });
+    setTab("motor");
+    toast.success("Ideia enviada para o Motor Relacional");
+  };
+
+  const sendIdeaToMotor = (nextSeed: RelationalSeed) => {
+    setSeed({
+      ...nextSeed,
+      onScriptReady: () => {
+        if (nextSeed.ideaId) upsertIdea.mutate({ id: nextSeed.ideaId, title: nextSeed.sourceLabel ?? nextSeed.theme, idea_status: "roteiro_pronto", used: true } as any);
+      },
     });
     setTab("motor");
     toast.success("Ideia enviada para o Motor Relacional");
@@ -123,18 +138,21 @@ export default function Conteudo() {
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto md:flex-wrap">
           <TabsTrigger value="audiencia"><Brain className="h-3.5 w-3.5 mr-1" />Inteligência de Audiência</TabsTrigger>
+          <TabsTrigger value="ideias"><Lightbulb className="h-3.5 w-3.5 mr-1" />Ideias</TabsTrigger>
           <TabsTrigger value="motor"><MessageCircle className="h-3.5 w-3.5 mr-1" />Motor Relacional</TabsTrigger>
           <TabsTrigger value="pipeline"><Hammer className="h-3.5 w-3.5 mr-1" />Pipeline</TabsTrigger>
           <TabsTrigger value="editorial"><CalendarDays className="h-3.5 w-3.5 mr-1" />Editorial</TabsTrigger>
           <TabsTrigger value="crescimento"><TrendingUp className="h-3.5 w-3.5 mr-1" />Crescimento</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="audiencia"><AudienceIntelligenceTab onDevelop={sendToMotor} /></TabsContent>
+        <TabsContent value="audiencia"><AudienceIntelligenceTab onDevelop={sendAudienceToMotor} /></TabsContent>
+        <TabsContent value="ideias"><IdeasTab onDevelop={sendIdeaToMotor} onOpenAudience={() => setTab("audiencia")} /></TabsContent>
         <TabsContent value="motor"><RelationalEngineTab seed={seed} /></TabsContent>
         <TabsContent value="pipeline"><PipelineTab pieces={pieces} metrics={metrics} /></TabsContent>
         <TabsContent value="editorial"><EditorialTab pieces={pieces} ideas={ideas as any} consistency={consistency} /></TabsContent>
         <TabsContent value="crescimento"><GrowthPerformanceTab pieces={pieces} metrics={metrics} /></TabsContent>
       </Tabs>
+      <FloatingIdeaCapture />
     </AppLayout>
   );
 }

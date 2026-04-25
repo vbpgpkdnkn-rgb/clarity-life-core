@@ -47,6 +47,9 @@ export type RelationalSeed = {
   anchor?: string;
   format?: "reel" | "carrossel" | "legenda";
   audienceContext?: string;
+  ideaId?: string;
+  sourceLabel?: string;
+  onScriptReady?: (pieceId?: string) => void;
 };
 
 const THEME_PRESETS = [
@@ -155,12 +158,19 @@ function GeneratorSubTab({ seed }: { seed?: RelationalSeed | null }) {
       hook: result.opening,
       script: result.full_text,
       notes: result.full_text,
+      idea_id: seed?.ideaId ?? null,
       scope: (scope === "todos" ? "profissional" : scope) as any,
-    } as any);
+    } as any, { onSuccess: (piece) => seed?.onScriptReady?.((piece as any)?.id) });
   }
 
   return (
     <div className="space-y-4">
+      {seed?.sourceLabel && (
+        <Card className="p-3 border-accent/30 bg-accent/5 text-sm">
+          <span className="font-medium">Ideia:</span> {seed.sourceLabel} · Enviada da aba Ideias
+        </Card>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <Label className="text-xs uppercase tracking-wide text-muted-foreground">Tema relacional</Label>
