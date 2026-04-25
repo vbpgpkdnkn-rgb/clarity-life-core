@@ -780,7 +780,7 @@ Toda geração desta aba passa por esse prompt antes de chegar na sua tela.`;
 // ─────────────────────────────────────────────
 // EXPORT PRINCIPAL
 // ─────────────────────────────────────────────
-export function RelationalEngineTab() {
+export function RelationalEngineTab({ seed }: { seed?: RelationalSeed | null }) {
   return (
     <div className="space-y-4">
       <Card className="p-4 border-accent/30 bg-accent/5">
@@ -824,7 +824,7 @@ export function RelationalEngineTab() {
         </TabsList>
 
         <TabsContent value="gerador" className="mt-4">
-          <GeneratorSubTab />
+          <GeneratorSubTab seed={seed} />
         </TabsContent>
         <TabsContent value="tempo" className="mt-4">
           <TimedScriptSubTab />
