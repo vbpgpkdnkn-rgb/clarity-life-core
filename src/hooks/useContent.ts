@@ -15,6 +15,12 @@ export interface ContentIdea {
   notes: string | null;
   source: string | null;
   used: boolean;
+  idea_status?: "nova" | "enriquecida" | "em_desenvolvimento" | "roteiro_pronto" | "arquivada";
+  context?: string | null;
+  preferred_format?: string | null;
+  clinical_anchor?: string | null;
+  urgency?: "postar_semana" | "sem_pressa" | "evergreen";
+  archived_at?: string | null;
   created_at: string;
 }
 
