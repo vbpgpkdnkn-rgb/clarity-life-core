@@ -60,6 +60,7 @@ export const useGenerateRelational = () => {
       objective?: string;
       format?: string;
       anchor?: string;
+      audience_context?: string;
       duration_seconds?: number;
       quantity?: number;
       focus?: string;
