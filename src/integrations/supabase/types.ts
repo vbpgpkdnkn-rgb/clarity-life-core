@@ -531,20 +531,31 @@ export type Database = {
       }
       content_ideas: {
         Row: {
+          archived_at: string | null
+          clinical_anchor: string | null
+          context: string | null
           created_at: string
           id: string
+          idea_status: string
           notes: string | null
+          preferred_format: string | null
           scope: Database["public"]["Enums"]["scope_type"]
           source: string | null
           suggested_format: Database["public"]["Enums"]["content_format"] | null
           theme: string | null
           title: string
+          urgency: string
           used: boolean
         }
         Insert: {
+          archived_at?: string | null
+          clinical_anchor?: string | null
+          context?: string | null
           created_at?: string
           id?: string
+          idea_status?: string
           notes?: string | null
+          preferred_format?: string | null
           scope?: Database["public"]["Enums"]["scope_type"]
           source?: string | null
           suggested_format?:
@@ -552,12 +563,18 @@ export type Database = {
             | null
           theme?: string | null
           title: string
+          urgency?: string
           used?: boolean
         }
         Update: {
+          archived_at?: string | null
+          clinical_anchor?: string | null
+          context?: string | null
           created_at?: string
           id?: string
+          idea_status?: string
           notes?: string | null
+          preferred_format?: string | null
           scope?: Database["public"]["Enums"]["scope_type"]
           source?: string | null
           suggested_format?:
@@ -565,6 +582,7 @@ export type Database = {
             | null
           theme?: string | null
           title?: string
+          urgency?: string
           used?: boolean
         }
         Relationships: []
