@@ -39,6 +39,13 @@ export interface ContentPiece {
   generated_dms: number;
   booked_appointment: boolean;
   cta_type: string | null;
+  pipeline_stage?: "roteiro_pronto" | "gravando" | "editando" | "pronto_postar" | "agendado" | "publicado";
+  clinical_anchor?: string | null;
+  audience_context?: string | null;
+  production_notes?: string | null;
+  target_publish_at?: string | null;
+  saves?: number;
+  appointments_booked?: number;
   created_at: string;
   updated_at: string;
 }
