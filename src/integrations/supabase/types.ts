@@ -624,8 +624,11 @@ export type Database = {
       }
       content_pieces: {
         Row: {
+          appointments_booked: number
+          audience_context: string | null
           booked_appointment: boolean
           checklist: Json
+          clinical_anchor: string | null
           created_at: string
           cta: string | null
           cta_type: string | null
@@ -636,20 +639,27 @@ export type Database = {
           id: string
           idea_id: string | null
           notes: string | null
+          pipeline_stage: string
           planned_date: string | null
           platform: string | null
           priority: Database["public"]["Enums"]["task_priority"]
+          production_notes: string | null
           published_at: string | null
+          saves: number
           scope: Database["public"]["Enums"]["scope_type"]
           script: string | null
           status: Database["public"]["Enums"]["content_status"]
+          target_publish_at: string | null
           theme: string | null
           title: string
           updated_at: string
         }
         Insert: {
+          appointments_booked?: number
+          audience_context?: string | null
           booked_appointment?: boolean
           checklist?: Json
+          clinical_anchor?: string | null
           created_at?: string
           cta?: string | null
           cta_type?: string | null
@@ -660,20 +670,27 @@ export type Database = {
           id?: string
           idea_id?: string | null
           notes?: string | null
+          pipeline_stage?: string
           planned_date?: string | null
           platform?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
+          production_notes?: string | null
           published_at?: string | null
+          saves?: number
           scope?: Database["public"]["Enums"]["scope_type"]
           script?: string | null
           status?: Database["public"]["Enums"]["content_status"]
+          target_publish_at?: string | null
           theme?: string | null
           title: string
           updated_at?: string
         }
         Update: {
+          appointments_booked?: number
+          audience_context?: string | null
           booked_appointment?: boolean
           checklist?: Json
+          clinical_anchor?: string | null
           created_at?: string
           cta?: string | null
           cta_type?: string | null
@@ -684,13 +701,17 @@ export type Database = {
           id?: string
           idea_id?: string | null
           notes?: string | null
+          pipeline_stage?: string
           planned_date?: string | null
           platform?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
+          production_notes?: string | null
           published_at?: string | null
+          saves?: number
           scope?: Database["public"]["Enums"]["scope_type"]
           script?: string | null
           status?: Database["public"]["Enums"]["content_status"]
+          target_publish_at?: string | null
           theme?: string | null
           title?: string
           updated_at?: string

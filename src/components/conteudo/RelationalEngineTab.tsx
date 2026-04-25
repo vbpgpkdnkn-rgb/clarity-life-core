@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +37,17 @@ import {
   type RelationalTimedResult,
   type RelationalBatchResult,
 } from "@/hooks/useRelationalEngine";
+import { useUpsertPiece } from "@/hooks/useContent";
+import { useScope } from "@/contexts/ScopeContext";
 import { formatDateBR } from "@/lib/format";
+
+export type RelationalSeed = {
+  theme: string;
+  hook?: string;
+  anchor?: string;
+  format?: "reel" | "carrossel" | "legenda";
+  audienceContext?: string;
+};
 
 const THEME_PRESETS = [
   "o casal que convive mas não se conecta",
@@ -82,15 +92,26 @@ function copyToClipboard(text: string) {
 // ─────────────────────────────────────────────
 // SUB-TAB 1: Gerador único
 // ─────────────────────────────────────────────
-function GeneratorSubTab() {
+function GeneratorSubTab({ seed }: { seed?: RelationalSeed | null }) {
   const [theme, setTheme] = useState("");
   const [insight, setInsight] = useState("");
   const [objective, setObjective] = useState("identificacao");
   const [format, setFormat] = useState("reel");
   const [anchor, setAnchor] = useState("IBCT+Gottman");
+  const [audienceContext, setAudienceContext] = useState("");
   const [result, setResult] = useState<RelationalSingleResult | null>(null);
   const gen = useGenerateRelational();
   const save = useSaveRelationalAsIdea();
+  const upsertPiece = useUpsertPiece();
+  const { scope } = useScope();
+
+  useEffect(() => {
+    if (!seed) return;
+    setInsight(seed.theme ?? "");
+    setAnchor(seed.anchor ?? "IBCT+Gottman");
+    setFormat(seed.format ?? "reel");
+    setAudienceContext(seed.audienceContext ?? "");
+  }, [seed]);
 
   async function handleGenerate() {
     const finalTheme = insight.trim() || theme.trim();
@@ -104,6 +125,7 @@ function GeneratorSubTab() {
       objective,
       format,
       anchor,
+      audience_context: audienceContext.trim() || undefined,
     })) as RelationalSingleResult;
     setResult(data);
   }
@@ -118,6 +140,23 @@ function GeneratorSubTab() {
       anchor: result.anchor,
       objective: result.objective,
     });
+  }
+
+  function sendToProduction() {
+    if (!result) return;
+    upsertPiece.mutate({
+      title: result.opening.slice(0, 160),
+      theme: result.theme,
+      format: ({ reel: "reels", carrossel: "carrossel", legenda: "texto" } as const)[result.format],
+      status: "em_producao",
+      pipeline_stage: "roteiro_pronto",
+      clinical_anchor: result.anchor,
+      audience_context: audienceContext || null,
+      hook: result.opening,
+      script: result.full_text,
+      notes: result.full_text,
+      scope: (scope === "todos" ? "profissional" : scope) as any,
+    } as any);
   }
 
   return (
@@ -167,6 +206,18 @@ function GeneratorSubTab() {
           className="mt-2"
         />
       </div>
+
+      {audienceContext && (
+        <div>
+          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Contexto da audiência</Label>
+          <Textarea
+            value={audienceContext}
+            onChange={(e) => setAudienceContext(e.target.value)}
+            rows={3}
+            className="mt-2"
+          />
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
@@ -231,6 +282,10 @@ function GeneratorSubTab() {
               <Button size="sm" onClick={handleSave} disabled={save.isPending}>
                 <Save className="h-3.5 w-3.5 mr-1" />
                 Salvar como ideia
+              </Button>
+              <Button size="sm" onClick={sendToProduction} disabled={upsertPiece.isPending}>
+                <Mic2 className="h-3.5 w-3.5 mr-1" />
+                Enviar para produção
               </Button>
             </div>
           </div>
@@ -725,7 +780,7 @@ Toda geração desta aba passa por esse prompt antes de chegar na sua tela.`;
 // ─────────────────────────────────────────────
 // EXPORT PRINCIPAL
 // ─────────────────────────────────────────────
-export function RelationalEngineTab() {
+export function RelationalEngineTab({ seed }: { seed?: RelationalSeed | null }) {
   return (
     <div className="space-y-4">
       <Card className="p-4 border-accent/30 bg-accent/5">
@@ -769,7 +824,7 @@ export function RelationalEngineTab() {
         </TabsList>
 
         <TabsContent value="gerador" className="mt-4">
-          <GeneratorSubTab />
+          <GeneratorSubTab seed={seed} />
         </TabsContent>
         <TabsContent value="tempo" className="mt-4">
           <TimedScriptSubTab />

@@ -8,65 +8,43 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Drawer, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
-import {
-  Lightbulb,
-  CalendarDays,
-  Hammer,
-  Send,
   BarChart3,
-  Library,
-  Sparkles,
-  Plus,
-  Trash2,
-  Wand2,
-  CheckCircle2,
-  Clock,
-  ListChecks,
-  Edit3,
-  Clapperboard,
   Brain,
-  Link2,
-  Rocket,
-  MessageCircle,
   CalendarCheck,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  Clapperboard,
+  Eye,
+  Hammer,
+  MessageCircle,
+  Plus,
+  Sparkles,
+  Target,
+  TrendingUp,
+  Wand2,
 } from "lucide-react";
 import { StoriesTab } from "@/components/conteudo/StoriesTab";
 import { IntelligenceTab } from "@/components/conteudo/IntelligenceTab";
-import { ReferencesTab } from "@/components/conteudo/ReferencesTab";
 import { GrowthTab } from "@/components/conteudo/GrowthTab";
-import { StrategyOnboarding } from "@/components/conteudo/StrategyOnboarding";
-import { DecisionTab } from "@/components/conteudo/DecisionTab";
-import { RelationalEngineTab } from "@/components/conteudo/RelationalEngineTab";
+import { RelationalEngineTab, RelationalSeed } from "@/components/conteudo/RelationalEngineTab";
+import { useAudienceIntelligence, AudienceAngle, AudienceIdea } from "@/hooks/useAudienceIntelligence";
 import {
   ContentFormat,
   ContentPiece,
   ContentStatus,
   CTA_TYPES,
   useContentIdeas,
-  useContentIdeator,
   useContentMetrics,
   useContentPieces,
   useContentWeeklyPlan,
   useContentConsistency,
-  useDeleteIdea,
   useDeletePiece,
   useGenerateTasksForPiece,
-  useUpsertIdea,
   useUpsertMetric,
   useUpsertPiece,
 } from "@/hooks/useContent";
@@ -75,36 +53,53 @@ import { todayISO, formatDateBR, addDaysISO } from "@/lib/format";
 import { toast } from "sonner";
 
 const FORMATS: ContentFormat[] = ["reels", "carrossel", "texto", "stories", "video", "podcast", "newsletter"];
-const STATUS_LABEL: Record<ContentStatus, string> = {
-  ideia: "Ideia",
-  em_producao: "Em produção",
-  pronto: "Pronto",
-  publicado: "Publicado",
-  arquivado: "Arquivado",
-};
-const STATUS_COLOR: Record<ContentStatus, string> = {
-  ideia: "bg-muted text-muted-foreground",
-  em_producao: "bg-warning/15 text-warning border-warning/30",
-  pronto: "bg-primary/15 text-primary border-primary/30",
-  publicado: "bg-success/15 text-success border-success/30",
-  arquivado: "bg-muted text-muted-foreground",
-};
+type PipelineStage = "roteiro_pronto" | "gravando" | "editando" | "pronto_postar" | "agendado" | "publicado";
+
+const PIPELINE: { key: PipelineStage; label: string; status: ContentStatus }[] = [
+  { key: "roteiro_pronto", label: "Roteiro pronto", status: "em_producao" },
+  { key: "gravando", label: "Gravando", status: "em_producao" },
+  { key: "editando", label: "Editando", status: "em_producao" },
+  { key: "pronto_postar", label: "Pronto para postar", status: "pronto" },
+  { key: "agendado", label: "Agendado", status: "pronto" },
+  { key: "publicado", label: "Publicado", status: "publicado" },
+];
+
+const STAGE_LABEL = Object.fromEntries(PIPELINE.map((p) => [p.key, p.label])) as Record<PipelineStage, string>;
+const FORMAT_MAP: Record<string, ContentFormat> = { reel: "reels", carrossel: "carrossel", legenda: "texto" };
 
 export default function Conteudo() {
   const { scope } = useScope();
   const { data: ideasAll = [] } = useContentIdeas();
   const { data: piecesAll = [] } = useContentPieces();
   const { data: metricsAll = [] } = useContentMetrics();
+  const [tab, setTab] = useState("audiencia");
+  const [seed, setSeed] = useState<RelationalSeed | null>(null);
 
   const ideas = useMemo(() => filterByScope(ideasAll as any, scope), [ideasAll, scope]);
   const pieces = useMemo(() => filterByScope(piecesAll as any, scope), [piecesAll, scope]) as ContentPiece[];
-
+  const metrics = metricsAll as any[];
   const consistency = useContentConsistency(scope === "todos" ? undefined : (scope as any));
 
+  const pipelineNow = pieces.filter((p) => (p as any).pipeline_stage !== "publicado" && p.status !== "publicado" && p.status !== "arquivado").length;
+  const ready = pieces.filter((p) => (p as any).pipeline_stage === "pronto_postar" || p.status === "pronto").length;
+  const best = [...pieces]
+    .filter((p) => p.status === "publicado")
+    .sort((a: any, b: any) => ((b.saves ?? 0) + (b.generated_dms ?? 0)) - ((a.saves ?? 0) + (a.generated_dms ?? 0)))[0];
+
+  const sendToMotor = (idea: AudienceIdea, context: string) => {
+    setSeed({
+      theme: idea.title,
+      hook: idea.hook,
+      anchor: idea.clinical_anchor,
+      format: idea.format,
+      audienceContext: context,
+    });
+    setTab("motor");
+    toast.success("Ideia enviada para o Motor Relacional");
+  };
+
   return (
-    <AppLayout title="Conteúdo" subtitle="Sua máquina editorial — direta, sem desculpas">
-      <StrategyOnboarding scope={scope === "todos" ? "profissional" : (scope as any)} />
-      {/* HEADER stats */}
+    <AppLayout title="Conteúdo" subtitle="Sistema editorial clínico para relacionamento e terapia de casal">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <Card className="p-4">
           <div className="text-xs text-muted-foreground mb-1">Consistência semanal</div>
@@ -112,659 +107,339 @@ export default function Conteudo() {
           <Progress value={consistency.pct} className="h-1.5 mt-2" />
         </Card>
         <Card className="p-4">
-          <div className="text-xs text-muted-foreground mb-1">Publicados na semana</div>
-          <div className="text-2xl font-display font-semibold">
-            {consistency.publishedCount}
-            <span className="text-base text-muted-foreground font-normal"> / {consistency.targetPerWeek}</span>
-          </div>
+          <div className="text-xs text-muted-foreground mb-1">No pipeline agora</div>
+          <div className="text-2xl font-display font-semibold">{pipelineNow}</div>
         </Card>
         <Card className="p-4">
-          <div className="text-xs text-muted-foreground mb-1">Em produção</div>
-          <div className="text-2xl font-display font-semibold">
-            {pieces.filter((p) => p.status === "em_producao").length}
-          </div>
+          <div className="text-xs text-muted-foreground mb-1">Prontas para postar</div>
+          <div className="text-2xl font-display font-semibold">{ready}</div>
         </Card>
         <Card className="p-4">
-          <div className="text-xs text-muted-foreground mb-1">Ideias no banco</div>
-          <div className="text-2xl font-display font-semibold">{ideas.length}</div>
+          <div className="text-xs text-muted-foreground mb-1">Melhor conteúdo do mês</div>
+          <div className="text-sm font-display font-semibold line-clamp-2">{best?.title ?? "Sem dados ainda"}</div>
         </Card>
       </div>
 
-      <Tabs defaultValue="crescimento" className="space-y-4">
-        <TabsList className="flex flex-wrap h-auto w-full justify-start gap-1">
-          <TabsTrigger value="crescimento"><Rocket className="h-3.5 w-3.5 mr-1" />Crescimento</TabsTrigger>
-          <TabsTrigger value="decisao" className="data-[state=active]:bg-accent/15 data-[state=active]:text-accent"><Brain className="h-3.5 w-3.5 mr-1" />Decisão</TabsTrigger>
-          <TabsTrigger value="motor-relacional" className="data-[state=active]:bg-accent/15 data-[state=active]:text-accent"><MessageCircle className="h-3.5 w-3.5 mr-1" />Motor Relacional</TabsTrigger>
-          <TabsTrigger value="ideias"><Lightbulb className="h-3.5 w-3.5 mr-1" />Ideias</TabsTrigger>
+      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+        <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto md:flex-wrap">
+          <TabsTrigger value="audiencia"><Brain className="h-3.5 w-3.5 mr-1" />Inteligência de Audiência</TabsTrigger>
+          <TabsTrigger value="motor"><MessageCircle className="h-3.5 w-3.5 mr-1" />Motor Relacional</TabsTrigger>
+          <TabsTrigger value="pipeline"><Hammer className="h-3.5 w-3.5 mr-1" />Pipeline</TabsTrigger>
           <TabsTrigger value="editorial"><CalendarDays className="h-3.5 w-3.5 mr-1" />Editorial</TabsTrigger>
-          <TabsTrigger value="producao"><Hammer className="h-3.5 w-3.5 mr-1" />Produção</TabsTrigger>
-          <TabsTrigger value="stories"><Clapperboard className="h-3.5 w-3.5 mr-1" />Stories</TabsTrigger>
-          <TabsTrigger value="publicacao"><Send className="h-3.5 w-3.5 mr-1" />Publicação</TabsTrigger>
-          <TabsTrigger value="performance"><BarChart3 className="h-3.5 w-3.5 mr-1" />Performance</TabsTrigger>
-          <TabsTrigger value="inteligencia"><Brain className="h-3.5 w-3.5 mr-1" />Inteligência</TabsTrigger>
-          <TabsTrigger value="referencias"><Link2 className="h-3.5 w-3.5 mr-1" />Referências</TabsTrigger>
-          <TabsTrigger value="biblioteca"><Library className="h-3.5 w-3.5 mr-1" />Biblioteca</TabsTrigger>
+          <TabsTrigger value="crescimento"><TrendingUp className="h-3.5 w-3.5 mr-1" />Crescimento</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="crescimento"><GrowthTab /></TabsContent>
-        <TabsContent value="decisao"><DecisionTab /></TabsContent>
-        <TabsContent value="motor-relacional"><RelationalEngineTab /></TabsContent>
-        <TabsContent value="ideias"><IdeasTab ideas={ideas as any} /></TabsContent>
+        <TabsContent value="audiencia"><AudienceIntelligenceTab onDevelop={sendToMotor} /></TabsContent>
+        <TabsContent value="motor"><RelationalEngineTab seed={seed} /></TabsContent>
+        <TabsContent value="pipeline"><PipelineTab pieces={pieces} metrics={metrics} /></TabsContent>
         <TabsContent value="editorial"><EditorialTab pieces={pieces} ideas={ideas as any} consistency={consistency} /></TabsContent>
-        <TabsContent value="producao"><ProductionTab pieces={pieces} /></TabsContent>
-        <TabsContent value="stories"><StoriesTab /></TabsContent>
-        <TabsContent value="publicacao"><PublishTab pieces={pieces} /></TabsContent>
-        <TabsContent value="performance"><PerformanceTab pieces={pieces} metrics={metricsAll as any} /></TabsContent>
-        <TabsContent value="inteligencia"><IntelligenceTab pieces={pieces} metrics={metricsAll as any} /></TabsContent>
-        <TabsContent value="referencias">
-          <ReferencesTab ownThemes={Array.from(new Set(pieces.map((p) => p.theme).filter(Boolean) as string[]))} />
-        </TabsContent>
-        <TabsContent value="biblioteca"><LibraryTab pieces={pieces} /></TabsContent>
+        <TabsContent value="crescimento"><GrowthPerformanceTab pieces={pieces} metrics={metrics} /></TabsContent>
       </Tabs>
     </AppLayout>
   );
 }
 
-/* ============== IDEIAS ============== */
-function IdeasTab({ ideas }: { ideas: any[] }) {
-  const upsert = useUpsertIdea();
-  const del = useDeleteIdea();
-  const ideator = useContentIdeator();
-  const { scope } = useScope();
-  const [newTitle, setNewTitle] = useState("");
-  const [newTheme, setNewTheme] = useState("");
+function AudienceIntelligenceTab({ onDevelop }: { onDevelop: (idea: AudienceIdea, context: string) => void }) {
+  const [transcript, setTranscript] = useState("");
+  const [comments, setComments] = useState("");
+  const [author, setAuthor] = useState("");
+  const [angle, setAngle] = useState<AudienceAngle>("adaptar");
+  const ai = useAudienceIntelligence();
 
-  const themes = Array.from(new Set(ideas.map((i) => i.theme).filter(Boolean)));
-
-  const add = () => {
-    if (!newTitle.trim()) return;
-    upsert.mutate(
-      { title: newTitle.trim(), theme: newTheme.trim() || null, scope: (scope === "todos" ? "profissional" : scope) as any },
-      { onSuccess: () => { setNewTitle(""); setNewTheme(""); } },
-    );
-  };
+  const context = `Comentários que originaram a pauta:\n${comments.slice(0, 2500)}`;
 
   return (
     <div className="space-y-4">
-      <Card className="p-4">
-        <div className="flex flex-col md:flex-row gap-2">
-          <Input
-            placeholder="Captura rápida: digite uma ideia…"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && add()}
-            className="flex-1"
-          />
-          <Input
-            placeholder="Tema (ansiedade, autoestima…)"
-            value={newTheme}
-            onChange={(e) => setNewTheme(e.target.value)}
-            className="md:w-64"
-          />
-          <Button onClick={add} disabled={!newTitle.trim()}>
-            <Plus className="h-4 w-4 mr-1" /> Salvar
-          </Button>
+      <Card className="p-4 space-y-4">
+        <div>
+          <h3 className="font-display font-semibold">Entrada de referência</h3>
+          <p className="text-xs text-muted-foreground">Cole o vídeo e a reação real da audiência. A IA parte do que as pessoas já estão pedindo.</p>
         </div>
-        <div className="mt-3 flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">Capture sem editar. Edite depois.</p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              ideator.mutate(
-                { area: "psicologia clínica e comportamento", scope, existing_themes: themes as string[] },
-                {
-                  onSuccess: (data) => {
-                    data.suggestions.forEach((s) =>
-                      upsert.mutate({
-                        title: s.title,
-                        theme: s.theme,
-                        suggested_format: s.format,
-                        notes: `Hook: ${s.hook}\n\nPor quê: ${s.rationale}`,
-                        scope: (scope === "todos" ? "profissional" : scope) as any,
-                        source: "IA",
-                      }),
-                    );
-                    toast.success(`${data.suggestions.length} ideias geradas pela IA`);
-                  },
-                },
-              )
-            }
-            disabled={ideator.isPending}
-          >
-            <Wand2 className="h-3.5 w-3.5 mr-1" />
-            {ideator.isPending ? "Gerando…" : "Sugerir com IA"}
-          </Button>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <Label>Transcrição do vídeo de referência</Label>
+            <Textarea rows={10} value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Cole a transcrição completa…" className="mt-2" />
+          </div>
+          <div>
+            <Label>Comentários da audiência</Label>
+            <Textarea rows={10} value={comments} onChange={(e) => setComments(e.target.value)} placeholder="Cole comentários, dúvidas, reclamações e pedidos…" className="mt-2" />
+          </div>
         </div>
+        <div className="grid gap-3 md:grid-cols-[1fr_1.4fr]">
+          <div>
+            <Label>Autor / perfil de referência</Label>
+            <Input value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="opcional" className="mt-2" />
+          </div>
+          <div>
+            <Label>O que você quer falar sobre isso?</Label>
+            <Select value={angle} onValueChange={(v) => setAngle(v as AudienceAngle)}>
+              <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="adaptar">Adaptar para meu nicho de relacionamentos</SelectItem>
+                <SelectItem value="oposto">Explorar o ângulo oposto</SelectItem>
+                <SelectItem value="aprofundar">Aprofundar com IBCT/Gottman</SelectItem>
+                <SelectItem value="livre">Usar como ponto de partida livre</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <Button
+          size="lg"
+          onClick={() => ai.mutate({ transcript, comments, author, angle })}
+          disabled={ai.isPending || transcript.trim().length < 20 || comments.trim().length < 20}
+        >
+          <Wand2 className="h-4 w-4 mr-2" />
+          {ai.isPending ? "Analisando audiência…" : "Analisar audiência e gerar ideias"}
+        </Button>
       </Card>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {ideas.map((i) => (
-          <Card key={i.id} className="p-4 group">
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <h3 className="font-medium text-sm leading-snug">{i.title}</h3>
-              <Button size="icon" variant="ghost" className="opacity-0 group-hover:opacity-100 h-7 w-7" onClick={() => del.mutate(i.id)}>
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {i.theme && <Badge variant="secondary" className="text-[10px]">{i.theme}</Badge>}
-              {i.suggested_format && <Badge variant="outline" className="text-[10px]">{i.suggested_format}</Badge>}
-              {i.source === "IA" && <Badge className="text-[10px] bg-accent/15 text-accent border-accent/30">IA</Badge>}
-              <Badge variant="outline" className="text-[10px]">{i.scope}</Badge>
-            </div>
-            {i.notes && <p className="text-xs text-muted-foreground mt-2 whitespace-pre-line line-clamp-3">{i.notes}</p>}
-          </Card>
-        ))}
-        {ideas.length === 0 && (
-          <Card className="p-8 col-span-full text-center text-sm text-muted-foreground">
-            Nenhuma ideia ainda. Capture rápido ou peça sugestões à IA.
-          </Card>
-        )}
-      </div>
+      {ai.data && (
+        <div className="space-y-3">
+          {ai.data.patterns.length > 0 && (
+            <Card className="p-4 bg-accent/5 border-accent/20">
+              <p className="text-[10px] uppercase tracking-widest text-accent mb-2">Padrões detectados nos comentários</p>
+              <div className="flex flex-wrap gap-2">{ai.data.patterns.map((p, i) => <Badge key={i} variant="outline">{p}</Badge>)}</div>
+            </Card>
+          )}
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {ai.data.ideas.map((idea, i) => (
+              <Card key={i} className="p-4 space-y-3">
+                <div className="flex gap-2 flex-wrap">
+                  <Badge variant="secondary">{idea.format}</Badge>
+                  <Badge variant="outline">{idea.clinical_anchor}</Badge>
+                </div>
+                <div>
+                  <h3 className="font-medium leading-snug">{idea.title}</h3>
+                  <p className="text-sm mt-2">{idea.hook}</p>
+                </div>
+                <p className="text-xs text-muted-foreground"><strong>Base da audiência:</strong> {idea.audience_evidence}</p>
+                <p className="text-xs text-muted-foreground">{idea.format_rationale}</p>
+                <Button size="sm" className="w-full" onClick={() => onDevelop(idea, context)}>
+                  Desenvolver em roteiro
+                </Button>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!ai.data && (
+        <Card className="p-8 text-center text-sm text-muted-foreground">Comece pela Inteligência de Audiência: transcrição + comentários reais.</Card>
+      )}
     </div>
   );
 }
 
-/* ============== EDITORIAL (calendar) ============== */
-function EditorialTab({
-  pieces,
-  ideas,
-  consistency,
-}: {
-  pieces: ContentPiece[];
-  ideas: any[];
-  consistency: ReturnType<typeof useContentConsistency>;
-}) {
-  const weeklyPlan = useContentWeeklyPlan();
+function PipelineTab({ pieces, metrics }: { pieces: ContentPiece[]; metrics: any[] }) {
   const [editPiece, setEditPiece] = useState<ContentPiece | null>(null);
-  const [creating, setCreating] = useState(false);
+  const upsert = useUpsertPiece();
+  const today = todayISO();
+  const weekPublished = pieces.filter((p) => p.published_at && p.published_at >= addDaysISO(today, -7)).length;
+
+  const advance = (p: ContentPiece) => {
+    const current = ((p as any).pipeline_stage ?? (p.status === "publicado" ? "publicado" : p.status === "pronto" ? "pronto_postar" : "roteiro_pronto")) as PipelineStage;
+    const idx = PIPELINE.findIndex((x) => x.key === current);
+    const next = PIPELINE[Math.min(idx + 1, PIPELINE.length - 1)];
+    upsert.mutate({ id: p.id, title: p.title, pipeline_stage: next.key, status: next.status, published_at: next.key === "publicado" ? todayISO() : p.published_at } as any);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <MiniStat label="Peças no pipeline hoje" value={pieces.filter((p) => p.status !== "publicado" && p.status !== "arquivado").length} />
+        <MiniStat label="Prontas para postar" value={pieces.filter((p: any) => p.pipeline_stage === "pronto_postar" || p.status === "pronto").length} />
+        <MiniStat label="Publicadas esta semana" value={weekPublished} />
+        <MiniStat label="Consistência do mês" value={`${Math.min(100, Math.round((weekPublished / 3) * 100))}%`} />
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        {PIPELINE.map((col) => {
+          const list = pieces.filter((p: any) => (p.pipeline_stage ?? (p.status === "publicado" ? "publicado" : p.status === "pronto" ? "pronto_postar" : "roteiro_pronto")) === col.key);
+          return (
+            <Card key={col.key} className="p-3 min-h-[220px]">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wide">{col.label}</h3>
+                <Badge variant="secondary" className="text-[10px]">{list.length}</Badge>
+              </div>
+              <div className="space-y-2">
+                {list.map((p: any) => (
+                  <Card key={p.id} className="p-3 bg-muted/20 border-border">
+                    <button onClick={() => setEditPiece(p)} className="w-full text-left">
+                      <div className="text-sm font-medium leading-snug">{p.title}</div>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        <Badge variant="outline" className="text-[9px]">{p.format}</Badge>
+                        {p.clinical_anchor && <Badge variant="outline" className="text-[9px]">{p.clinical_anchor}</Badge>}
+                        {p.planned_date && <Badge variant="secondary" className="text-[9px]">{formatDateBR(p.planned_date)}</Badge>}
+                      </div>
+                      {p.script && <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{p.script}</p>}
+                    </button>
+                    {col.key !== "publicado" ? (
+                      <Button size="sm" variant="outline" className="w-full mt-3" onClick={() => advance(p)}>Avançar etapa</Button>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-1 mt-3 text-[10px] text-muted-foreground">
+                        <span>Views {metrics.find((m) => m.piece_id === p.id)?.views ?? 0}</span>
+                        <span>Salvos {p.saves ?? 0}</span>
+                        <span>DMs {p.generated_dms ?? 0}</span>
+                        <span>Agend. {p.appointments_booked ?? (p.booked_appointment ? 1 : 0)}</span>
+                      </div>
+                    )}
+                  </Card>
+                ))}
+                {list.length === 0 && <p className="text-xs text-muted-foreground text-center py-6">vazio</p>}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+      {editPiece && <PieceDrawer piece={editPiece} open={!!editPiece} onClose={() => setEditPiece(null)} />}
+    </div>
+  );
+}
+
+function EditorialTab({ pieces, ideas, consistency }: { pieces: ContentPiece[]; ideas: any[]; consistency: ReturnType<typeof useContentConsistency> }) {
+  const weeklyPlan = useContentWeeklyPlan();
+  const upsert = useUpsertPiece();
+  const [editPiece, setEditPiece] = useState<ContentPiece | null>(null);
   const today = todayISO();
   const days = Array.from({ length: 14 }, (_, i) => addDaysISO(today, i - 3));
+  const schedulable = pieces.filter((p: any) => p.status !== "publicado" && p.status !== "arquivado" && !p.planned_date);
+
+  const schedule = (id: string, date: string) => {
+    const p = pieces.find((x) => x.id === id);
+    if (!p) return;
+    upsert.mutate({ id, title: p.title, planned_date: date, pipeline_stage: "agendado", status: "pronto" } as any);
+  };
 
   return (
     <div className="space-y-4">
       <Card className="p-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h3 className="font-display font-semibold">Plano semanal da IA</h3>
-            <p className="text-xs text-muted-foreground">Diretora editorial: o que postar e quando.</p>
+            <h3 className="font-display font-semibold">Plano semanal editorial</h3>
+            <p className="text-xs text-muted-foreground">Distribuição por pilares: padrão relacional, função emocional, transformação e qualidade relacional.</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setCreating(true)}>
-              <Plus className="h-3.5 w-3.5 mr-1" /> Nova peça
-            </Button>
-            <Button
-              size="sm"
-              onClick={() =>
-                weeklyPlan.mutate({
-                  target_per_week: consistency.targetPerWeek,
-                  consistency_pct: consistency.pct,
-                  pieces: pieces.map((p) => ({
-                    id: p.id, title: p.title, status: p.status, format: p.format,
-                    planned_date: p.planned_date, theme: p.theme,
-                  })),
-                  ideas: ideas.slice(0, 20).map((i) => ({
-                    id: i.id, title: i.title, theme: i.theme, suggested_format: i.suggested_format,
-                  })),
-                })
-              }
-              disabled={weeklyPlan.isPending}
-            >
-              <Sparkles className="h-3.5 w-3.5 mr-1" />
-              {weeklyPlan.isPending ? "Gerando…" : "Gerar plano"}
-            </Button>
-          </div>
+          <Button size="sm" onClick={() => weeklyPlan.mutate({
+            target_per_week: consistency.targetPerWeek,
+            consistency_pct: consistency.pct,
+            briefing: "Distribua formatos e temas pelos pilares: Padrão relacional, Função emocional, Transformação, Qualidade relacional.",
+            pieces: pieces.map((p) => ({ id: p.id, title: p.title, status: p.status, format: p.format, planned_date: p.planned_date, theme: p.theme })),
+            ideas: ideas.slice(0, 20).map((i) => ({ id: i.id, title: i.title, theme: i.theme, suggested_format: i.suggested_format })),
+          })} disabled={weeklyPlan.isPending}>
+            <Sparkles className="h-3.5 w-3.5 mr-1" />{weeklyPlan.isPending ? "Gerando…" : "Gerar plano semanal com IA"}
+          </Button>
         </div>
-        {weeklyPlan.data && (
-          <div className="mt-4 space-y-3 border-t border-border pt-3">
-            <p className="text-sm">{weeklyPlan.data.plan.summary}</p>
-            <div className="rounded-md bg-accent/5 border border-accent/20 p-3">
-              <div className="text-[10px] uppercase tracking-widest text-accent mb-1">Hoje</div>
-              <p className="text-sm font-medium">{weeklyPlan.data.plan.today_action}</p>
-            </div>
-            <div className="space-y-2">
-              {weeklyPlan.data.plan.schedule.map((s, idx) => (
-                <div key={idx} className="flex items-center justify-between text-sm border border-border rounded-md p-2">
-                  <div>
-                    <div className="font-medium">{s.day}: {s.title}</div>
-                    <div className="text-xs text-muted-foreground">{s.reason}</div>
-                  </div>
-                  <Badge variant="outline" className="text-[10px]">{s.format}</Badge>
-                </div>
-              ))}
-            </div>
-            {weeklyPlan.data.plan.adjustments.length > 0 && (
-              <div className="text-xs text-muted-foreground">
-                <strong>Ajustes:</strong>
-                <ul className="list-disc list-inside mt-1">
-                  {weeklyPlan.data.plan.adjustments.map((a, i) => <li key={i}>{a}</li>)}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
+        {weeklyPlan.data && <div className="mt-4 space-y-2 border-t border-border pt-3">{weeklyPlan.data.plan.schedule.map((s, i) => <div key={i} className="text-sm border border-border rounded-md p-2"><strong>{s.day}: {s.title}</strong><p className="text-xs text-muted-foreground">{s.reason}</p></div>)}</div>}
       </Card>
 
-      <div className="grid grid-cols-7 gap-2">
-        {days.map((d) => {
-          const items = pieces.filter((p) => p.planned_date === d);
-          const isToday = d === today;
-          return (
-            <Card key={d} className={`p-2 min-h-[110px] ${isToday ? "border-accent/50 bg-accent/5" : ""}`}>
-              <div className="text-[10px] text-muted-foreground mb-1">{formatDateBR(d)}</div>
-              <div className="space-y-1">
-                {items.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => setEditPiece(p)}
-                    className="block w-full text-left text-[11px] p-1.5 rounded bg-card border border-border hover:border-primary/50 transition-colors"
-                  >
-                    <div className="font-medium line-clamp-1">{p.title}</div>
-                    <Badge className={`mt-0.5 text-[9px] ${STATUS_COLOR[p.status]} px-1 py-0`}>{p.format}</Badge>
-                  </button>
-                ))}
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-
-      {(editPiece || creating) && (
-        <PieceDrawer
-          piece={editPiece}
-          open={!!editPiece || creating}
-          onClose={() => { setEditPiece(null); setCreating(false); }}
-          ideas={ideas}
-        />
-      )}
-    </div>
-  );
-}
-
-/* ============== PRODUÇÃO ============== */
-function ProductionTab({ pieces }: { pieces: ContentPiece[] }) {
-  const cols: ContentStatus[] = ["ideia", "em_producao", "pronto"];
-  const [editPiece, setEditPiece] = useState<ContentPiece | null>(null);
-
-  return (
-    <>
-      <div className="grid md:grid-cols-3 gap-3">
-        {cols.map((status) => {
-          const list = pieces.filter((p) => p.status === status);
-          return (
-            <Card key={status} className="p-3">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium text-sm">{STATUS_LABEL[status]}</h3>
-                <Badge variant="secondary" className="text-[10px]">{list.length}</Badge>
-              </div>
-              <div className="space-y-2">
-                {list.map((p) => {
-                  const checklist = (p.checklist as any[]) || [];
-                  const doneCount = checklist.filter((c) => c.done).length;
-                  return (
-                    <button
-                      key={p.id}
-                      onClick={() => setEditPiece(p)}
-                      className="block w-full text-left p-2 rounded border border-border hover:border-primary/50 bg-card"
-                    >
-                      <div className="text-sm font-medium line-clamp-2">{p.title}</div>
-                      <div className="flex gap-1 mt-1.5 items-center flex-wrap">
-                        <Badge variant="outline" className="text-[9px]">{p.format}</Badge>
-                        {p.planned_date && <span className="text-[10px] text-muted-foreground">{formatDateBR(p.planned_date)}</span>}
-                        {checklist.length > 0 && (
-                          <span className="text-[10px] text-muted-foreground ml-auto">
-                            <ListChecks className="h-3 w-3 inline mr-0.5" />{doneCount}/{checklist.length}
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-                {list.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-4">vazio</p>
-                )}
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-      {editPiece && <PieceDrawer piece={editPiece} open={!!editPiece} onClose={() => setEditPiece(null)} ideas={[]} />}
-    </>
-  );
-}
-
-/* ============== PUBLICAÇÃO ============== */
-function PublishTab({ pieces }: { pieces: ContentPiece[] }) {
-  const upsert = useUpsertPiece();
-  const ready = pieces.filter((p) => p.status === "pronto");
-  return (
-    <div className="space-y-3">
-      {ready.length === 0 && (
-        <Card className="p-8 text-center text-sm text-muted-foreground">
-          Nenhuma peça pronta para publicar.
-        </Card>
-      )}
-      {ready.map((p) => (
-        <Card key={p.id} className="p-4 flex items-center justify-between gap-3">
-          <div className="flex-1">
-            <div className="font-medium">{p.title}</div>
-            <div className="text-xs text-muted-foreground flex gap-2 mt-1">
-              <Badge variant="outline" className="text-[10px]">{p.format}</Badge>
-              {p.planned_date && <span>Planejado: {formatDateBR(p.planned_date)}</span>}
-            </div>
+      {schedulable.length > 0 && (
+        <Card className="p-4">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Arraste para uma data</p>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {schedulable.map((p) => <div key={p.id} draggable onDragStart={(e) => e.dataTransfer.setData("piece", p.id)} className="min-w-48 cursor-grab rounded-md border border-border bg-card p-2 text-sm"><div className="font-medium line-clamp-2">{p.title}</div><Badge variant="outline" className="text-[9px] mt-1">{p.format}</Badge></div>)}
           </div>
-          <Button
-            size="sm"
-            onClick={() =>
-              upsert.mutate({
-                id: p.id, title: p.title,
-                status: "publicado", published_at: todayISO(),
-              })
-            }
-          >
-            <CheckCircle2 className="h-4 w-4 mr-1" /> Marcar publicado
-          </Button>
         </Card>
-      ))}
-    </div>
-  );
-}
-
-/* ============== PERFORMANCE ============== */
-function PerformanceTab({ pieces, metrics }: { pieces: ContentPiece[]; metrics: any[] }) {
-  const upsertMetric = useUpsertMetric();
-  const published = pieces.filter((p) => p.status === "publicado");
-  const [editing, setEditing] = useState<{ piece_id: string; views: string; likes: string; comments: string; reach: string } | null>(null);
-
-  return (
-    <div className="space-y-3">
-      {published.length === 0 && (
-        <Card className="p-8 text-center text-sm text-muted-foreground">Publique peças para registrar performance.</Card>
       )}
-      {published.map((p) => {
-        const m = metrics.find((x) => x.piece_id === p.id);
-        return (
-          <Card key={p.id} className="p-4">
-            <div className="flex items-start justify-between gap-3 mb-2">
-              <div>
-                <div className="font-medium">{p.title}</div>
-                <div className="text-xs text-muted-foreground">
-                  {p.format} · publicado em {p.published_at ? formatDateBR(p.published_at) : "—"}
-                </div>
-              </div>
-              <Button size="sm" variant="outline" onClick={() => setEditing({
-                piece_id: p.id,
-                views: String(m?.views ?? ""),
-                likes: String(m?.likes ?? ""),
-                comments: String(m?.comments ?? ""),
-                reach: String(m?.reach ?? ""),
-              })}>
-                <Edit3 className="h-3.5 w-3.5 mr-1" /> Editar
-              </Button>
-            </div>
-            {m ? (
-              <div className="grid grid-cols-4 gap-2 text-center">
-                <Stat label="Views" value={m.views} />
-                <Stat label="Likes" value={m.likes} />
-                <Stat label="Coments" value={m.comments} />
-                <Stat label="Alcance" value={m.reach} />
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">Sem métricas registradas.</p>
-            )}
-          </Card>
-        );
-      })}
-      {editing && (
-        <Drawer open onOpenChange={() => setEditing(null)}>
-          <DrawerContent>
-            <DrawerHeader><DrawerTitle>Métricas</DrawerTitle></DrawerHeader>
-            <div className="px-4 space-y-3">
-              {(["views", "likes", "comments", "reach"] as const).map((k) => (
-                <div key={k}>
-                  <Label className="capitalize">{k}</Label>
-                  <Input
-                    type="number"
-                    value={(editing as any)[k]}
-                    onChange={(e) => setEditing({ ...editing, [k]: e.target.value })}
-                  />
-                </div>
-              ))}
-            </div>
-            <DrawerFooter>
-              <Button onClick={() => {
-                upsertMetric.mutate({
-                  piece_id: editing.piece_id,
-                  views: Number(editing.views) || 0,
-                  likes: Number(editing.likes) || 0,
-                  comments: Number(editing.comments) || 0,
-                  reach: Number(editing.reach) || 0,
-                });
-                setEditing(null);
-              }}>Salvar</Button>
-            </DrawerFooter>
-          </DrawerContent>
-        </Drawer>
-      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
+        {days.map((d) => {
+          const items = pieces.filter((p) => p.planned_date === d || (p as any).target_publish_at?.startsWith(d));
+          return (
+            <Card key={d} onDragOver={(e) => e.preventDefault()} onDrop={(e) => schedule(e.dataTransfer.getData("piece"), d)} className={`p-2 min-h-[130px] ${d === today ? "border-accent/50 bg-accent/5" : ""}`}>
+              <div className="text-[10px] text-muted-foreground mb-2">{formatDateBR(d)}</div>
+              <div className="space-y-1.5">{items.map((p) => <button key={p.id} onClick={() => setEditPiece(p)} className="block w-full text-left text-[11px] p-1.5 rounded bg-card border border-border"><div className="font-medium line-clamp-2">{p.title}</div><Badge className="mt-1 text-[9px] px-1 py-0">{STAGE_LABEL[((p as any).pipeline_stage ?? "agendado") as PipelineStage] ?? p.status}</Badge></button>)}</div>
+            </Card>
+          );
+        })}
+      </div>
+      {editPiece && <PieceDrawer piece={editPiece} open={!!editPiece} onClose={() => setEditPiece(null)} />}
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded border border-border p-2">
-      <div className="text-[10px] text-muted-foreground">{label}</div>
-      <div className="font-display font-semibold">{value.toLocaleString("pt-BR")}</div>
-    </div>
-  );
-}
-
-/* ============== BIBLIOTECA ============== */
-function LibraryTab({ pieces }: { pieces: ContentPiece[] }) {
-  const lib = pieces.filter((p) => p.status === "publicado" || p.status === "arquivado");
-  const byTheme = lib.reduce<Record<string, ContentPiece[]>>((acc, p) => {
-    const t = p.theme || "Sem tema";
-    (acc[t] ||= []).push(p);
-    return acc;
-  }, {});
+function GrowthPerformanceTab({ pieces, metrics }: { pieces: ContentPiece[]; metrics: any[] }) {
   return (
     <div className="space-y-4">
-      {Object.entries(byTheme).map(([theme, list]) => (
-        <Card key={theme} className="p-4">
-          <h3 className="font-display font-semibold mb-2">{theme} <span className="text-xs text-muted-foreground">({list.length})</span></h3>
-          <div className="grid md:grid-cols-2 gap-2">
-            {list.map((p) => (
-              <div key={p.id} className="p-2 border border-border rounded text-sm">
-                <div className="font-medium">{p.title}</div>
-                <div className="text-xs text-muted-foreground">
-                  {p.format} · {p.published_at ? formatDateBR(p.published_at) : "—"}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      ))}
-      {lib.length === 0 && <Card className="p-8 text-center text-sm text-muted-foreground">Biblioteca vazia.</Card>}
+      <Card className="p-4 border-accent/30 bg-accent/5">
+        <div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-accent" /><p className="text-sm font-medium">Integração com Meta API — em breve. Dados inseridos manualmente por enquanto.</p></div>
+      </Card>
+      <CollapseBlock title="Stories" icon={<Clapperboard className="h-4 w-4" />}><StoriesTab /></CollapseBlock>
+      <CollapseBlock title="Performance" icon={<BarChart3 className="h-4 w-4" />}><PerformancePanel pieces={pieces} metrics={metrics} /></CollapseBlock>
+      <CollapseBlock title="Inteligência" icon={<Brain className="h-4 w-4" />}><IntelligenceTab pieces={pieces} metrics={metrics} /><GrowthTab /></CollapseBlock>
     </div>
   );
 }
 
-/* ============== DRAWER editar/criar peça ============== */
-function PieceDrawer({
-  piece,
-  open,
-  onClose,
-  ideas,
-}: {
-  piece: ContentPiece | null;
-  open: boolean;
-  onClose: () => void;
-  ideas: any[];
-}) {
+function PerformancePanel({ pieces, metrics }: { pieces: ContentPiece[]; metrics: any[] }) {
+  const upsertMetric = useUpsertMetric();
+  const upsertPiece = useUpsertPiece();
+  const published = pieces.filter((p) => p.status === "publicado" || (p as any).pipeline_stage === "publicado");
+  const [editing, setEditing] = useState<any | null>(null);
+
+  return <div className="space-y-3">
+    {published.length === 0 && <Card className="p-8 text-center text-sm text-muted-foreground">Quando uma peça for publicada, registre os dados aqui.</Card>}
+    {published.map((p: any) => {
+      const m = metrics.find((x) => x.piece_id === p.id);
+      return <Card key={p.id} className="p-4 flex items-center justify-between gap-3"><div><div className="font-medium">{p.title}</div><div className="text-xs text-muted-foreground">{p.format} · {p.published_at ? formatDateBR(p.published_at) : "publicado"}</div></div><div className="grid grid-cols-5 gap-2 text-center flex-1 max-w-xl"><MiniStat label="Views" value={m?.views ?? 0} /><MiniStat label="Alcance" value={m?.reach ?? 0} /><MiniStat label="Salvos" value={p.saves ?? m?.saves ?? 0} /><MiniStat label="DMs" value={p.generated_dms ?? 0} /><MiniStat label="Agend." value={p.appointments_booked ?? 0} /></div><Button size="sm" variant="outline" onClick={() => setEditing({ piece_id: p.id, views: m?.views ?? "", reach: m?.reach ?? "", saves: p.saves ?? "", generated_dms: p.generated_dms ?? "", appointments_booked: p.appointments_booked ?? "" })}>Editar</Button></Card>;
+    })}
+    {editing && <Drawer open onOpenChange={() => setEditing(null)}><DrawerContent><DrawerHeader><DrawerTitle>Métricas do conteúdo</DrawerTitle></DrawerHeader><div className="px-4 grid gap-3 md:grid-cols-2">{["views", "reach", "saves", "generated_dms", "appointments_booked"].map((k) => <div key={k}><Label>{k}</Label><Input type="number" value={editing[k]} onChange={(e) => setEditing({ ...editing, [k]: e.target.value })} /></div>)}</div><DrawerFooter><Button onClick={() => { upsertMetric.mutate({ piece_id: editing.piece_id, views: Number(editing.views) || 0, reach: Number(editing.reach) || 0, saves: Number(editing.saves) || 0 } as any); const p = pieces.find((x) => x.id === editing.piece_id); if (p) upsertPiece.mutate({ id: p.id, title: p.title, saves: Number(editing.saves) || 0, generated_dms: Number(editing.generated_dms) || 0, appointments_booked: Number(editing.appointments_booked) || 0 } as any); setEditing(null); }}>Salvar</Button></DrawerFooter></DrawerContent></Drawer>}
+  </div>;
+}
+
+function PieceDrawer({ piece, open, onClose }: { piece: ContentPiece; open: boolean; onClose: () => void }) {
   const upsert = useUpsertPiece();
   const del = useDeletePiece();
   const genTasks = useGenerateTasksForPiece();
-  const { scope } = useScope();
-
-  const [form, setForm] = useState({
-    id: piece?.id,
-    title: piece?.title ?? "",
-    theme: piece?.theme ?? "",
-    format: (piece?.format ?? "reels") as ContentFormat,
-    status: (piece?.status ?? "ideia") as ContentStatus,
-    planned_date: piece?.planned_date ?? "",
-    script: piece?.script ?? "",
-    hook: piece?.hook ?? "",
-    cta: piece?.cta ?? "",
-    cta_type: ((piece as any)?.cta_type ?? "") as string,
-    generated_dms: String((piece as any)?.generated_dms ?? ""),
-    booked_appointment: !!(piece as any)?.booked_appointment,
-    notes: piece?.notes ?? "",
-    priority: (piece?.priority ?? "media") as "alta" | "media" | "baixa",
-    checklist: (piece?.checklist as any[]) ?? [],
+  const [form, setForm] = useState<any>({
+    title: piece.title ?? "",
+    theme: piece.theme ?? "",
+    format: piece.format ?? "reels",
+    pipeline_stage: (piece as any).pipeline_stage ?? "roteiro_pronto",
+    status: piece.status ?? "em_producao",
+    planned_date: piece.planned_date ?? "",
+    clinical_anchor: (piece as any).clinical_anchor ?? "",
+    script: piece.script ?? "",
+    hook: piece.hook ?? "",
+    cta: piece.cta ?? "",
+    cta_type: (piece as any).cta_type ?? "",
+    audience_context: (piece as any).audience_context ?? "",
+    production_notes: (piece as any).production_notes ?? piece.notes ?? "",
+    generated_dms: String((piece as any).generated_dms ?? ""),
+    saves: String((piece as any).saves ?? ""),
+    appointments_booked: String((piece as any).appointments_booked ?? ""),
   });
 
-  const save = (generateTasks = false) => {
-    if (!form.title.trim()) { toast.error("Dê um título"); return; }
-    upsert.mutate(
-      {
-        ...form,
-        cta_type: form.cta_type || null,
-        generated_dms: Number(form.generated_dms) || 0,
-        booked_appointment: form.booked_appointment,
-        planned_date: form.planned_date || null,
-        scope: (piece?.scope ?? (scope === "todos" ? "profissional" : scope)) as any,
-        generateTasks,
-      } as any,
-      { onSuccess: () => onClose() },
-    );
+  const save = () => {
+    const stage = PIPELINE.find((x) => x.key === form.pipeline_stage) ?? PIPELINE[0];
+    upsert.mutate({
+      id: piece.id,
+      ...form,
+      status: stage.status,
+      planned_date: form.planned_date || null,
+      notes: form.production_notes,
+      generated_dms: Number(form.generated_dms) || 0,
+      saves: Number(form.saves) || 0,
+      appointments_booked: Number(form.appointments_booked) || 0,
+    } as any, { onSuccess: onClose });
   };
 
-  return (
-    <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent className="max-h-[92vh]">
-        <DrawerHeader>
-          <DrawerTitle>{piece ? "Editar peça" : "Nova peça"}</DrawerTitle>
-          <DrawerDescription>Roteiro, status, agenda e checklist.</DrawerDescription>
-        </DrawerHeader>
-        <div className="px-4 overflow-y-auto space-y-3">
-          <div>
-            <Label>Título</Label>
-            <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label>Tema</Label>
-              <Input value={form.theme} onChange={(e) => setForm({ ...form, theme: e.target.value })} />
-            </div>
-            <div>
-              <Label>Formato</Label>
-              <Select value={form.format} onValueChange={(v) => setForm({ ...form, format: v as ContentFormat })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{FORMATS.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as ContentStatus })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{(Object.keys(STATUS_LABEL) as ContentStatus[]).map((s) => <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Data planejada</Label>
-              <Input type="date" value={form.planned_date} onChange={(e) => setForm({ ...form, planned_date: e.target.value })} />
-            </div>
-          </div>
-          <div>
-            <Label>Hook</Label>
-            <Input value={form.hook} onChange={(e) => setForm({ ...form, hook: e.target.value })} placeholder="Frase de abertura" />
-          </div>
-          <div>
-            <Label>Roteiro</Label>
-            <Textarea rows={6} value={form.script} onChange={(e) => setForm({ ...form, script: e.target.value })} />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label>CTA (texto)</Label>
-              <Input value={form.cta} onChange={(e) => setForm({ ...form, cta: e.target.value })} />
-            </div>
-            <div>
-              <Label>Tipo de CTA</Label>
-              <Select value={form.cta_type || "none"} onValueChange={(v) => setForm({ ...form, cta_type: v === "none" ? "" : v })}>
-                <SelectTrigger><SelectValue placeholder="Tipo…" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— sem tipo —</SelectItem>
-                  {CTA_TYPES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+  return <Drawer open={open} onOpenChange={(o) => !o && onClose()}><DrawerContent className="max-h-[92vh]"><DrawerHeader><DrawerTitle>Card de produção</DrawerTitle></DrawerHeader><div className="px-4 overflow-y-auto space-y-3">
+    <div><Label>Título do conteúdo</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
+    <div className="grid grid-cols-2 gap-2"><div><Label>Formato</Label><Select value={form.format} onValueChange={(v) => setForm({ ...form, format: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{FORMATS.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent></Select></div><div><Label>Etapa</Label><Select value={form.pipeline_stage} onValueChange={(v) => setForm({ ...form, pipeline_stage: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{PIPELINE.map((s) => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}</SelectContent></Select></div></div>
+    <div className="grid grid-cols-2 gap-2"><div><Label>Ancoragem clínica</Label><Input value={form.clinical_anchor} onChange={(e) => setForm({ ...form, clinical_anchor: e.target.value })} /></div><div><Label>Data alvo</Label><Input type="date" value={form.planned_date} onChange={(e) => setForm({ ...form, planned_date: e.target.value })} /></div></div>
+    <div><Label>Gancho</Label><Input value={form.hook} onChange={(e) => setForm({ ...form, hook: e.target.value })} /></div>
+    <div><Label>Roteiro completo</Label><Textarea rows={7} value={form.script} onChange={(e) => setForm({ ...form, script: e.target.value })} /></div>
+    <details className="rounded border border-border p-3"><summary className="cursor-pointer text-sm">Contexto da audiência</summary><Textarea rows={4} className="mt-2" value={form.audience_context} onChange={(e) => setForm({ ...form, audience_context: e.target.value })} /></details>
+    <div><Label>Observações de produção</Label><Textarea rows={3} value={form.production_notes} onChange={(e) => setForm({ ...form, production_notes: e.target.value })} /></div>
+    {form.pipeline_stage === "publicado" && <div className="grid grid-cols-3 gap-2 rounded border border-border p-3 bg-muted/20"><div><Label>Salvamentos</Label><Input type="number" value={form.saves} onChange={(e) => setForm({ ...form, saves: e.target.value })} /></div><div><Label>DMs</Label><Input type="number" value={form.generated_dms} onChange={(e) => setForm({ ...form, generated_dms: e.target.value })} /></div><div><Label>Agendamentos</Label><Input type="number" value={form.appointments_booked} onChange={(e) => setForm({ ...form, appointments_booked: e.target.value })} /></div></div>}
+    <div className="grid grid-cols-2 gap-2"><div><Label>CTA</Label><Input value={form.cta} onChange={(e) => setForm({ ...form, cta: e.target.value })} /></div><div><Label>Tipo de CTA</Label><Select value={form.cta_type || "none"} onValueChange={(v) => setForm({ ...form, cta_type: v === "none" ? "" : v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">— sem tipo —</SelectItem>{CTA_TYPES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div></div>
+    <Button size="sm" variant="outline" onClick={() => genTasks.mutate(piece)} disabled={!form.planned_date || genTasks.isPending}>Gerar tarefas no Planner</Button>
+  </div><DrawerFooter className="flex-row gap-2"><Button variant="ghost" className="text-destructive" onClick={() => { del.mutate(piece.id); onClose(); }}>Excluir</Button><div className="flex-1" /><Button onClick={save}>Salvar</Button></DrawerFooter></DrawerContent></Drawer>;
+}
 
-          {/* Captação */}
-          <div className="rounded border border-border p-3 bg-success/5">
-            <div className="flex items-center gap-1.5 mb-2">
-              <CalendarCheck className="h-3.5 w-3.5 text-success" />
-              <p className="text-xs font-medium">Captação deste post</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs flex items-center gap-1">
-                  <MessageCircle className="h-3 w-3" /> DMs geradas
-                </Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={form.generated_dms}
-                  onChange={(e) => setForm({ ...form, generated_dms: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Gerou agendamento?</Label>
-                <div className="flex items-center h-9 gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={form.booked_appointment ? "default" : "outline"}
-                    onClick={() => setForm({ ...form, booked_appointment: !form.booked_appointment })}
-                  >
-                    {form.booked_appointment ? "Sim ✓" : "Não"}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
+function CollapseBlock({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return <Collapsible defaultOpen={title === "Stories"}><Card className="p-4"><CollapsibleTrigger className="flex w-full items-center justify-between"><span className="flex items-center gap-2 font-display font-semibold">{icon}{title}</span><ChevronDown className="h-4 w-4 text-muted-foreground" /></CollapsibleTrigger><CollapsibleContent className="pt-4">{children}</CollapsibleContent></Card></Collapsible>;
+}
 
-          <div>
-            <Label>Anotações</Label>
-            <Textarea rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-          </div>
-          {piece && (
-            <div className="rounded border border-border p-3 bg-muted/20">
-              <p className="text-xs text-muted-foreground mb-2">
-                <Clock className="h-3 w-3 inline mr-1" />
-                Gerar tasks no Planner usando template do formato (roteiro/gravação/edição/publicação) com offsets antes da data.
-              </p>
-              <Button size="sm" variant="outline" onClick={() => genTasks.mutate(piece)} disabled={!form.planned_date || genTasks.isPending}>
-                <ListChecks className="h-3.5 w-3.5 mr-1" /> Gerar tarefas
-              </Button>
-            </div>
-          )}
-        </div>
-        <DrawerFooter className="flex-row gap-2">
-          {piece && (
-            <Button variant="ghost" className="text-destructive" onClick={() => { del.mutate(piece.id); onClose(); }}>
-              <Trash2 className="h-4 w-4 mr-1" /> Excluir
-            </Button>
-          )}
-          <div className="flex-1" />
-          <Button variant="outline" onClick={() => save(false)}>Salvar</Button>
-          <Button onClick={() => save(true)}>Salvar e gerar tarefas</Button>
-        </DrawerFooter>
-      </DrawerContent>
-    </Drawer>
-  );
+function MiniStat({ label, value }: { label: string; value: number | string }) {
+  return <div className="rounded border border-border p-2"><div className="text-[10px] text-muted-foreground">{label}</div><div className="font-display font-semibold">{typeof value === "number" ? value.toLocaleString("pt-BR") : value}</div></div>;
 }
