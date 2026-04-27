@@ -55,7 +55,7 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <Routes>
-                      <Route path="/" element={<Foco />} />
+                      <Route path="/" element={<PlannerDiario />} />
                       <Route path="/visao-geral" element={<Dashboard />} />
                       <Route path="/planner" element={<PlannerDiario />} />
                       <Route path="/planner/semanal" element={<PlannerSemanal />} />
