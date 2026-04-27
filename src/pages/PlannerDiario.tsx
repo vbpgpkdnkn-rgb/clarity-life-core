@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -42,6 +42,8 @@ export default function PlannerDiario() {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [manualOrder, setManualOrder] = useState<string[]>([]);
   const [draft, setDraft] = useState({ focus: "", intention: "", planning: "", notes: "" });
+  const [hasUserEditedPlan, setHasUserEditedPlan] = useState(false);
+  const focusInputRef = useRef<HTMLInputElement>(null);
 
   const { scope } = useScope();
   const { data: plan } = useDailyPlan(date);
@@ -54,18 +56,37 @@ export default function PlannerDiario() {
   const upsertEvent = useUpsertEvent();
 
   const patientById = useMemo(() => Object.fromEntries((patients as any[]).map((p) => [p.id, p])), [patients]);
-  const scopedTasks = filterByScope(tasksAll, scope).filter((task: any) => task.due_date === date);
+  const scopedTasks = filterByScope(tasksAll, scope).filter((task: any) => {
+    if (task.due_date === date) return true;
+    return task.status !== "concluida" && task.due_date && task.due_date < date;
+  });
   const scopedEvents = filterByScope(eventsAll, scope);
 
   useEffect(() => {
+    setDate(todayISO());
+    window.requestAnimationFrame(() => focusInputRef.current?.focus());
+  }, []);
+
+  useEffect(() => {
     const meta = getDailyMeta(plan);
+    const previousFocus = window.localStorage.getItem("planner:last-focus") ?? "";
     setDraft({
-      focus: meta.focus ?? "",
+      focus: meta.focus || previousFocus,
       intention: meta.intention ?? "",
       planning: plan?.notes_rich ?? "",
       notes: plan?.reflection ?? "",
     });
+    setHasUserEditedPlan(false);
   }, [plan, date]);
+
+  useEffect(() => {
+    if (!hasUserEditedPlan) return;
+    const timer = window.setTimeout(() => {
+      window.localStorage.setItem("planner:last-focus", draft.focus);
+      savePlan();
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [draft, hasUserEditedPlan]);
 
   const orderedTasks = useMemo(() => {
     const orderMap = new Map(manualOrder.map((id, index) => [id, index]));
@@ -78,6 +99,8 @@ export default function PlannerDiario() {
 
   const openTasks = orderedTasks.filter((task: any) => task.status !== "concluida");
   const completedTasks = orderedTasks.filter((task: any) => task.status === "concluida");
+  const completedCount = completedTasks.length;
+  const topTaskIds = new Set(openTasks.slice(0, 3).map((task: any) => task.id));
 
   const agendaItems = useMemo(() => {
     const eventItems = scopedEvents.map((event: any) => ({
@@ -104,6 +127,11 @@ export default function PlannerDiario() {
       notes_rich: next.planning,
       reflection: next.notes,
     });
+  };
+
+  const updateDraft = (patch: Partial<typeof draft>) => {
+    setDraft((current) => ({ ...current, ...patch }));
+    setHasUserEditedPlan(true);
   };
 
   const createQuickTask = async () => {
@@ -168,9 +196,9 @@ export default function PlannerDiario() {
             <label className="space-y-1.5">
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Foco do dia</span>
               <Input
+                ref={focusInputRef}
                 value={draft.focus}
-                onChange={(e) => setDraft((current) => ({ ...current, focus: e.target.value }))}
-                onBlur={() => savePlan()}
+                onChange={(e) => updateDraft({ focus: e.target.value })}
                 placeholder="Qual é a prioridade central do seu dia?"
                 className="h-11 border-0 bg-muted/40 text-base font-medium shadow-none focus-visible:ring-1"
               />
@@ -179,8 +207,7 @@ export default function PlannerDiario() {
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Intenção</span>
               <Input
                 value={draft.intention}
-                onChange={(e) => setDraft((current) => ({ ...current, intention: e.target.value }))}
-                onBlur={() => savePlan()}
+                onChange={(e) => updateDraft({ intention: e.target.value })}
                 placeholder="Como você quer conduzir o dia?"
                 className="h-11 border-0 bg-muted/40 shadow-none focus-visible:ring-1"
               />
@@ -197,8 +224,7 @@ export default function PlannerDiario() {
               </div>
               <Textarea
                 value={draft.planning}
-                onChange={(e) => setDraft((current) => ({ ...current, planning: e.target.value }))}
-                onBlur={() => savePlan()}
+                onChange={(e) => updateDraft({ planning: e.target.value })}
                 placeholder="Escreva livremente: prioridades, decisões, pendências e próximos passos."
                 className="min-h-[160px] resize-none border-0 bg-muted/30 text-base leading-relaxed shadow-none focus-visible:ring-1"
               />
@@ -210,7 +236,10 @@ export default function PlannerDiario() {
                   <h2 className="font-display text-2xl font-semibold">Tarefas do dia</h2>
                   <p className="text-sm text-muted-foreground">Quais são as tarefas essenciais?</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setTaskOpen(true)}><Plus className="mr-2 h-4 w-4" />Adicionar tarefa</Button>
+                <div className="flex flex-col items-start gap-2 sm:items-end">
+                  <div className="text-xs text-muted-foreground">Você concluiu {completedCount} {completedCount === 1 ? "tarefa" : "tarefas"} hoje</div>
+                  <Button variant="outline" size="sm" onClick={() => setTaskOpen(true)}><Plus className="mr-2 h-4 w-4" />Adicionar tarefa</Button>
+                </div>
               </div>
 
               <div className="mb-4 flex gap-2">
@@ -230,6 +259,8 @@ export default function PlannerDiario() {
                   <TaskRow
                     key={task.id}
                     task={task}
+                    featured={topTaskIds.has(task.id) && openTasks.length >= 3}
+                    subdued={completedCount > 0 && !topTaskIds.has(task.id)}
                     onToggle={() => toggleTask(task)}
                     onPriorityChange={(priority) => updateTaskPriority(task, priority)}
                     onDragStart={() => setDraggedTaskId(task.id)}
@@ -256,7 +287,7 @@ export default function PlannerDiario() {
           </main>
 
           <aside className="space-y-5">
-            <Card className="border-border/70 p-5 shadow-none">
+            <Card className={cn("border-border/70 p-5 shadow-none transition-opacity", completedCount > 0 && "opacity-75")}>
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
                   <h2 className="font-display text-xl font-semibold">Agenda</h2>
@@ -301,10 +332,9 @@ export default function PlannerDiario() {
           </div>
           <Textarea
             value={draft.notes}
-            onChange={(e) => setDraft((current) => ({ ...current, notes: e.target.value }))}
-            onBlur={() => savePlan()}
+            onChange={(e) => updateDraft({ notes: e.target.value })}
             placeholder="Registre algo importante sem estruturar demais."
-            className="min-h-[92px] resize-none border-0 bg-muted/25 shadow-none focus-visible:ring-1"
+            className={cn("min-h-[92px] resize-none border-0 bg-muted/25 shadow-none transition-opacity focus-visible:ring-1", completedCount > 0 && "opacity-75")}
           />
         </Card>
       </div>
@@ -317,6 +347,8 @@ export default function PlannerDiario() {
 
 function TaskRow({
   task,
+  featured,
+  subdued,
   onToggle,
   onPriorityChange,
   onDragStart,
@@ -324,6 +356,8 @@ function TaskRow({
   onDrop,
 }: {
   task: any;
+  featured?: boolean;
+  subdued?: boolean;
   onToggle: () => void;
   onPriorityChange: (priority: string) => void;
   onDragStart: () => void;
@@ -340,6 +374,8 @@ function TaskRow({
       className={cn(
         "group flex items-center gap-3 rounded-md border border-border bg-background p-3 transition-colors hover:bg-muted/25",
         isHigh && "border-primary/40 bg-primary/5",
+        featured && "ring-1 ring-primary/30",
+        subdued && "opacity-70 hover:opacity-100",
       )}
     >
       <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-muted-foreground opacity-45 group-hover:opacity-100" />
