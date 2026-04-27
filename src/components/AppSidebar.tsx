@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sparkles, LayoutDashboard, CalendarDays, Target, Wallet, ListTodo, CalendarRange, Clapperboard, Heart, FolderKanban, LogOut, ArrowUpDown, ChevronUp, ChevronDown, RotateCcw, Check, Brain } from "lucide-react";
+import { LayoutDashboard, CalendarDays, Target, Wallet, ListTodo, CalendarRange, Clapperboard, Heart, FolderKanban, LogOut, ArrowUpDown, ChevronUp, ChevronDown, RotateCcw, Check, Brain } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useRecentAdjustments } from "@/hooks/useAdaptive";
@@ -19,11 +19,10 @@ import {
 } from "@/components/ui/sidebar";
 
 const items = [
-  { title: "Foco do dia", url: "/", icon: Sparkles, end: true },
+  { title: "Planner", url: "/", icon: CalendarDays, end: true },
   { title: "Visão geral", url: "/visao-geral", icon: LayoutDashboard },
   { title: "Tarefas", url: "/tarefas", icon: ListTodo },
   { title: "Projetos", url: "/projetos", icon: FolderKanban },
-  { title: "Planner", url: "/planner", icon: CalendarDays },
   { title: "Metas", url: "/metas", icon: Target },
   { title: "Conteúdo", url: "/conteudo", icon: Clapperboard },
   { title: "Psicoterapia", url: "/psicoterapia", icon: Brain },
