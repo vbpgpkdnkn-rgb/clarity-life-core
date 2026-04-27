@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCategories, useGoals, useUpsertTask, useDeleteTask, useMilestones } from "@/hooks/useData";
 import { usePatients } from "@/hooks/usePsicoterapia";
 import { todayISO } from "@/lib/format";
-import { Trash2, Sparkles, Target, Brain } from "lucide-react";
+import { Trash2, Target, Brain } from "lucide-react";
 import { MicButton } from "@/components/MicButton";
 
 type Eisenhower =
@@ -78,31 +78,11 @@ export function TaskFormDrawer({
         is_135: null,
         patient_id: null,
       };
-      // Auto-sugere se ainda não definido
-      if (!base.eisenhower) base.eisenhower = suggestEisenhower(base.priority, base.due_date);
-      if (!base.is_135) base.is_135 = suggest135(base.priority);
       // Quando vem com patient_id pré-selecionado, força escopo profissional
       if (base.patient_id && !task) base.scope = "profissional";
       setForm(base);
     }
   }, [open, task, defaultDate]);
-
-  /** Atualiza prioridade ou data e re-sugere quadrante/slot se usuário não tocou manualmente */
-  const updatePriorityOrDate = (patch: Partial<any>) => {
-    setForm((prev: any) => {
-      const next = { ...prev, ...patch };
-      // Re-sugere apenas se o valor atual ainda corresponde à sugestão antiga (não foi customizado)
-      const oldSuggestion = suggestEisenhower(prev.priority, prev.due_date);
-      if (prev.eisenhower === oldSuggestion) {
-        next.eisenhower = suggestEisenhower(next.priority, next.due_date);
-      }
-      const old135 = suggest135(prev.priority);
-      if (prev.is_135 === old135) {
-        next.is_135 = suggest135(next.priority);
-      }
-      return next;
-    });
-  };
 
   const save = async () => {
     if (!form.title?.trim()) return;
@@ -144,7 +124,7 @@ export function TaskFormDrawer({
             </div>
             <div>
               <Label>Prioridade</Label>
-              <Select value={form.priority} onValueChange={(v) => updatePriorityOrDate({ priority: v })}>
+              <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="alta">Alta</SelectItem>
@@ -160,7 +140,7 @@ export function TaskFormDrawer({
               <Input
                 type="date"
                 value={form.due_date || ""}
-                onChange={(e) => updatePriorityOrDate({ due_date: e.target.value })}
+                onChange={(e) => setForm({ ...form, due_date: e.target.value })}
               />
             </div>
             <div>
