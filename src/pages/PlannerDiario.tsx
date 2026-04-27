@@ -236,7 +236,10 @@ export default function PlannerDiario() {
                   <h2 className="font-display text-2xl font-semibold">Tarefas do dia</h2>
                   <p className="text-sm text-muted-foreground">Quais são as tarefas essenciais?</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setTaskOpen(true)}><Plus className="mr-2 h-4 w-4" />Adicionar tarefa</Button>
+                <div className="flex flex-col items-start gap-2 sm:items-end">
+                  <div className="text-xs text-muted-foreground">Você concluiu {completedCount} {completedCount === 1 ? "tarefa" : "tarefas"} hoje</div>
+                  <Button variant="outline" size="sm" onClick={() => setTaskOpen(true)}><Plus className="mr-2 h-4 w-4" />Adicionar tarefa</Button>
+                </div>
               </div>
 
               <div className="mb-4 flex gap-2">
@@ -256,6 +259,8 @@ export default function PlannerDiario() {
                   <TaskRow
                     key={task.id}
                     task={task}
+                    featured={topTaskIds.has(task.id) && openTasks.length >= 3}
+                    subdued={completedCount > 0 && !topTaskIds.has(task.id)}
                     onToggle={() => toggleTask(task)}
                     onPriorityChange={(priority) => updateTaskPriority(task, priority)}
                     onDragStart={() => setDraggedTaskId(task.id)}
@@ -282,7 +287,7 @@ export default function PlannerDiario() {
           </main>
 
           <aside className="space-y-5">
-            <Card className="border-border/70 p-5 shadow-none">
+            <Card className={cn("border-border/70 p-5 shadow-none transition-opacity", completedCount > 0 && "opacity-75")}>
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
                   <h2 className="font-display text-xl font-semibold">Agenda</h2>
@@ -327,10 +332,9 @@ export default function PlannerDiario() {
           </div>
           <Textarea
             value={draft.notes}
-            onChange={(e) => setDraft((current) => ({ ...current, notes: e.target.value }))}
-            onBlur={() => savePlan()}
+            onChange={(e) => updateDraft({ notes: e.target.value })}
             placeholder="Registre algo importante sem estruturar demais."
-            className="min-h-[92px] resize-none border-0 bg-muted/25 shadow-none focus-visible:ring-1"
+            className={cn("min-h-[92px] resize-none border-0 bg-muted/25 shadow-none transition-opacity focus-visible:ring-1", completedCount > 0 && "opacity-75")}
           />
         </Card>
       </div>
