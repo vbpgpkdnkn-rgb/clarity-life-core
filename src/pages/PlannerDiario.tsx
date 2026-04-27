@@ -99,6 +99,8 @@ export default function PlannerDiario() {
 
   const openTasks = orderedTasks.filter((task: any) => task.status !== "concluida");
   const completedTasks = orderedTasks.filter((task: any) => task.status === "concluida");
+  const completedCount = completedTasks.length;
+  const topTaskIds = new Set(openTasks.slice(0, 3).map((task: any) => task.id));
 
   const agendaItems = useMemo(() => {
     const eventItems = scopedEvents.map((event: any) => ({
@@ -125,6 +127,11 @@ export default function PlannerDiario() {
       notes_rich: next.planning,
       reflection: next.notes,
     });
+  };
+
+  const updateDraft = (patch: Partial<typeof draft>) => {
+    setDraft((current) => ({ ...current, ...patch }));
+    setHasUserEditedPlan(true);
   };
 
   const createQuickTask = async () => {
@@ -189,9 +196,9 @@ export default function PlannerDiario() {
             <label className="space-y-1.5">
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Foco do dia</span>
               <Input
+                ref={focusInputRef}
                 value={draft.focus}
-                onChange={(e) => setDraft((current) => ({ ...current, focus: e.target.value }))}
-                onBlur={() => savePlan()}
+                onChange={(e) => updateDraft({ focus: e.target.value })}
                 placeholder="Qual é a prioridade central do seu dia?"
                 className="h-11 border-0 bg-muted/40 text-base font-medium shadow-none focus-visible:ring-1"
               />
@@ -200,8 +207,7 @@ export default function PlannerDiario() {
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Intenção</span>
               <Input
                 value={draft.intention}
-                onChange={(e) => setDraft((current) => ({ ...current, intention: e.target.value }))}
-                onBlur={() => savePlan()}
+                onChange={(e) => updateDraft({ intention: e.target.value })}
                 placeholder="Como você quer conduzir o dia?"
                 className="h-11 border-0 bg-muted/40 shadow-none focus-visible:ring-1"
               />
@@ -218,8 +224,7 @@ export default function PlannerDiario() {
               </div>
               <Textarea
                 value={draft.planning}
-                onChange={(e) => setDraft((current) => ({ ...current, planning: e.target.value }))}
-                onBlur={() => savePlan()}
+                onChange={(e) => updateDraft({ planning: e.target.value })}
                 placeholder="Escreva livremente: prioridades, decisões, pendências e próximos passos."
                 className="min-h-[160px] resize-none border-0 bg-muted/30 text-base leading-relaxed shadow-none focus-visible:ring-1"
               />
