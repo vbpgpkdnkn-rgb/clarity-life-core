@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -42,6 +42,8 @@ export default function PlannerDiario() {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [manualOrder, setManualOrder] = useState<string[]>([]);
   const [draft, setDraft] = useState({ focus: "", intention: "", planning: "", notes: "" });
+  const [hasUserEditedPlan, setHasUserEditedPlan] = useState(false);
+  const focusInputRef = useRef<HTMLInputElement>(null);
 
   const { scope } = useScope();
   const { data: plan } = useDailyPlan(date);
@@ -54,18 +56,37 @@ export default function PlannerDiario() {
   const upsertEvent = useUpsertEvent();
 
   const patientById = useMemo(() => Object.fromEntries((patients as any[]).map((p) => [p.id, p])), [patients]);
-  const scopedTasks = filterByScope(tasksAll, scope).filter((task: any) => task.due_date === date);
+  const scopedTasks = filterByScope(tasksAll, scope).filter((task: any) => {
+    if (task.due_date === date) return true;
+    return task.status !== "concluida" && task.due_date && task.due_date < date;
+  });
   const scopedEvents = filterByScope(eventsAll, scope);
 
   useEffect(() => {
+    setDate(todayISO());
+    window.requestAnimationFrame(() => focusInputRef.current?.focus());
+  }, []);
+
+  useEffect(() => {
     const meta = getDailyMeta(plan);
+    const previousFocus = window.localStorage.getItem("planner:last-focus") ?? "";
     setDraft({
-      focus: meta.focus ?? "",
+      focus: meta.focus || previousFocus,
       intention: meta.intention ?? "",
       planning: plan?.notes_rich ?? "",
       notes: plan?.reflection ?? "",
     });
+    setHasUserEditedPlan(false);
   }, [plan, date]);
+
+  useEffect(() => {
+    if (!hasUserEditedPlan) return;
+    const timer = window.setTimeout(() => {
+      window.localStorage.setItem("planner:last-focus", draft.focus);
+      savePlan();
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [draft, hasUserEditedPlan]);
 
   const orderedTasks = useMemo(() => {
     const orderMap = new Map(manualOrder.map((id, index) => [id, index]));
