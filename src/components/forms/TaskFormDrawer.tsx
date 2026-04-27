@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
+import { InputWithMic } from "@/components/ui/input-with-mic";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -123,15 +124,12 @@ export function TaskFormDrawer({
         <div className="space-y-4 mt-6">
           <div>
             <Label>Título</Label>
-            <div className="flex gap-2">
-              <Input
-                value={form.title || ""}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="O que precisa ser feito?"
-                autoFocus
-              />
-              <MicButton value={form.title || ""} onChange={(v) => setForm({ ...form, title: v })} size="md" />
-            </div>
+            <InputWithMic
+              value={form.title || ""}
+              onValueChange={(v) => setForm({ ...form, title: v })}
+              placeholder="O que precisa ser feito?"
+              autoFocus
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -177,43 +175,6 @@ export function TaskFormDrawer({
               </Select>
             </div>
           </div>
-          {/* Classificação automática (editável) — escondida em tarefas de pacientes */}
-          {!form.patient_id && (
-            <div className="rounded-lg border border-accent/30 bg-accent/5 p-3 space-y-3">
-              <div className="flex items-center gap-1.5 text-xs font-medium text-accent">
-                <Sparkles className="h-3 w-3" /> Classificação automática
-              </div>
-              <div>
-                <Label className="text-xs">Matriz Eisenhower</Label>
-                <Select
-                  value={form.eisenhower ?? "nao_urgente_nao_importante"}
-                  onValueChange={(v) => setForm({ ...form, eisenhower: v })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(EISEN_LABEL) as (keyof typeof EISEN_LABEL)[]).map((k) => (
-                      <SelectItem key={k} value={k}>{EISEN_LABEL[k]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs">Regra 1-3-5 (foco do dia)</Label>
-                <Select
-                  value={form.is_135 ?? "none"}
-                  onValueChange={(v) => setForm({ ...form, is_135: v === "none" ? null : v })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Não atribuir</SelectItem>
-                    <SelectItem value="1">1 grande (move o ponteiro)</SelectItem>
-                    <SelectItem value="3">3 médias (importantes)</SelectItem>
-                    <SelectItem value="5">5 pequenas (manutenção)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
           <div>
             <Label>Categoria <span className="text-[10px] text-muted-foreground">({form.scope})</span></Label>
             <Select
