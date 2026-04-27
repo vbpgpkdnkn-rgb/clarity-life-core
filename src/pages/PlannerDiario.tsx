@@ -347,6 +347,8 @@ export default function PlannerDiario() {
 
 function TaskRow({
   task,
+  featured,
+  subdued,
   onToggle,
   onPriorityChange,
   onDragStart,
@@ -354,6 +356,8 @@ function TaskRow({
   onDrop,
 }: {
   task: any;
+  featured?: boolean;
+  subdued?: boolean;
   onToggle: () => void;
   onPriorityChange: (priority: string) => void;
   onDragStart: () => void;
@@ -370,6 +374,8 @@ function TaskRow({
       className={cn(
         "group flex items-center gap-3 rounded-md border border-border bg-background p-3 transition-colors hover:bg-muted/25",
         isHigh && "border-primary/40 bg-primary/5",
+        featured && "ring-1 ring-primary/30",
+        subdued && "opacity-70 hover:opacity-100",
       )}
     >
       <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-muted-foreground opacity-45 group-hover:opacity-100" />
