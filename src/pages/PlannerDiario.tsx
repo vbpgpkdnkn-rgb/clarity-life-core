@@ -277,12 +277,30 @@ export default function PlannerDiario() {
                 <h2 className="font-display text-2xl font-semibold">Planejamento de hoje</h2>
                 <p className="text-sm text-muted-foreground">O que precisa acontecer hoje para o dia valer a pena?</p>
               </div>
-              <Textarea
+              <TextareaWithMic
                 value={draft.planning}
-                onChange={(e) => updateDraft({ planning: e.target.value })}
+                onValueChange={(value) => updateDraft({ planning: value })}
                 placeholder="Escreva livremente: prioridades, decisões, pendências e próximos passos."
                 className="min-h-[160px] resize-none border-0 bg-muted/30 text-base leading-relaxed shadow-none focus-visible:ring-1"
               />
+              {planningBullets.length > 0 && (
+                <div className="mt-4 space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Organizado em ação</div>
+                    {subtleSuggestions.length > 0 && <Button size="sm" variant="ghost" onClick={createSuggestedTasks}>Criar {subtleSuggestions.length} tarefas</Button>}
+                  </div>
+                  {planningBullets.map((bullet, index) => {
+                    const exists = taskTitles.has(normalizeText(bullet.text));
+                    return (
+                      <div key={`${bullet.text}-${index}`} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-background/60">
+                        <span className="w-20 shrink-0 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{bullet.kind}</span>
+                        <span className="min-w-0 flex-1 truncate">{bullet.text}</span>
+                        {!exists && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => createTaskFromBullet(bullet)}>Virar tarefa</Button>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </Card>
 
             <Card className="border-border/70 p-5 shadow-none">
