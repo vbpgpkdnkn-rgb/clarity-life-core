@@ -64,7 +64,7 @@ export default function PlannerDiario() {
   const [newEventTime, setNewEventTime] = useState("09:00");
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [manualOrder, setManualOrder] = useState<string[]>([]);
-  const [draft, setDraft] = useState({ focus: "", intention: "", planning: "", notes: "" });
+  const [draft, setDraft] = useState({ focus: "", intention: "", planning: "", notes: "", tomorrow: "" });
   const [hasUserEditedPlan, setHasUserEditedPlan] = useState(false);
   const focusInputRef = useRef<HTMLInputElement>(null);
 
@@ -96,6 +96,7 @@ export default function PlannerDiario() {
     setDraft({
       focus: meta.focus || previousFocus,
       intention: meta.intention ?? "",
+      tomorrow: meta.tomorrow ?? "",
       planning: plan?.notes_rich ?? "",
       notes: plan?.reflection ?? "",
     });
@@ -124,6 +125,10 @@ export default function PlannerDiario() {
   const completedTasks = orderedTasks.filter((task: any) => task.status === "concluida");
   const completedCount = completedTasks.length;
   const topTaskIds = new Set(openTasks.slice(0, 3).map((task: any) => task.id));
+  const planningBullets = useMemo(() => parsePlanning(draft.planning), [draft.planning]);
+  const taskTitles = useMemo(() => new Set(scopedTasks.map((task: any) => normalizeText(task.title))), [scopedTasks]);
+  const actionableBullets = planningBullets.filter((bullet) => !taskTitles.has(normalizeText(bullet.text)));
+  const subtleSuggestions = actionableBullets.slice(0, 3);
 
   const agendaItems = useMemo(() => {
     const eventItems = scopedEvents.map((event: any) => ({
@@ -147,6 +152,7 @@ export default function PlannerDiario() {
       id: plan?.id,
       date,
       top_priorities: { focus: next.focus, intention: next.intention },
+      top_priorities: { focus: next.focus, intention: next.intention, tomorrow: next.tomorrow },
       notes_rich: next.planning,
       reflection: next.notes,
     });
@@ -167,6 +173,29 @@ export default function PlannerDiario() {
       scope: defaultScope(scope),
     });
     setQuickTask("");
+  };
+
+  const createTaskFromBullet = async (bullet: ParsedBullet, targetDate = date) => {
+    if (taskTitles.has(normalizeText(bullet.text))) return;
+    await upsertTask.mutateAsync({
+      title: bullet.text,
+      due_date: targetDate,
+      priority: bullet.priority,
+      status: "pendente",
+      scope: defaultScope(scope),
+      notes: draft.focus ? `Foco do dia: ${draft.focus}` : null,
+    });
+  };
+
+  const createSuggestedTasks = async () => {
+    for (const bullet of subtleSuggestions) await createTaskFromBullet(bullet);
+  };
+
+  const moveIncompleteToTomorrow = () => {
+    const nextLines = openTasks.map((task: any) => task.title);
+    const existing = draft.tomorrow.split("\n").map((line) => normalizeText(line));
+    const merged = [...draft.tomorrow.split("\n").filter(Boolean), ...nextLines.filter((line) => !existing.includes(normalizeText(line)))];
+    updateDraft({ tomorrow: merged.map((line) => `• ${line.replace(/^[-•*\s]+/, "")}`).join("\n") });
   };
 
   const createEvent = async () => {
