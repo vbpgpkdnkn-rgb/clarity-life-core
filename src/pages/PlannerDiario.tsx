@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { InputWithMic } from "@/components/ui/input-with-mic";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { TextareaWithMic } from "@/components/ui/textarea-with-mic";
 import { TaskFormDrawer } from "@/components/forms/TaskFormDrawer";
 import { SessionFormDrawer } from "@/components/psicoterapia/SessionFormDrawer";
 import { useTasks, useUpsertTask } from "@/hooks/useData";
@@ -14,7 +15,7 @@ import { usePatients, useTherapySessions } from "@/hooks/usePsicoterapia";
 import { useScope, defaultScope, filterByScope } from "@/contexts/ScopeContext";
 import { addDaysISO, formatDateLong, todayISO } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { CalendarPlus, ChevronLeft, ChevronRight, Clock, GripVertical, Plus, Sparkle, X } from "lucide-react";
+import { ArrowRight, CalendarPlus, ChevronLeft, ChevronRight, Clock, GripVertical, Lightbulb, Plus, Sparkle, X } from "lucide-react";
 
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 7);
 const priorityRank: Record<string, number> = { alta: 0, media: 1, baixa: 2 };
@@ -23,7 +24,29 @@ const priorityLabels: Record<string, string> = { alta: "Alta", media: "Média", 
 type DailyMeta = {
   focus?: string;
   intention?: string;
+  tomorrow?: string;
 };
+
+type ParsedBullet = { text: string; kind: "tarefa" | "decisão" | "pendência"; priority: "alta" | "media" | "baixa" };
+
+const normalizeText = (value: string) => value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+function parsePlanning(text: string): ParsedBullet[] {
+  return text
+    .split(/\n|;|\. /)
+    .map((line) => line.replace(/^[-•*\d.)\s]+/, "").trim())
+    .filter((line) => line.length > 3)
+    .map((line) => {
+      const n = normalizeText(line);
+      const kind = n.includes("decidir") || n.includes("decisao") || n.includes("definir")
+        ? "decisão"
+        : n.includes("pendente") || n.includes("aguard") || n.includes("resolver")
+        ? "pendência"
+        : "tarefa";
+      const priority = n.includes("urgente") || n.includes("importante") || n.includes("hoje") || n.includes("preciso") ? "alta" : kind === "pendência" ? "media" : "baixa";
+      return { text: line, kind, priority };
+    });
+}
 
 function getDailyMeta(plan: any): DailyMeta {
   const value = plan?.top_priorities;
