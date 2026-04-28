@@ -316,15 +316,22 @@ export default function PlannerDiario() {
               </div>
 
               <div className="mb-4 flex gap-2">
-                <Input
+                <InputWithMic
                   value={quickTask}
-                  onChange={(e) => setQuickTask(e.target.value)}
+                  onValueChange={setQuickTask}
                   onKeyDown={(e) => e.key === "Enter" && createQuickTask()}
                   placeholder="Adicionar tarefa rápida"
                   className="h-11"
                 />
                 <Button onClick={createQuickTask} className="h-11 px-4"><Plus className="h-4 w-4" /></Button>
               </div>
+
+              {subtleSuggestions.length > 0 && (
+                <div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                  <span className="inline-flex items-center gap-2"><Lightbulb className="h-4 w-4" /> {subtleSuggestions.length} próxima ação possível no planejamento</span>
+                  <Button size="sm" variant="ghost" onClick={createSuggestedTasks}>Adicionar</Button>
+                </div>
+              )}
 
               <div className="space-y-2">
                 {openTasks.length === 0 && <div className="rounded-md border border-dashed border-border p-6 text-sm text-muted-foreground">Nenhuma tarefa essencial para hoje.</div>}
@@ -356,6 +363,23 @@ export default function PlannerDiario() {
                   </div>
                 </div>
               )}
+            </Card>
+
+            <Card className="border-border/70 p-5 shadow-none">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-display text-2xl font-semibold">Para amanhã</h2>
+                  <p className="text-sm text-muted-foreground">Capture tarefas futuras sem encerrar o dia.</p>
+                </div>
+                <Button size="sm" variant="outline" onClick={moveIncompleteToTomorrow}><ArrowRight className="mr-2 h-4 w-4" />Mover abertas</Button>
+              </div>
+              <TextareaWithMic
+                value={draft.tomorrow}
+                onValueChange={(value) => updateDraft({ tomorrow: value })}
+                placeholder="O que pode ficar para amanhã?"
+                className="min-h-[96px] resize-none border-0 bg-muted/25 shadow-none focus-visible:ring-1"
+              />
+              {draft.tomorrow.trim() && <Button size="sm" variant="ghost" className="mt-3" onClick={createTomorrowTasks}>Criar tarefas para amanhã</Button>}
             </Card>
           </main>
 
@@ -403,9 +427,9 @@ export default function PlannerDiario() {
           <div className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
             <Sparkle className="h-4 w-4" /> Anotações rápidas
           </div>
-          <Textarea
+          <TextareaWithMic
             value={draft.notes}
-            onChange={(e) => updateDraft({ notes: e.target.value })}
+            onValueChange={(value) => updateDraft({ notes: value })}
             placeholder="Registre algo importante sem estruturar demais."
             className={cn("min-h-[92px] resize-none border-0 bg-muted/25 shadow-none transition-opacity focus-visible:ring-1", completedCount > 0 && "opacity-75")}
           />
