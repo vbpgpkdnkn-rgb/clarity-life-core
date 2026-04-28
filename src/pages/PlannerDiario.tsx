@@ -48,6 +48,11 @@ function parsePlanning(text: string): ParsedBullet[] {
     });
 }
 
+function structureAsBullets(text: string) {
+  const bullets = parsePlanning(text);
+  return bullets.length ? bullets.map((bullet) => `• ${bullet.text}`).join("\n") : text;
+}
+
 function getDailyMeta(plan: any): DailyMeta {
   const value = plan?.top_priorities;
   if (value && !Array.isArray(value) && typeof value === "object") return value as DailyMeta;
@@ -280,6 +285,7 @@ export default function PlannerDiario() {
               <TextareaWithMic
                 value={draft.planning}
                 onValueChange={(value) => updateDraft({ planning: value })}
+                onBlur={() => updateDraft({ planning: structureAsBullets(draft.planning) })}
                 placeholder="Escreva livremente: prioridades, decisões, pendências e próximos passos."
                 className="min-h-[160px] resize-none border-0 bg-muted/30 text-base leading-relaxed shadow-none focus-visible:ring-1"
               />
@@ -376,6 +382,7 @@ export default function PlannerDiario() {
               <TextareaWithMic
                 value={draft.tomorrow}
                 onValueChange={(value) => updateDraft({ tomorrow: value })}
+                onBlur={() => updateDraft({ tomorrow: structureAsBullets(draft.tomorrow) })}
                 placeholder="O que pode ficar para amanhã?"
                 className="min-h-[96px] resize-none border-0 bg-muted/25 shadow-none focus-visible:ring-1"
               />
