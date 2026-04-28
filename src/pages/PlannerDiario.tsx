@@ -151,7 +151,6 @@ export default function PlannerDiario() {
     upsertPlan.mutate({
       id: plan?.id,
       date,
-      top_priorities: { focus: next.focus, intention: next.intention },
       top_priorities: { focus: next.focus, intention: next.intention, tomorrow: next.tomorrow },
       notes_rich: next.planning,
       reflection: next.notes,
@@ -189,6 +188,10 @@ export default function PlannerDiario() {
 
   const createSuggestedTasks = async () => {
     for (const bullet of subtleSuggestions) await createTaskFromBullet(bullet);
+  };
+
+  const createTomorrowTasks = async () => {
+    for (const bullet of parsePlanning(draft.tomorrow)) await createTaskFromBullet(bullet, addDaysISO(date, 1));
   };
 
   const moveIncompleteToTomorrow = () => {
@@ -247,19 +250,19 @@ export default function PlannerDiario() {
           <div className="grid gap-3 md:grid-cols-[1.1fr_0.9fr]">
             <label className="space-y-1.5">
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Foco do dia</span>
-              <Input
+              <InputWithMic
                 ref={focusInputRef}
                 value={draft.focus}
-                onChange={(e) => updateDraft({ focus: e.target.value })}
+                onValueChange={(value) => updateDraft({ focus: value })}
                 placeholder="Qual é a prioridade central do seu dia?"
                 className="h-11 border-0 bg-muted/40 text-base font-medium shadow-none focus-visible:ring-1"
               />
             </label>
             <label className="space-y-1.5">
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Intenção</span>
-              <Input
+              <InputWithMic
                 value={draft.intention}
-                onChange={(e) => updateDraft({ intention: e.target.value })}
+                onValueChange={(value) => updateDraft({ intention: value })}
                 placeholder="Como você quer conduzir o dia?"
                 className="h-11 border-0 bg-muted/40 shadow-none focus-visible:ring-1"
               />
