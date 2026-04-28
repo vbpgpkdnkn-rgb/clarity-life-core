@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { InputWithMic } from "@/components/ui/input-with-mic";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { TextareaWithMic } from "@/components/ui/textarea-with-mic";
 import { TaskFormDrawer } from "@/components/forms/TaskFormDrawer";
 import { SessionFormDrawer } from "@/components/psicoterapia/SessionFormDrawer";
 import { useTasks, useUpsertTask } from "@/hooks/useData";
@@ -14,7 +15,7 @@ import { usePatients, useTherapySessions } from "@/hooks/usePsicoterapia";
 import { useScope, defaultScope, filterByScope } from "@/contexts/ScopeContext";
 import { addDaysISO, formatDateLong, todayISO } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { CalendarPlus, ChevronLeft, ChevronRight, Clock, GripVertical, Plus, Sparkle, X } from "lucide-react";
+import { ArrowRight, CalendarPlus, ChevronLeft, ChevronRight, Clock, GripVertical, Lightbulb, Plus, Sparkle, X } from "lucide-react";
 
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 7);
 const priorityRank: Record<string, number> = { alta: 0, media: 1, baixa: 2 };
@@ -23,7 +24,34 @@ const priorityLabels: Record<string, string> = { alta: "Alta", media: "Média", 
 type DailyMeta = {
   focus?: string;
   intention?: string;
+  tomorrow?: string;
 };
+
+type ParsedBullet = { text: string; kind: "tarefa" | "decisão" | "pendência"; priority: "alta" | "media" | "baixa" };
+
+const normalizeText = (value: string) => value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+function parsePlanning(text: string): ParsedBullet[] {
+  return text
+    .split(/\n|;|\. /)
+    .map((line) => line.replace(/^[-•*\d.)\s]+/, "").trim())
+    .filter((line) => line.length > 3)
+    .map((line) => {
+      const n = normalizeText(line);
+      const kind = n.includes("decidir") || n.includes("decisao") || n.includes("definir")
+        ? "decisão"
+        : n.includes("pendente") || n.includes("aguard") || n.includes("resolver")
+        ? "pendência"
+        : "tarefa";
+      const priority = n.includes("urgente") || n.includes("importante") || n.includes("hoje") || n.includes("preciso") ? "alta" : kind === "pendência" ? "media" : "baixa";
+      return { text: line, kind, priority };
+    });
+}
+
+function structureAsBullets(text: string) {
+  const bullets = parsePlanning(text);
+  return bullets.length ? bullets.map((bullet) => `• ${bullet.text}`).join("\n") : text;
+}
 
 function getDailyMeta(plan: any): DailyMeta {
   const value = plan?.top_priorities;
@@ -41,7 +69,7 @@ export default function PlannerDiario() {
   const [newEventTime, setNewEventTime] = useState("09:00");
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [manualOrder, setManualOrder] = useState<string[]>([]);
-  const [draft, setDraft] = useState({ focus: "", intention: "", planning: "", notes: "" });
+  const [draft, setDraft] = useState({ focus: "", intention: "", planning: "", notes: "", tomorrow: "" });
   const [hasUserEditedPlan, setHasUserEditedPlan] = useState(false);
   const focusInputRef = useRef<HTMLInputElement>(null);
 
@@ -73,6 +101,7 @@ export default function PlannerDiario() {
     setDraft({
       focus: meta.focus || previousFocus,
       intention: meta.intention ?? "",
+      tomorrow: meta.tomorrow ?? "",
       planning: plan?.notes_rich ?? "",
       notes: plan?.reflection ?? "",
     });
@@ -101,6 +130,10 @@ export default function PlannerDiario() {
   const completedTasks = orderedTasks.filter((task: any) => task.status === "concluida");
   const completedCount = completedTasks.length;
   const topTaskIds = new Set(openTasks.slice(0, 3).map((task: any) => task.id));
+  const planningBullets = useMemo(() => parsePlanning(draft.planning), [draft.planning]);
+  const taskTitles = useMemo(() => new Set(scopedTasks.map((task: any) => normalizeText(task.title))), [scopedTasks]);
+  const actionableBullets = planningBullets.filter((bullet) => !taskTitles.has(normalizeText(bullet.text)));
+  const subtleSuggestions = actionableBullets.slice(0, 3);
 
   const agendaItems = useMemo(() => {
     const eventItems = scopedEvents.map((event: any) => ({
@@ -123,7 +156,7 @@ export default function PlannerDiario() {
     upsertPlan.mutate({
       id: plan?.id,
       date,
-      top_priorities: { focus: next.focus, intention: next.intention },
+      top_priorities: { focus: next.focus, intention: next.intention, tomorrow: next.tomorrow },
       notes_rich: next.planning,
       reflection: next.notes,
     });
@@ -144,6 +177,33 @@ export default function PlannerDiario() {
       scope: defaultScope(scope),
     });
     setQuickTask("");
+  };
+
+  const createTaskFromBullet = async (bullet: ParsedBullet, targetDate = date) => {
+    if (taskTitles.has(normalizeText(bullet.text))) return;
+    await upsertTask.mutateAsync({
+      title: bullet.text,
+      due_date: targetDate,
+      priority: bullet.priority,
+      status: "pendente",
+      scope: defaultScope(scope),
+      notes: draft.focus ? `Foco do dia: ${draft.focus}` : null,
+    });
+  };
+
+  const createSuggestedTasks = async () => {
+    for (const bullet of subtleSuggestions) await createTaskFromBullet(bullet);
+  };
+
+  const createTomorrowTasks = async () => {
+    for (const bullet of parsePlanning(draft.tomorrow)) await createTaskFromBullet(bullet, addDaysISO(date, 1));
+  };
+
+  const moveIncompleteToTomorrow = () => {
+    const nextLines = openTasks.map((task: any) => task.title);
+    const existing = draft.tomorrow.split("\n").map((line) => normalizeText(line));
+    const merged = [...draft.tomorrow.split("\n").filter(Boolean), ...nextLines.filter((line) => !existing.includes(normalizeText(line)))];
+    updateDraft({ tomorrow: merged.map((line) => `• ${line.replace(/^[-•*\s]+/, "")}`).join("\n") });
   };
 
   const createEvent = async () => {
@@ -195,19 +255,19 @@ export default function PlannerDiario() {
           <div className="grid gap-3 md:grid-cols-[1.1fr_0.9fr]">
             <label className="space-y-1.5">
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Foco do dia</span>
-              <Input
+              <InputWithMic
                 ref={focusInputRef}
                 value={draft.focus}
-                onChange={(e) => updateDraft({ focus: e.target.value })}
+                onValueChange={(value) => updateDraft({ focus: value })}
                 placeholder="Qual é a prioridade central do seu dia?"
                 className="h-11 border-0 bg-muted/40 text-base font-medium shadow-none focus-visible:ring-1"
               />
             </label>
             <label className="space-y-1.5">
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Intenção</span>
-              <Input
+              <InputWithMic
                 value={draft.intention}
-                onChange={(e) => updateDraft({ intention: e.target.value })}
+                onValueChange={(value) => updateDraft({ intention: value })}
                 placeholder="Como você quer conduzir o dia?"
                 className="h-11 border-0 bg-muted/40 shadow-none focus-visible:ring-1"
               />
@@ -222,12 +282,31 @@ export default function PlannerDiario() {
                 <h2 className="font-display text-2xl font-semibold">Planejamento de hoje</h2>
                 <p className="text-sm text-muted-foreground">O que precisa acontecer hoje para o dia valer a pena?</p>
               </div>
-              <Textarea
+              <TextareaWithMic
                 value={draft.planning}
-                onChange={(e) => updateDraft({ planning: e.target.value })}
+                onValueChange={(value) => updateDraft({ planning: value })}
+                onBlur={() => updateDraft({ planning: structureAsBullets(draft.planning) })}
                 placeholder="Escreva livremente: prioridades, decisões, pendências e próximos passos."
                 className="min-h-[160px] resize-none border-0 bg-muted/30 text-base leading-relaxed shadow-none focus-visible:ring-1"
               />
+              {planningBullets.length > 0 && (
+                <div className="mt-4 space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Organizado em ação</div>
+                    {subtleSuggestions.length > 0 && <Button size="sm" variant="ghost" onClick={createSuggestedTasks}>Criar {subtleSuggestions.length} tarefas</Button>}
+                  </div>
+                  {planningBullets.map((bullet, index) => {
+                    const exists = taskTitles.has(normalizeText(bullet.text));
+                    return (
+                      <div key={`${bullet.text}-${index}`} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-background/60">
+                        <span className="w-20 shrink-0 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{bullet.kind}</span>
+                        <span className="min-w-0 flex-1 truncate">{bullet.text}</span>
+                        {!exists && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => createTaskFromBullet(bullet)}>Virar tarefa</Button>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </Card>
 
             <Card className="border-border/70 p-5 shadow-none">
@@ -243,15 +322,22 @@ export default function PlannerDiario() {
               </div>
 
               <div className="mb-4 flex gap-2">
-                <Input
+                <InputWithMic
                   value={quickTask}
-                  onChange={(e) => setQuickTask(e.target.value)}
+                  onValueChange={setQuickTask}
                   onKeyDown={(e) => e.key === "Enter" && createQuickTask()}
                   placeholder="Adicionar tarefa rápida"
                   className="h-11"
                 />
                 <Button onClick={createQuickTask} className="h-11 px-4"><Plus className="h-4 w-4" /></Button>
               </div>
+
+              {subtleSuggestions.length > 0 && (
+                <div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                  <span className="inline-flex items-center gap-2"><Lightbulb className="h-4 w-4" /> {subtleSuggestions.length} próxima ação possível no planejamento</span>
+                  <Button size="sm" variant="ghost" onClick={createSuggestedTasks}>Adicionar</Button>
+                </div>
+              )}
 
               <div className="space-y-2">
                 {openTasks.length === 0 && <div className="rounded-md border border-dashed border-border p-6 text-sm text-muted-foreground">Nenhuma tarefa essencial para hoje.</div>}
@@ -283,6 +369,24 @@ export default function PlannerDiario() {
                   </div>
                 </div>
               )}
+            </Card>
+
+            <Card className="border-border/70 p-5 shadow-none">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-display text-2xl font-semibold">Para amanhã</h2>
+                  <p className="text-sm text-muted-foreground">Capture tarefas futuras sem encerrar o dia.</p>
+                </div>
+                <Button size="sm" variant="outline" onClick={moveIncompleteToTomorrow}><ArrowRight className="mr-2 h-4 w-4" />Mover abertas</Button>
+              </div>
+              <TextareaWithMic
+                value={draft.tomorrow}
+                onValueChange={(value) => updateDraft({ tomorrow: value })}
+                onBlur={() => updateDraft({ tomorrow: structureAsBullets(draft.tomorrow) })}
+                placeholder="O que pode ficar para amanhã?"
+                className="min-h-[96px] resize-none border-0 bg-muted/25 shadow-none focus-visible:ring-1"
+              />
+              {draft.tomorrow.trim() && <Button size="sm" variant="ghost" className="mt-3" onClick={createTomorrowTasks}>Criar tarefas para amanhã</Button>}
             </Card>
           </main>
 
@@ -330,9 +434,9 @@ export default function PlannerDiario() {
           <div className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
             <Sparkle className="h-4 w-4" /> Anotações rápidas
           </div>
-          <Textarea
+          <TextareaWithMic
             value={draft.notes}
-            onChange={(e) => updateDraft({ notes: e.target.value })}
+            onValueChange={(value) => updateDraft({ notes: value })}
             placeholder="Registre algo importante sem estruturar demais."
             className={cn("min-h-[92px] resize-none border-0 bg-muted/25 shadow-none transition-opacity focus-visible:ring-1", completedCount > 0 && "opacity-75")}
           />
