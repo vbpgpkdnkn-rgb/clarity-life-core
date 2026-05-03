@@ -34,7 +34,7 @@ import { IntelligenceTab } from "@/components/conteudo/IntelligenceTab";
 import { GrowthTab } from "@/components/conteudo/GrowthTab";
 import { RelationalEngineTab, RelationalSeed } from "@/components/conteudo/RelationalEngineTab";
 import { FloatingIdeaCapture, IdeasTab } from "@/components/conteudo/IdeasTab";
-import { useAudienceIntelligence, AudienceAngle, AudienceIdea } from "@/hooks/useAudienceIntelligence";
+import { AudienceIntelligenceTab } from "@/components/conteudo/AudienceIntelligenceTab";
 import {
   ContentFormat,
   ContentPiece,
