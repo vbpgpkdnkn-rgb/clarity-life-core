@@ -46,11 +46,15 @@ export type RelationalSeed = {
   hook?: string;
   anchor?: string;
   format?: "reel" | "carrossel" | "legenda";
+  objective?: string;
   audienceContext?: string;
+  myPerspective?: string;
   ideaId?: string;
   sourceLabel?: string;
+  sourceOrigin?: string;
   onScriptReady?: (pieceId?: string) => void;
 };
+
 
 const THEME_PRESETS = [
   "o casal que convive mas não se conecta",
