@@ -794,6 +794,240 @@ Toda geração desta aba passa por esse prompt antes de chegar na sua tela.`;
 // ─────────────────────────────────────────────
 // EXPORT PRINCIPAL
 // ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// SUB-TAB: Tópicos para gravação (NOVO - padrão)
+// ─────────────────────────────────────────────
+function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
+  const [theme, setTheme] = useState("");
+  const [myPerspective, setMyPerspective] = useState("");
+  const [format, setFormat] = useState("reel");
+  const [objective, setObjective] = useState("identificacao");
+  const [anchor, setAnchor] = useState("auto");
+  const [audienceContext, setAudienceContext] = useState("");
+  const [showAudience, setShowAudience] = useState(false);
+  const [result, setResult] = useState<import("@/hooks/useRelationalEngine").RelationalTopicsResult | null>(null);
+  const [avoidHooks, setAvoidHooks] = useState<string[]>([]);
+  const gen = useGenerateRelational();
+  const upsertPiece = useUpsertPiece();
+  const { scope } = useScope();
+
+  useEffect(() => {
+    if (!seed) return;
+    setTheme(seed.theme ?? "");
+    setMyPerspective(seed.myPerspective ?? "");
+    setFormat(seed.format ?? "reel");
+    setAnchor(seed.anchor ?? "auto");
+    setObjective(seed.objective ?? "identificacao");
+    setAudienceContext(seed.audienceContext ?? "");
+  }, [seed]);
+
+  async function handleGenerate() {
+    if (!theme.trim()) {
+      toast.error("Informe o tema");
+      return;
+    }
+    const data = (await gen.mutateAsync({
+      mode: "topics",
+      theme: theme.trim(),
+      my_perspective: myPerspective.trim(),
+      objective,
+      format,
+      anchor,
+      audience_context: audienceContext.trim() || undefined,
+    })) as import("@/hooks/useRelationalEngine").RelationalTopicsResult;
+    setResult(data);
+    setAvoidHooks([]);
+  }
+
+  async function rewriteHook() {
+    if (!result) return;
+    const data = (await gen.mutateAsync({
+      mode: "topics",
+      theme: theme.trim(),
+      my_perspective: myPerspective.trim(),
+      objective,
+      format,
+      anchor,
+      audience_context: audienceContext.trim() || undefined,
+      avoid: [...avoidHooks, result.hook.question],
+    })) as import("@/hooks/useRelationalEngine").RelationalTopicsResult;
+    setAvoidHooks((prev) => [...prev, result.hook.question]);
+    setResult({ ...result, hook: data.hook });
+    toast.success("Novo gancho gerado");
+  }
+
+  function removeTopic(index: number) {
+    if (!result) return;
+    setResult({ ...result, topics: result.topics.filter((_, i) => i !== index) });
+  }
+
+  function sendToProduction() {
+    if (!result) return;
+    const formatted = formatTopicsAsScript(result);
+    upsertPiece.mutate({
+      title: result.hook.question.slice(0, 160),
+      theme: result.theme,
+      format: ({ reel: "reels", carrossel: "carrossel", legenda: "texto" } as const)[result.format],
+      status: "em_producao",
+      pipeline_stage: "roteiro_pronto",
+      clinical_anchor: anchor === "auto" ? null : anchor,
+      audience_context: audienceContext || null,
+      hook: result.hook.question,
+      script: formatted,
+      notes: formatted,
+      idea_id: seed?.ideaId ?? null,
+      scope: (scope === "todos" ? "profissional" : scope) as any,
+    } as any, { onSuccess: (piece) => { seed?.onScriptReady?.((piece as any)?.id); toast.success("Enviado ao Pipeline"); } });
+  }
+
+  return (
+    <div className="space-y-4">
+      {seed?.sourceLabel && (
+        <Card className="p-3 border-accent/30 bg-accent/5">
+          <p className="text-sm">
+            <span className="font-medium">Desenvolvendo:</span> {seed.sourceLabel}
+            {seed.sourceOrigin && <span className="text-muted-foreground"> · origem: {seed.sourceOrigin}</span>}
+          </p>
+          {seed.audienceContext && (
+            <details className="mt-2 text-xs text-muted-foreground">
+              <summary className="cursor-pointer">Ver contexto da audiência</summary>
+              <pre className="whitespace-pre-wrap mt-2 text-[11px]">{seed.audienceContext}</pre>
+            </details>
+          )}
+        </Card>
+      )}
+
+      <div>
+        <Label>Tema ou ideia</Label>
+        <Input value={theme} onChange={(e) => setTheme(e.target.value)} className="mt-2" placeholder="Ex: o casal que parou de brigar" />
+      </div>
+
+      <div>
+        <Label className="flex items-center gap-2">
+          O que você pensa sobre esse tema
+          <Badge variant="outline" className="text-[10px]">coração do conteúdo</Badge>
+        </Label>
+        <Textarea
+          rows={5}
+          value={myPerspective}
+          onChange={(e) => setMyPerspective(e.target.value)}
+          className="mt-2"
+          placeholder="Escreva como você falaria para uma paciente. Sem filtro, sem formatação. O que você realmente acha disso?"
+        />
+        <p className="text-[11px] text-muted-foreground mt-1.5">
+          Isso determina se o conteúdo vai soar como você ou como qualquer outra psicóloga.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <div>
+          <Label>Formato</Label>
+          <Select value={format} onValueChange={setFormat}>
+            <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Object.entries(FORMAT_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Objetivo</Label>
+          <Select value={objective} onValueChange={setObjective}>
+            <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Object.entries(OBJECTIVE_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Ancoragem clínica</Label>
+          <Select value={anchor} onValueChange={setAnchor}>
+            <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="auto">A IA decide</SelectItem>
+              <SelectItem value="IBCT">IBCT</SelectItem>
+              <SelectItem value="Gottman">Gottman</SelectItem>
+              <SelectItem value="IBCT+Gottman">IBCT + Gottman</SelectItem>
+              <SelectItem value="sem_nomear">Só minha visão (sem nomear)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button onClick={handleGenerate} disabled={gen.isPending} size="lg" className="w-full">
+        {gen.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Gerando tópicos…</> : <><Wand2 className="h-4 w-4 mr-2" />Gerar tópicos para gravação</>}
+      </Button>
+
+      {result && (
+        <Card className="p-5 space-y-4 border-accent/30">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap">
+              <Badge variant="secondary">{FORMAT_LABEL[result.format]}</Badge>
+              <Badge variant="outline">{OBJECTIVE_LABEL[result.objective]}</Badge>
+              <Badge variant="outline">{result.anchor}</Badge>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="ghost" onClick={() => copyToClipboard(formatTopicsAsScript(result))}>
+                <Copy className="h-3.5 w-3.5 mr-1" /> Copiar
+              </Button>
+              <Button size="sm" onClick={sendToProduction} disabled={upsertPiece.isPending}>
+                <Mic2 className="h-3.5 w-3.5 mr-1" /> Enviar para produção
+              </Button>
+            </div>
+          </div>
+
+          <div className="border-l-2 border-accent pl-3">
+            <p className="text-[10px] uppercase tracking-widest text-accent mb-1">Gancho</p>
+            <p className="text-sm font-medium">{result.hook.question}</p>
+            <p className="text-xs text-muted-foreground italic mt-1">↳ {result.hook.note}</p>
+            <Button size="sm" variant="ghost" className="mt-2 h-7 text-xs" onClick={rewriteHook} disabled={gen.isPending}>
+              <Sparkles className="h-3 w-3 mr-1" /> Reescrever gancho
+            </Button>
+          </div>
+
+          {result.topics.map((t, i) => (
+            <div key={i} className="border-l-2 border-border pl-3 group">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Tópico {i + 1} — {t.name}</p>
+                <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removeTopic(i)}>
+                  <XCircle className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <p className="text-sm font-medium mt-1">Pergunta para você responder:</p>
+              <p className="text-sm">"{t.question}"</p>
+              <div className="mt-2 text-xs space-y-1">
+                <p><span className="text-muted-foreground">Contexto:</span> {t.context}</p>
+                <p><span className="text-muted-foreground">Âncora clínica:</span> {t.clinical_anchor}</p>
+              </div>
+            </div>
+          ))}
+
+          <div className="border-l-2 border-accent pl-3">
+            <p className="text-[10px] uppercase tracking-widest text-accent mb-1">Fechamento</p>
+            <p className="text-sm italic">{result.closing.direction}</p>
+          </div>
+
+          <p className="text-[11px] text-muted-foreground border-t border-border pt-3">
+            Estes são tópicos para você responder na câmera com as próprias palavras — não um roteiro para ler.
+          </p>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function formatTopicsAsScript(r: import("@/hooks/useRelationalEngine").RelationalTopicsResult): string {
+  const lines: string[] = [];
+  lines.push(`GANCHO\n${r.hook.question}\n(direção: ${r.hook.note})\n`);
+  r.topics.forEach((t, i) => {
+    lines.push(`TÓPICO ${i + 1} — ${t.name}\nPergunta: "${t.question}"\nContexto: ${t.context}\nÂncora: ${t.clinical_anchor}\n`);
+  });
+  lines.push(`FECHAMENTO\n${r.closing.direction}`);
+  return lines.join("\n");
+}
+
+// ─────────────────────────────────────────────
+// EXPORT PRINCIPAL
+// ─────────────────────────────────────────────
 export function RelationalEngineTab({ seed }: { seed?: RelationalSeed | null }) {
   return (
     <div className="space-y-4">
@@ -801,61 +1035,32 @@ export function RelationalEngineTab({ seed }: { seed?: RelationalSeed | null }) 
         <div className="flex items-start gap-3">
           <Heart className="h-5 w-5 text-accent mt-0.5 shrink-0" />
           <div>
-            <p className="font-semibold text-sm">Motor de Conteúdo — Psicologia de Relacionamentos</p>
+            <p className="font-semibold text-sm">Motor Relacional — tópicos para gravação</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Voz clínica humanizada · IBCT + Método Gottman · tom de especialista · sem clichê de IA
+              Gera perguntas para você responder na câmera com as próprias palavras. Não é roteiro para ler.
             </p>
           </div>
         </div>
       </Card>
 
-      <Tabs defaultValue="gerador">
+      <Tabs defaultValue="topicos">
         <TabsList className="flex flex-wrap h-auto w-full justify-start gap-1">
-          <TabsTrigger value="gerador">
-            <Wand2 className="h-3.5 w-3.5 mr-1" />
-            Gerador
-          </TabsTrigger>
-          <TabsTrigger value="tempo">
-            <Clock className="h-3.5 w-3.5 mr-1" />
-            Script por tempo
-          </TabsTrigger>
-          <TabsTrigger value="lote">
-            <Layers className="h-3.5 w-3.5 mr-1" />
-            Lote
-          </TabsTrigger>
-          <TabsTrigger value="banco">
-            <Library className="h-3.5 w-3.5 mr-1" />
-            Banco de pautas
-          </TabsTrigger>
-          <TabsTrigger value="voz">
-            <Mic2 className="h-3.5 w-3.5 mr-1" />
-            Guia de voz
-          </TabsTrigger>
-          <TabsTrigger value="prompt">
-            <FileText className="h-3.5 w-3.5 mr-1" />
-            System prompt
-          </TabsTrigger>
+          <TabsTrigger value="topicos"><Mic2 className="h-3.5 w-3.5 mr-1" />Tópicos para gravação</TabsTrigger>
+          <TabsTrigger value="gerador"><Wand2 className="h-3.5 w-3.5 mr-1" />Roteiro escrito</TabsTrigger>
+          <TabsTrigger value="tempo"><Clock className="h-3.5 w-3.5 mr-1" />Por tempo</TabsTrigger>
+          <TabsTrigger value="lote"><Layers className="h-3.5 w-3.5 mr-1" />Lote</TabsTrigger>
+          <TabsTrigger value="banco"><Library className="h-3.5 w-3.5 mr-1" />Banco</TabsTrigger>
+          <TabsTrigger value="voz"><FileText className="h-3.5 w-3.5 mr-1" />Guia de voz</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="gerador" className="mt-4">
-          <GeneratorSubTab seed={seed} />
-        </TabsContent>
-        <TabsContent value="tempo" className="mt-4">
-          <TimedScriptSubTab />
-        </TabsContent>
-        <TabsContent value="lote" className="mt-4">
-          <BatchSubTab />
-        </TabsContent>
-        <TabsContent value="banco" className="mt-4">
-          <BankSubTab />
-        </TabsContent>
-        <TabsContent value="voz" className="mt-4">
-          <VoiceGuideSubTab />
-        </TabsContent>
-        <TabsContent value="prompt" className="mt-4">
-          <SystemPromptSubTab />
-        </TabsContent>
+        <TabsContent value="topicos" className="mt-4"><TopicsSubTab seed={seed} /></TabsContent>
+        <TabsContent value="gerador" className="mt-4"><GeneratorSubTab seed={seed} /></TabsContent>
+        <TabsContent value="tempo" className="mt-4"><TimedScriptSubTab /></TabsContent>
+        <TabsContent value="lote" className="mt-4"><BatchSubTab /></TabsContent>
+        <TabsContent value="banco" className="mt-4"><BankSubTab /></TabsContent>
+        <TabsContent value="voz" className="mt-4"><VoiceGuideSubTab /></TabsContent>
       </Tabs>
     </div>
   );
 }
+
