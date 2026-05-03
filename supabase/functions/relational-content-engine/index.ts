@@ -153,6 +153,79 @@ const TIMED_TOOL = {
   },
 };
 
+const TOPICS_TOOL = {
+  type: "function",
+  function: {
+    name: "build_recording_topics",
+    description: "Gera 3-5 tópicos-PERGUNTA para a psicóloga responder na câmera com as próprias palavras. Não é roteiro escrito.",
+    parameters: {
+      type: "object",
+      properties: {
+        theme: { type: "string" },
+        format: { type: "string", enum: ["reel", "carrossel", "legenda"] },
+        objective: { type: "string", enum: ["atrair_paciente", "autoridade", "identificacao", "ensinar"] },
+        anchor: { type: "string", enum: ["IBCT", "Gottman", "IBCT+Gottman", "sem_nomear", "auto"] },
+        hook: {
+          type: "object",
+          properties: {
+            question: { type: "string", description: "Pergunta/frase de abertura — 3 primeiros segundos. Parte do ponto de vista DELA." },
+            note: { type: "string", description: "Observação curta de direção (1 frase)." },
+          },
+          required: ["question", "note"],
+          additionalProperties: false,
+        },
+        topics: {
+          type: "array",
+          minItems: 3,
+          maxItems: 5,
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "Nome curto do bloco (ex: 'A virada', 'O mecanismo')." },
+              question: { type: "string", description: "PERGUNTA para ela responder na câmera. Não é texto pronto." },
+              context: { type: "string", description: "Síntese do que ela já pensa sobre isso (extraída do campo 'O que você pensa'). 1-2 frases." },
+              clinical_anchor: { type: "string", description: "Conceito IBCT ou Gottman traduzido em comportamento cotidiano — 1 frase, sem jargão solto." },
+            },
+            required: ["name", "question", "context", "clinical_anchor"],
+            additionalProperties: false,
+          },
+        },
+        closing: {
+          type: "object",
+          properties: {
+            direction: { type: "string", description: "Como encerrar — direção, não frase pronta." },
+          },
+          required: ["direction"],
+          additionalProperties: false,
+        },
+      },
+      required: ["theme", "format", "objective", "anchor", "hook", "topics", "closing"],
+      additionalProperties: false,
+    },
+  },
+};
+
+const TOPICS_SYSTEM_PROMPT = `QUEM VOCÊ É: IA de conteúdo de uma psicóloga clínica com 10+ anos em relacionamentos e terapia de casal. Base: IBCT e Método Gottman.
+
+REGRA MAIS IMPORTANTE: O campo "O que você pensa sobre esse tema" é o coração do conteúdo. Tudo que você gerar parte do PONTO DE VISTA dela — nunca de uma descrição neutra. Se ela discordou de algo, o conteúdo reflete isso. Se ela trouxe uma observação clínica específica, parte dali.
+
+FORMATO OBRIGATÓRIO DE SAÍDA: Tópicos para gravação. Não roteiro. Cada tópico é uma PERGUNTA que ela responde na câmera com as próprias palavras. Para Reel de 60s: entre 3 e 5 tópicos, dependendo da densidade.
+
+ESTRUTURA INTERNA (não rotular como títulos no texto):
+- GANCHO: pergunta/afirmação que para o scroll, no PDV dela.
+- VIRADA: o que parece ser o problema não é — a leitura clínica dela.
+- MECANISMO: como funciona por dentro — IBCT/Gottman traduzido em comportamento, NUNCA jargão solto.
+- ATERRISSAGEM: onde isso deixa a pessoa — o que ela faz com o insight.
+
+ÂNCORA CLÍNICA — como traduzir:
+- IBCT em comportamento: "cada um, ao tentar resolver do seu lado, amplifica o que o outro faz".
+- Gottman em consequência: "o que diferencia casais que ficam não é ausência de conflito, é o que fazem nos momentos pequenos".
+- NUNCA jargão solto. SEMPRE conceito traduzido em comportamento reconhecível.
+
+TOM PROIBIDO: "Isso não é X, é Y" / "Vale ressaltar" / "Você merece" / "Sua jornada" / qualquer coisa de coach ou autoajuda / texto que pareça escrito para ser lido.
+
+TOM OBRIGATÓRIO: especialista que fala direto. Didática real (traduz, não simplifica). PDV dela aparece sempre.`;
+
 const BATCH_TOOL = {
   type: "function",
   function: {
