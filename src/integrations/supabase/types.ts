@@ -101,6 +101,48 @@ export type Database = {
         }
         Relationships: []
       }
+      audience_analyses: {
+        Row: {
+          angle: string
+          author: string | null
+          comments: string
+          created_at: string
+          id: string
+          ideas: Json
+          my_perspective: string
+          patterns: Json
+          title: string | null
+          transcript: string
+          updated_at: string
+        }
+        Insert: {
+          angle?: string
+          author?: string | null
+          comments?: string
+          created_at?: string
+          id?: string
+          ideas?: Json
+          my_perspective?: string
+          patterns?: Json
+          title?: string | null
+          transcript?: string
+          updated_at?: string
+        }
+        Update: {
+          angle?: string
+          author?: string | null
+          comments?: string
+          created_at?: string
+          id?: string
+          ideas?: Json
+          my_perspective?: string
+          patterns?: Json
+          title?: string | null
+          transcript?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bank_statement_entries: {
         Row: {
           account_id: string
