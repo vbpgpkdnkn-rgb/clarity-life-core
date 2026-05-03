@@ -133,7 +133,7 @@ export default function Conteudo() {
           <TabsTrigger value="crescimento"><TrendingUp className="h-3.5 w-3.5 mr-1" />Crescimento</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="audiencia"><AudienceIntelligenceTab onDevelop={sendAudienceToMotor} /></TabsContent>
+        <TabsContent value="audiencia"><AudienceIntelligenceTab onDevelop={sendIdeaToMotor} /></TabsContent>
         <TabsContent value="ideias"><IdeasTab onDevelop={sendIdeaToMotor} onOpenAudience={() => setTab("audiencia")} /></TabsContent>
         <TabsContent value="motor"><RelationalEngineTab seed={seed} /></TabsContent>
         <TabsContent value="pipeline"><PipelineTab pieces={pieces} metrics={metrics} /></TabsContent>
