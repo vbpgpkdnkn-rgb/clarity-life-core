@@ -295,13 +295,36 @@ Deno.serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurado");
 
     const body = await req.json().catch(() => ({}));
-    const mode: "single" | "timed" | "batch" = body.mode ?? "single";
+    const mode: "single" | "timed" | "batch" | "topics" = body.mode ?? "single";
 
     let tool: any;
     let toolName: string;
     let userMsg: string;
+    let systemPrompt = SYSTEM_PROMPT;
 
-    if (mode === "single") {
+    if (mode === "topics") {
+      tool = TOPICS_TOOL;
+      toolName = "build_recording_topics";
+      systemPrompt = TOPICS_SYSTEM_PROMPT;
+      const theme = body.theme ?? "padrão relacional";
+      const myPerspective = body.my_perspective ?? "";
+      const objective = body.objective ?? "identificacao";
+      const format = body.format ?? "reel";
+      const anchor = body.anchor ?? "auto";
+      const audienceContext = body.audience_context ?? "";
+      userMsg = `Gere TÓPICOS-PERGUNTA para gravação. Não escreva roteiro pronto.
+
+TEMA: ${theme}
+FORMATO: ${format}
+OBJETIVO: ${objective}
+ÂNCORA CLÍNICA: ${anchor === "auto" ? "você decide entre IBCT, Gottman ou IBCT+Gottman" : anchor}
+
+═══ O QUE A PSICÓLOGA PENSA SOBRE ESSE TEMA (use como matéria-prima principal) ═══
+${myPerspective || "(não informado — peça para ela preencher)"}
+
+${audienceContext ? `═══ CONTEXTO DA AUDIÊNCIA ═══\n${audienceContext}\n` : ""}
+Entregue: hook (pergunta de abertura), 3 a 5 tópicos (cada um com nome do bloco, pergunta para ela responder, contexto sintetizado do PDV dela, âncora clínica em comportamento), fechamento como direção (não frase pronta).`;
+    } else if (mode === "single") {
       tool = SINGLE_TOOL;
       toolName = "build_relational_content";
       const theme = body.theme ?? body.insight ?? "padrão relacional";
@@ -346,6 +369,7 @@ MIX DE OBJETIVOS: ${mix === "distribuir" ? "distribua entre atrair_paciente, aut
 
 Variar tema, formato e ângulo. Sem repetir aberturas. Sem clichê.`;
     }
+
 
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
