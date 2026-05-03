@@ -34,7 +34,7 @@ import { IntelligenceTab } from "@/components/conteudo/IntelligenceTab";
 import { GrowthTab } from "@/components/conteudo/GrowthTab";
 import { RelationalEngineTab, RelationalSeed } from "@/components/conteudo/RelationalEngineTab";
 import { FloatingIdeaCapture, IdeasTab } from "@/components/conteudo/IdeasTab";
-import { useAudienceIntelligence, AudienceAngle, AudienceIdea } from "@/hooks/useAudienceIntelligence";
+import { AudienceIntelligenceTab } from "@/components/conteudo/AudienceIntelligenceTab";
 import {
   ContentFormat,
   ContentPiece,
@@ -90,18 +90,6 @@ export default function Conteudo() {
     .filter((p) => p.status === "publicado")
     .sort((a: any, b: any) => ((b.saves ?? 0) + (b.generated_dms ?? 0)) - ((a.saves ?? 0) + (a.generated_dms ?? 0)))[0];
 
-  const sendAudienceToMotor = (idea: AudienceIdea, context: string) => {
-    setSeed({
-      theme: idea.title,
-      hook: idea.hook,
-      anchor: idea.clinical_anchor,
-      format: idea.format,
-      audienceContext: context,
-    });
-    setTab("motor");
-    toast.success("Ideia enviada para o Motor Relacional");
-  };
-
   const sendIdeaToMotor = (nextSeed: RelationalSeed) => {
     setSeed({
       ...nextSeed,
@@ -145,7 +133,7 @@ export default function Conteudo() {
           <TabsTrigger value="crescimento"><TrendingUp className="h-3.5 w-3.5 mr-1" />Crescimento</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="audiencia"><AudienceIntelligenceTab onDevelop={sendAudienceToMotor} /></TabsContent>
+        <TabsContent value="audiencia"><AudienceIntelligenceTab onDevelop={sendIdeaToMotor} /></TabsContent>
         <TabsContent value="ideias"><IdeasTab onDevelop={sendIdeaToMotor} onOpenAudience={() => setTab("audiencia")} /></TabsContent>
         <TabsContent value="motor"><RelationalEngineTab seed={seed} /></TabsContent>
         <TabsContent value="pipeline"><PipelineTab pieces={pieces} metrics={metrics} /></TabsContent>
@@ -157,96 +145,7 @@ export default function Conteudo() {
   );
 }
 
-function AudienceIntelligenceTab({ onDevelop }: { onDevelop: (idea: AudienceIdea, context: string) => void }) {
-  const [transcript, setTranscript] = useState("");
-  const [comments, setComments] = useState("");
-  const [author, setAuthor] = useState("");
-  const [angle, setAngle] = useState<AudienceAngle>("adaptar");
-  const ai = useAudienceIntelligence();
 
-  const context = `Comentários que originaram a pauta:\n${comments.slice(0, 2500)}`;
-
-  return (
-    <div className="space-y-4">
-      <Card className="p-4 space-y-4">
-        <div>
-          <h3 className="font-display font-semibold">Entrada de referência</h3>
-          <p className="text-xs text-muted-foreground">Cole o vídeo e a reação real da audiência. A IA parte do que as pessoas já estão pedindo.</p>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <Label>Transcrição do vídeo de referência</Label>
-            <Textarea rows={10} value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Cole a transcrição completa…" className="mt-2" />
-          </div>
-          <div>
-            <Label>Comentários da audiência</Label>
-            <Textarea rows={10} value={comments} onChange={(e) => setComments(e.target.value)} placeholder="Cole comentários, dúvidas, reclamações e pedidos…" className="mt-2" />
-          </div>
-        </div>
-        <div className="grid gap-3 md:grid-cols-[1fr_1.4fr]">
-          <div>
-            <Label>Autor / perfil de referência</Label>
-            <Input value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="opcional" className="mt-2" />
-          </div>
-          <div>
-            <Label>O que você quer falar sobre isso?</Label>
-            <Select value={angle} onValueChange={(v) => setAngle(v as AudienceAngle)}>
-              <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="adaptar">Adaptar para meu nicho de relacionamentos</SelectItem>
-                <SelectItem value="oposto">Explorar o ângulo oposto</SelectItem>
-                <SelectItem value="aprofundar">Aprofundar com IBCT/Gottman</SelectItem>
-                <SelectItem value="livre">Usar como ponto de partida livre</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <Button
-          size="lg"
-          onClick={() => ai.mutate({ transcript, comments, author, angle })}
-          disabled={ai.isPending || transcript.trim().length < 20 || comments.trim().length < 20}
-        >
-          <Wand2 className="h-4 w-4 mr-2" />
-          {ai.isPending ? "Analisando audiência…" : "Analisar audiência e gerar ideias"}
-        </Button>
-      </Card>
-
-      {ai.data && (
-        <div className="space-y-3">
-          {ai.data.patterns.length > 0 && (
-            <Card className="p-4 bg-accent/5 border-accent/20">
-              <p className="text-[10px] uppercase tracking-widest text-accent mb-2">Padrões detectados nos comentários</p>
-              <div className="flex flex-wrap gap-2">{ai.data.patterns.map((p, i) => <Badge key={i} variant="outline">{p}</Badge>)}</div>
-            </Card>
-          )}
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {ai.data.ideas.map((idea, i) => (
-              <Card key={i} className="p-4 space-y-3">
-                <div className="flex gap-2 flex-wrap">
-                  <Badge variant="secondary">{idea.format}</Badge>
-                  <Badge variant="outline">{idea.clinical_anchor}</Badge>
-                </div>
-                <div>
-                  <h3 className="font-medium leading-snug">{idea.title}</h3>
-                  <p className="text-sm mt-2">{idea.hook}</p>
-                </div>
-                <p className="text-xs text-muted-foreground"><strong>Base da audiência:</strong> {idea.audience_evidence}</p>
-                <p className="text-xs text-muted-foreground">{idea.format_rationale}</p>
-                <Button size="sm" className="w-full" onClick={() => onDevelop(idea, context)}>
-                  Desenvolver em roteiro
-                </Button>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {!ai.data && (
-        <Card className="p-8 text-center text-sm text-muted-foreground">Comece pela Inteligência de Audiência: transcrição + comentários reais.</Card>
-      )}
-    </div>
-  );
-}
 
 function PipelineTab({ pieces, metrics }: { pieces: ContentPiece[]; metrics: any[] }) {
   const [editPiece, setEditPiece] = useState<ContentPiece | null>(null);

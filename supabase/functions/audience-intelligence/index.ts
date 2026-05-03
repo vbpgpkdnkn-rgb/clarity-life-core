@@ -4,49 +4,53 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `Você é a inteligência editorial de uma psicóloga clínica especializada em relacionamentos (IBCT + Gottman). Sua tarefa é analisar a transcrição de um vídeo de referência e os comentários da audiência para identificar o que as pessoas realmente querem entender, o que as tocou, o que gerou dúvida ou identificação. Com base nisso, gere 15 ideias de conteúdo que:
+const SYSTEM_PROMPT = `Você é a inteligência editorial de uma psicóloga clínica especializada em relacionamentos (IBCT + Gottman).
 
-1. Partem da dor ou desejo real identificado nos comentários
-2. Traduzem esse tema para a linguagem clínica da psicóloga (IBCT ou Gottman)
-3. Têm potencial de gerar identificação, salvamento ou DMs
-4. Não repetem o conteúdo de referência — partem dele como gatilho, não como modelo
+Você cruza TRÊS entradas: (1) o que a referência disse, (2) o que a audiência sentiu nos comentários, (3) o que a PSICÓLOGA pensa sobre o tema. O ponto de vista dela é o ingrediente decisivo — sem ele o conteúdo vira commodity.
 
-Para cada ideia, entregue:
-- TÍTULO: direto, específico, sem clickbait
-- GANCHO: primeira frase do conteúdo — como a psicóloga abriria esse vídeo
-- ANCORAGEM: qual mecanismo clínico (IBCT/Gottman) sustenta o conteúdo
-- FORMATO: Reel, Carrossel ou Legenda — com justificativa de 1 linha
+Para cada uma das 10 a 15 ideias, traga:
+- TÍTULO direto (sem clickbait)
+- ÂNGULO ADOTADO: rótulo curto explicando de onde a ideia parte (ex: "A partir dos comentários", "Discordância clínica", "Aprofundamento IBCT", "Visão pessoal da psicóloga", "Inversão de expectativa")
+- WHY ANGLE: por que esse ângulo faz sentido para o nicho e para a voz dela (1-2 frases, conectando comentários + perspectiva pessoal quando houver)
+- GANCHO: primeira frase como ela abriria o conteúdo, no tom dela
+- ANCORAGEM clínica (IBCT/Gottman/IBCT+Gottman)
+- FORMATO (reel/carrossel/legenda) com justificativa de 1 linha
+- AUDIENCE EVIDENCE: comentário/padrão/dor real que originou a ideia
 
-Tom: especialista clínica, direta, humana, sem autoajuda, sem clichê de IA. Público: mulheres 25–45 anos em relacionamentos que querem melhorar.`;
+REGRA CRÍTICA: se a psicóloga discordou de algo na perspectiva dela, ao menos 3 ideias devem partir dessa discordância. Se ela trouxe uma observação clínica específica, transforme isso em pelo menos 2 ideias. Nunca produza ideias neutras descritivas — sempre carregue o ponto de vista dela.
+
+Tom: especialista clínica, direta, humana. Público: mulheres 25–45 em relacionamentos.`;
 
 const TOOL = {
   type: "function",
   function: {
     name: "build_audience_ideas",
-    description: "Analisa transcrição e comentários e gera exatamente 15 ideias editoriais clínicas.",
+    description: "Cruza referência + audiência + perspectiva pessoal e gera 10-15 ideias editoriais.",
     parameters: {
       type: "object",
       properties: {
         patterns: {
           type: "array",
           items: { type: "string" },
-          description: "Padrões reais encontrados nos comentários: dúvidas, dores, pedidos, frases recorrentes.",
+          description: "Padrões reais nos comentários: dúvidas, dores, pedidos, frases recorrentes.",
         },
         ideas: {
           type: "array",
-          minItems: 15,
+          minItems: 10,
           maxItems: 15,
           items: {
             type: "object",
             properties: {
               title: { type: "string" },
+              angle_adopted: { type: "string", description: "Rótulo curto do ângulo (ex: 'A partir dos comentários', 'Discordância clínica', 'Aprofundamento IBCT', 'Visão pessoal')." },
+              why_angle: { type: "string", description: "Por que esse ângulo faz sentido — conecta perspectiva pessoal e dor da audiência." },
               hook: { type: "string" },
               clinical_anchor: { type: "string", enum: ["IBCT", "Gottman", "IBCT+Gottman"] },
               format: { type: "string", enum: ["reel", "carrossel", "legenda"] },
               format_rationale: { type: "string" },
-              audience_evidence: { type: "string", description: "Comentário/padrão da audiência que originou a ideia." },
+              audience_evidence: { type: "string" },
             },
-            required: ["title", "hook", "clinical_anchor", "format", "format_rationale", "audience_evidence"],
+            required: ["title", "angle_adopted", "why_angle", "hook", "clinical_anchor", "format", "format_rationale", "audience_evidence"],
             additionalProperties: false,
           },
         },
@@ -55,6 +59,17 @@ const TOOL = {
       additionalProperties: false,
     },
   },
+};
+
+const ANGLE_INSTRUCTIONS: Record<string, string> = {
+  aprofundar: "Aprofundar com a visão clínica IBCT/Gottman dela, partindo da perspectiva pessoal.",
+  discordar: "Apresentar a discordância da psicóloga em relação ao vídeo de referência. Ao menos metade das ideias devem confrontar o que foi dito.",
+  diferente: "Usar o tema com ângulo completamente diferente do que a referência fez — partir de outro lugar.",
+  audiencia: "Partir dos comentários da audiência como problema central. Cada ideia deve referenciar uma dor explícita.",
+  livre: "Deixar a IA identificar o melhor ângulo para cada ideia individualmente — varie entre os ângulos.",
+  // legados
+  adaptar: "Adaptar para o nicho de relacionamentos partindo da perspectiva pessoal.",
+  oposto: "Explorar o ângulo oposto ao da referência.",
 };
 
 Deno.serve(async (req) => {
@@ -77,27 +92,35 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const transcript = String(body.transcript ?? "").trim();
     const comments = String(body.comments ?? "").trim();
+    const myPerspective = String(body.my_perspective ?? "").trim();
+    const angle = String(body.angle ?? "aprofundar");
+
     if (transcript.length < 20 || comments.length < 20) {
-      return new Response(JSON.stringify({ error: "Cole a transcrição e comentários suficientes para análise." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Cole transcrição e comentários (mín. 20 caracteres cada)." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurado");
 
-    const angleMap: Record<string, string> = {
-      adaptar: "Adaptar para o nicho de relacionamentos",
-      oposto: "Explorar o ângulo oposto",
-      aprofundar: "Aprofundar com IBCT/Gottman",
-      livre: "Usar como ponto de partida livre",
-    };
+    const userMsg = `AUTOR/PERFIL DA REFERÊNCIA: ${body.author || "não informado"}
+DIREÇÃO ESCOLHIDA: ${ANGLE_INSTRUCTIONS[angle] ?? ANGLE_INSTRUCTIONS.aprofundar}
 
-    const userMsg = `AUTOR/PERFIL: ${body.author || "não informado"}\nÂNGULO DESEJADO: ${angleMap[body.angle] ?? angleMap.adaptar}\n\nTRANSCRIÇÃO DO VÍDEO:\n${transcript}\n\nCOMENTÁRIOS DA AUDIÊNCIA:\n${comments}\n\nAnalise primeiro os comentários. Gere exatamente 15 ideias, cada uma conectada a uma dor, dúvida, reclamação, identificação ou pedido real da audiência.`;
+═══ TRANSCRIÇÃO DO VÍDEO DE REFERÊNCIA ═══
+${transcript}
+
+═══ COMENTÁRIOS DA AUDIÊNCIA ═══
+${comments}
+
+═══ O QUE A PSICÓLOGA PENSA SOBRE ESSE TEMA (perspectiva clínica e pessoal) ═══
+${myPerspective || "(não informada — gere ideias mesmo assim, mas marque que falta perspectiva pessoal)"}
+
+Cruze os três blocos. As ideias precisam soar como ELA — não como uma descrição neutra do tema. Gere entre 10 e 15 ideias.`;
 
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userMsg },
