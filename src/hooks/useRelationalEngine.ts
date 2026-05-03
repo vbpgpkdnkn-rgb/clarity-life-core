@@ -51,16 +51,35 @@ export interface RelationalBatchResult {
   items: RelationalBatchItem[];
 }
 
+export interface RelationalTopic {
+  name: string;
+  question: string;
+  context: string;
+  clinical_anchor: string;
+}
+
+export interface RelationalTopicsResult {
+  mode: "topics";
+  theme: string;
+  format: RelationalFormat;
+  objective: RelationalObjective;
+  anchor: string;
+  hook: { question: string; note: string };
+  topics: RelationalTopic[];
+  closing: { direction: string };
+}
+
 export const useGenerateRelational = () => {
   return useMutation({
     mutationFn: async (input: {
-      mode: "single" | "timed" | "batch";
+      mode: "single" | "timed" | "batch" | "topics";
       theme?: string;
       insight?: string;
       objective?: string;
       format?: string;
       anchor?: string;
       audience_context?: string;
+      my_perspective?: string;
       duration_seconds?: number;
       quantity?: number;
       focus?: string;
@@ -77,6 +96,7 @@ export const useGenerateRelational = () => {
     onError: (e: any) => toast.error(e.message ?? "Erro na IA"),
   });
 };
+
 
 // Salvar conteúdo gerado como Ideia editorial
 export const useSaveRelationalAsIdea = () => {
