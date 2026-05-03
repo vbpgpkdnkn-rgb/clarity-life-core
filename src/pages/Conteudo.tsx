@@ -90,18 +90,6 @@ export default function Conteudo() {
     .filter((p) => p.status === "publicado")
     .sort((a: any, b: any) => ((b.saves ?? 0) + (b.generated_dms ?? 0)) - ((a.saves ?? 0) + (a.generated_dms ?? 0)))[0];
 
-  const sendAudienceToMotor = (idea: AudienceIdea, context: string) => {
-    setSeed({
-      theme: idea.title,
-      hook: idea.hook,
-      anchor: idea.clinical_anchor,
-      format: idea.format,
-      audienceContext: context,
-    });
-    setTab("motor");
-    toast.success("Ideia enviada para o Motor Relacional");
-  };
-
   const sendIdeaToMotor = (nextSeed: RelationalSeed) => {
     setSeed({
       ...nextSeed,
