@@ -883,6 +883,50 @@ export type Database = {
         }
         Relationships: []
       }
+      content_story_sequences: {
+        Row: {
+          created_at: string
+          id: string
+          objective: string
+          piece_id: string | null
+          scheduled_date: string | null
+          stories: Json
+          theme: string | null
+          tone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          objective?: string
+          piece_id?: string | null
+          scheduled_date?: string | null
+          stories?: Json
+          theme?: string | null
+          tone?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          objective?: string
+          piece_id?: string | null
+          scheduled_date?: string | null
+          stories?: Json
+          theme?: string | null
+          tone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_story_sequences_piece_id_fkey"
+            columns: ["piece_id"]
+            isOneToOne: false
+            referencedRelation: "content_pieces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content_strategy: {
         Row: {
           created_at: string
@@ -1071,6 +1115,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      editorial_lines: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          plan: Json
+          scope: string
+          updated_at: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          plan?: Json
+          scope?: string
+          updated_at?: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          plan?: Json
+          scope?: string
+          updated_at?: string
+          week_start?: string
+        }
+        Relationships: []
       }
       events: {
         Row: {
@@ -1435,6 +1509,50 @@ export type Database = {
             columns: ["goal_id"]
             isOneToOne: false
             referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      idea_refinement_chats: {
+        Row: {
+          analysis_id: string | null
+          context: Json
+          created_at: string
+          id: string
+          idea_index: number | null
+          idea_title: string | null
+          messages: Json
+          refined_idea: Json | null
+          updated_at: string
+        }
+        Insert: {
+          analysis_id?: string | null
+          context?: Json
+          created_at?: string
+          id?: string
+          idea_index?: number | null
+          idea_title?: string | null
+          messages?: Json
+          refined_idea?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          analysis_id?: string | null
+          context?: Json
+          created_at?: string
+          id?: string
+          idea_index?: number | null
+          idea_title?: string | null
+          messages?: Json
+          refined_idea?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "idea_refinement_chats_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "audience_analyses"
             referencedColumns: ["id"]
           },
         ]
