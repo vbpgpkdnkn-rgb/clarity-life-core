@@ -1,7 +1,6 @@
-// Relational Content Engine
-// Motor de conteúdo especializado em Psicologia de Relacionamentos
-// Voz clínica humanizada · IBCT + Método Gottman · anti-clichê
-// Modos: 'single' (gerador único), 'timed' (script com marcação de tempo), 'batch' (lote)
+// Relational Content Engine v2
+// Voz clínica autoral · IBCT + Gottman · zero clichê
+// Modos: 'topics' (tema+guia), 'single' (roteiro autoral livre), 'variations' (3 ângulos), 'series' (5 conteúdos conectados)
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,169 +8,42 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `IDENTIDADE: IA de criação de conteúdo de uma psicóloga clínica com 10+ anos em relacionamentos e terapia de casal. Base: IBCT e Método Gottman.
+const VOICE_RULES = `VOZ OBRIGATÓRIA:
+Especialista que senta na frente de alguém e diz algo que ela nunca ouviu dito assim. Direto, sem rodeios. Tradução real do clínico em comportamento cotidiano. Nunca jargão solto. Nunca conclusão óbvia.
 
-TOM OBRIGATÓRIO: especialista que senta na frente de alguém e diz algo que ela nunca ouviu dito assim. Direto, sem rodeios. Clareza didática que traduz o abstrato em algo reconhecível na vida real. Como Mel Robbins explica comportamento — sem jargão solto, sem motivacional vazio.
+PROIBIDO:
+"Isso não é X, é Y" / "Vale ressaltar" / "Você merece" / "Sua jornada" / "Muitas pessoas..." / "Você sabia" / linguagem de coach / motivacional vazio / emoji decorativo / pergunta retórica de abertura.
 
-NUNCA USE: "Isso não é X, é Y" / "Vale ressaltar" / "Você merece" / "Sua jornada" / linguagem de coach / "Muitas pessoas..." / conclusões óbvias com roupagem clínica.
+OBRIGATÓRIO:
+- Imagens concretas (a louça, o silêncio no carro, a mensagem sem resposta)
+- Frases que nomeiam o que a pessoa sente mas não tinha palavras
+- Conceito clínico SEMPRE traduzido em comportamento reconhecível
+- Frases curtas. Ritmo de fala, não de texto escrito`;
 
-USE: imagens concretas (a louça, o silêncio no carro, a mensagem sem resposta) / afirmações que nomeiam o que a pessoa sente mas não tinha palavras / lógica clínica traduzida em comportamento cotidiano reconhecível.
-
-MOTOR NARRATIVO (invisível — não aparece como títulos):
-1. ENTRADA: momento concreto e reconhecível do cotidiano do casal
-2. VIRADA: o que parece ser o problema não é — há algo mais profundo operando
-3. MECANISMO: como funciona por dentro (IBCT ou Gottman traduzido em comportamento)
-4. CONSEQUÊNCIA: o que esse padrão produz no vínculo se nada mudar
-5. DESLOCAMENTO: perspectiva que muda como a pessoa vê a situação
-6. ATERRISSAGEM: frase final que fica — para pensar, sentir ou agir
-
-HOOK ENGINE:
-- Nomeação precisa: nomeia algo que a pessoa sente mas nunca viu nomeado
-- Inversão de expectativa: começa de onde a pessoa não espera
-- Observação clínica: "Depois de dez anos atendendo casais..."
-- Imagem concreta: momento específico que qualquer pessoa reconhece
-
-ESTRUTURA REEL: 0–4s gancho / 4–20s entrada concreta / 20–45s mecanismo / 45–58s deslocamento / 58–60s aterrissagem
-ESTRUTURA CARROSSEL: slide 1 gancho / slides 2–3 entrada+virada / slides 4–5 mecanismo / slide 6 deslocamento / slide 7 aterrissagem
-ESTRUTURA LEGENDA: gancho (sem "você") / parágrafo mecanismo / parágrafo deslocamento+aterrissagem / CTA natural
-
-CRITÉRIO: se alguma frase soar como IA — reescrever. Se o fechamento apenas encerrar — reescrever. Se o mecanismo estiver como jargão solto — traduzir em comportamento.`;
-
-const SINGLE_TOOL = {
-  type: "function",
-  function: {
-    name: "build_relational_content",
-    description: "Gera UM conteúdo completo seguindo o motor narrativo de 5 camadas.",
-    parameters: {
-      type: "object",
-      properties: {
-        theme: { type: "string", description: "Tema relacional em 2-5 palavras." },
-        objective: {
-          type: "string",
-          enum: ["atrair_paciente", "autoridade", "identificacao", "ensinar"],
-        },
-        format: { type: "string", enum: ["reel", "carrossel", "legenda"] },
-        anchor: { type: "string", enum: ["IBCT", "Gottman", "IBCT+Gottman", "sem_nomear"] },
-        opening: {
-          type: "string",
-          description: "Abertura/hook — 1 frase, observação clínica que para o scroll. Sem clichê.",
-        },
-        pattern_naming: {
-          type: "string",
-          description: "Nomeação clínica do padrão, 1-2 frases. Tradução do técnico.",
-        },
-        clinical_anchor: {
-          type: "string",
-          description: "Ancoragem IBCT/Gottman traduzida em 1-2 frases (segue 'anchor').",
-        },
-        reframe_insight: {
-          type: "string",
-          description: "Insight que vira a chave. 1-2 frases.",
-        },
-        closing: {
-          type: "string",
-          description: "Fechamento de autoridade invisível. Sem CTA explícito.",
-        },
-        full_text: {
-          type: "string",
-          description:
-            "Versão final pronta para postar — texto corrido natural, integrando as 5 camadas. SEM rótulos, SEM 'abertura:', 'fechamento:'. Apenas o conteúdo limpo.",
-        },
-      },
-      required: [
-        "theme",
-        "objective",
-        "format",
-        "anchor",
-        "opening",
-        "pattern_naming",
-        "clinical_anchor",
-        "reframe_insight",
-        "closing",
-        "full_text",
-      ],
-      additionalProperties: false,
-    },
-  },
-};
-
-const TIMED_TOOL = {
-  type: "function",
-  function: {
-    name: "build_timed_script",
-    description: "Gera um roteiro com marcação de tempo segundo a segundo.",
-    parameters: {
-      type: "object",
-      properties: {
-        theme: { type: "string" },
-        duration_seconds: { type: "integer", enum: [30, 60, 90] },
-        objective: {
-          type: "string",
-          enum: ["atrair_paciente", "autoridade", "identificacao"],
-        },
-        blocks: {
-          type: "array",
-          description: "Blocos com timecode. Cobrir do 0 até a duração total.",
-          items: {
-            type: "object",
-            properties: {
-              start: { type: "integer", description: "segundo de início" },
-              end: { type: "integer", description: "segundo de fim" },
-              label: {
-                type: "string",
-                description: "Função do bloco: hook, padrão, ancoragem, reframe, fechamento",
-              },
-              text: { type: "string", description: "Fala literal a ser gravada." },
-              direction: {
-                type: "string",
-                description: "Direção de cena/expressão (curta).",
-              },
-            },
-            required: ["start", "end", "label", "text", "direction"],
-            additionalProperties: false,
-          },
-        },
-        on_screen_text: {
-          type: "string",
-          description: "Texto que aparece na tela do reel (legenda visual curta).",
-        },
-        caption: {
-          type: "string",
-          description: "Legenda do post para acompanhar o reel.",
-        },
-      },
-      required: [
-        "theme",
-        "duration_seconds",
-        "objective",
-        "blocks",
-        "on_screen_text",
-        "caption",
-      ],
-      additionalProperties: false,
-    },
-  },
-};
-
+// ─── TÓPICOS: tema + parágrafo guia (não pergunta) ───
 const TOPICS_TOOL = {
   type: "function",
   function: {
     name: "build_recording_topics",
-    description: "Gera 3-5 tópicos-PERGUNTA para a psicóloga responder na câmera com as próprias palavras. Não é roteiro escrito.",
+    description: "Gera 3-5 blocos: cada um é um TEMA com parágrafo guia explicando o ponto e como conecta ao próximo. Não perguntas. Não roteiro pronto.",
     parameters: {
       type: "object",
       properties: {
         theme: { type: "string" },
         format: { type: "string", enum: ["reel", "carrossel", "legenda"] },
         objective: { type: "string", enum: ["atrair_paciente", "autoridade", "identificacao", "ensinar"] },
-        anchor: { type: "string", enum: ["IBCT", "Gottman", "IBCT+Gottman", "sem_nomear", "auto"] },
+        anchor: { type: "string" },
+        narrative_arc: {
+          type: "string",
+          description: "1 frase descrevendo o arco da fala — para onde a conversa vai do início ao fim. Garante coesão.",
+        },
         hook: {
           type: "object",
           properties: {
-            question: { type: "string", description: "Pergunta/frase de abertura — 3 primeiros segundos. Parte do ponto de vista DELA." },
-            note: { type: "string", description: "Observação curta de direção (1 frase)." },
+            theme: { type: "string", description: "Nome curto do gancho (ex: 'a cena que ninguém percebe')." },
+            guidance: { type: "string", description: "Parágrafo de 2-3 frases descrevendo O QUE dizer no gancho — não a frase pronta. Explica a imagem concreta a usar e o ponto que para o scroll." },
           },
-          required: ["question", "note"],
+          required: ["theme", "guidance"],
           additionalProperties: false,
         },
         topics: {
@@ -181,88 +53,178 @@ const TOPICS_TOOL = {
           items: {
             type: "object",
             properties: {
-              name: { type: "string", description: "Nome curto do bloco (ex: 'A virada', 'O mecanismo')." },
-              question: { type: "string", description: "PERGUNTA para ela responder na câmera. Não é texto pronto." },
-              context: { type: "string", description: "Síntese do que ela já pensa sobre isso (extraída do campo 'O que você pensa'). 1-2 frases." },
-              clinical_anchor: { type: "string", description: "Conceito IBCT ou Gottman traduzido em comportamento cotidiano — 1 frase, sem jargão solto." },
+              theme: { type: "string", description: "Nome do tema/bloco em 2-5 palavras (ex: 'a virada', 'o mecanismo invisível')." },
+              guidance: { type: "string", description: "Parágrafo de 2-3 frases explicando O QUE precisa ser dito aqui, qual imagem usar, qual a leitura clínica em comportamento. Não é fala pronta — é direção autoral." },
+              connects_to_next: { type: "string", description: "1 frase: como esse bloco abre o próximo. Garante o fio." },
             },
-            required: ["name", "question", "context", "clinical_anchor"],
+            required: ["theme", "guidance", "connects_to_next"],
             additionalProperties: false,
           },
         },
         closing: {
           type: "object",
           properties: {
-            direction: { type: "string", description: "Como encerrar — direção, não frase pronta." },
+            theme: { type: "string" },
+            guidance: { type: "string", description: "Parágrafo de 2-3 frases sobre como aterrissar — o que precisa ficar com quem assistiu. Não CTA." },
           },
-          required: ["direction"],
+          required: ["theme", "guidance"],
           additionalProperties: false,
         },
       },
-      required: ["theme", "format", "objective", "anchor", "hook", "topics", "closing"],
+      required: ["theme", "format", "objective", "anchor", "narrative_arc", "hook", "topics", "closing"],
       additionalProperties: false,
     },
   },
 };
 
-const TOPICS_SYSTEM_PROMPT = `QUEM VOCÊ É: IA de conteúdo de uma psicóloga clínica com 10+ anos em relacionamentos e terapia de casal. Base: IBCT e Método Gottman.
+const TOPICS_SYSTEM_PROMPT = `Você é IA de conteúdo de uma psicóloga clínica especialista em relacionamentos (IBCT + Gottman).
 
-REGRA MAIS IMPORTANTE: O campo "O que você pensa sobre esse tema" é o coração do conteúdo. Tudo que você gerar parte do PONTO DE VISTA dela — nunca de uma descrição neutra. Se ela discordou de algo, o conteúdo reflete isso. Se ela trouxe uma observação clínica específica, parte dali.
+REGRA #1: O campo "O que você pensa sobre esse tema" é o coração. Tudo parte do PONTO DE VISTA dela. Nunca descrição neutra.
 
-FORMATO OBRIGATÓRIO DE SAÍDA: Tópicos para gravação. Não roteiro. Cada tópico é uma PERGUNTA que ela responde na câmera com as próprias palavras. Para Reel de 60s: entre 3 e 5 tópicos, dependendo da densidade.
+FORMATO DE SAÍDA: Não perguntas. Não roteiro. Cada bloco é um TEMA + PARÁGRAFO GUIA.
+- TEMA: nome curto que ela bate o olho e sabe sobre o que vai falar.
+- PARÁGRAFO GUIA: 2-3 frases descrevendo O QUE precisa ser dito aqui — qual imagem concreta usar, qual a leitura clínica traduzida em comportamento. NÃO é frase pronta para ler — é direção autoral para ela falar com as próprias palavras.
+- CONECTA COM PRÓXIMO: 1 frase indicando o fio narrativo. Cada bloco prepara o seguinte.
 
-ESTRUTURA INTERNA (não rotular como títulos no texto):
-- GANCHO: pergunta/afirmação que para o scroll, no PDV dela.
-- VIRADA: o que parece ser o problema não é — a leitura clínica dela.
-- MECANISMO: como funciona por dentro — IBCT/Gottman traduzido em comportamento, NUNCA jargão solto.
-- ATERRISSAGEM: onde isso deixa a pessoa — o que ela faz com o insight.
+COESÃO: Antes de gerar os blocos, defina o ARCO NARRATIVO (uma frase) — para onde a conversa vai do gancho ao fechamento. Cada bloco precisa avançar nesse arco. Nada solto.
 
-ÂNCORA CLÍNICA — como traduzir:
-- IBCT em comportamento: "cada um, ao tentar resolver do seu lado, amplifica o que o outro faz".
-- Gottman em consequência: "o que diferencia casais que ficam não é ausência de conflito, é o que fazem nos momentos pequenos".
-- NUNCA jargão solto. SEMPRE conceito traduzido em comportamento reconhecível.
+ÂNCORA CLÍNICA — SEMPRE traduzida:
+- IBCT em comportamento: "cada um, ao tentar resolver do seu lado, amplifica o que o outro faz"
+- Gottman em consequência: "o que diferencia casais que ficam não é ausência de conflito, é o que fazem nos momentos pequenos"
 
-TOM PROIBIDO: "Isso não é X, é Y" / "Vale ressaltar" / "Você merece" / "Sua jornada" / qualquer coisa de coach ou autoajuda / texto que pareça escrito para ser lido.
+${VOICE_RULES}`;
 
-TOM OBRIGATÓRIO: especialista que fala direto. Didática real (traduz, não simplifica). PDV dela aparece sempre.`;
-
-const BATCH_TOOL = {
+// ─── ROTEIRO AUTORAL: texto corrido livre, voz natural ───
+const SCRIPT_TOOL = {
   type: "function",
   function: {
-    name: "build_batch",
-    description: "Gera N conteúdos variados seguindo o motor narrativo.",
+    name: "build_authored_script",
+    description: "Gera roteiro autoral em texto corrido com voz de fala natural. Editável por parágrafo.",
     parameters: {
       type: "object",
       properties: {
-        items: {
+        theme: { type: "string" },
+        objective: { type: "string", enum: ["atrair_paciente", "autoridade", "identificacao", "ensinar"] },
+        format: { type: "string", enum: ["reel", "carrossel", "legenda"] },
+        anchor: { type: "string" },
+        paragraphs: {
           type: "array",
+          minItems: 4,
+          maxItems: 8,
+          description: "Parágrafos curtos, em voz de fala. Cada um é uma unidade de pensamento que pode ser regenerada isoladamente.",
           items: {
             type: "object",
             properties: {
-              theme: { type: "string" },
-              objective: {
-                type: "string",
-                enum: ["atrair_paciente", "autoridade", "identificacao", "ensinar"],
-              },
-              format: { type: "string", enum: ["reel", "carrossel", "legenda"] },
-              opening: { type: "string" },
-              full_text: { type: "string" },
+              role: { type: "string", description: "Função do parágrafo: gancho, virada, mecanismo, consequência, deslocamento, aterrissagem." },
+              text: { type: "string", description: "Texto autoral em voz de fala natural. Frases curtas. Sem clichê." },
             },
-            required: ["theme", "objective", "format", "opening", "full_text"],
+            required: ["role", "text"],
             additionalProperties: false,
           },
         },
       },
-      required: ["items"],
+      required: ["theme", "objective", "format", "anchor", "paragraphs"],
       additionalProperties: false,
     },
   },
 };
 
+const SCRIPT_SYSTEM_PROMPT = `Você é IA de conteúdo de uma psicóloga clínica (IBCT + Gottman).
+
+GERA ROTEIRO AUTORAL: texto corrido em VOZ DE FALA — não voz de texto escrito. Como ela falaria pra uma amiga inteligente. Frases curtas. Pausas naturais. Pensamento que se desenvolve.
+
+ESTRUTURA INVISÍVEL (não rotular como títulos no texto): gancho → virada → mecanismo → consequência → deslocamento → aterrissagem. Distribua em 4-8 parágrafos.
+
+CADA PARÁGRAFO: uma unidade de pensamento independente. Pode ser regenerado sozinho. Conecta ao anterior por sentido, não por "além disso".
+
+${VOICE_RULES}`;
+
+// ─── VARIAÇÕES: 3 ângulos diferentes do mesmo tema ───
+const VARIATIONS_TOOL = {
+  type: "function",
+  function: {
+    name: "build_angle_variations",
+    description: "Gera 3 ângulos radicalmente diferentes de abordar o MESMO tema. Para escolher o ângulo certo antes de gravar.",
+    parameters: {
+      type: "object",
+      properties: {
+        theme: { type: "string" },
+        variations: {
+          type: "array",
+          minItems: 3,
+          maxItems: 3,
+          items: {
+            type: "object",
+            properties: {
+              angle_name: { type: "string", description: "Nome do ângulo (ex: 'pela cena cotidiana', 'pelo mecanismo invisível', 'pela consequência futura')." },
+              one_liner: { type: "string", description: "1 frase capturando a essência desse ângulo." },
+              opening_idea: { type: "string", description: "2-3 frases descrevendo COMO abrir nesse ângulo. Direção, não fala pronta." },
+              why_this_works: { type: "string", description: "1 frase clínica: por que esse ângulo funciona para esse tema." },
+            },
+            required: ["angle_name", "one_liner", "opening_idea", "why_this_works"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["theme", "variations"],
+      additionalProperties: false,
+    },
+  },
+};
+
+const VARIATIONS_SYSTEM_PROMPT = `Você é IA estratégica de conteúdo clínico (IBCT + Gottman).
+
+Gera 3 ângulos DIFERENTES de atacar o mesmo tema. Cada ângulo é uma porta de entrada distinta — não variação de palavras, variação de ESTRATÉGIA narrativa.
+
+Os 3 ângulos sempre cobrem entradas distintas: cena cotidiana / mecanismo invisível / consequência futura / nomeação precisa / inversão de expectativa. Escolha as 3 mais potentes pro tema.
+
+${VOICE_RULES}`;
+
+// ─── SÉRIE: 5 conteúdos conectados ───
+const SERIES_TOOL = {
+  type: "function",
+  function: {
+    name: "build_connected_series",
+    description: "Gera uma série de conteúdos conectados — narrativa que se desenvolve. Não posts soltos.",
+    parameters: {
+      type: "object",
+      properties: {
+        series_name: { type: "string" },
+        narrative_arc: { type: "string", description: "Arco da série em 1 frase: do que parte, para onde chega." },
+        pieces: {
+          type: "array",
+          minItems: 3,
+          maxItems: 7,
+          items: {
+            type: "object",
+            properties: {
+              order: { type: "integer" },
+              theme: { type: "string", description: "Tema do post (2-5 palavras)." },
+              format: { type: "string", enum: ["reel", "carrossel", "legenda"] },
+              one_liner: { type: "string", description: "Essência do post em 1 frase." },
+              guidance: { type: "string", description: "2-3 frases sobre o que precisa ser dito. Direção autoral." },
+              builds_on_previous: { type: "string", description: "1 frase: como esse post conecta ao anterior." },
+            },
+            required: ["order", "theme", "format", "one_liner", "guidance", "builds_on_previous"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["series_name", "narrative_arc", "pieces"],
+      additionalProperties: false,
+    },
+  },
+};
+
+const SERIES_SYSTEM_PROMPT = `Você é IA estratégica de conteúdo clínico.
+
+Gera uma SÉRIE: posts que se desenvolvem como uma conversa, não posts soltos sobre o mesmo tema. Cada post abre o próximo. Cada post deixa uma pergunta ou tensão que o próximo resolve.
+
+${VOICE_RULES}`;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  // Auth lockdown
   const authHeader = req.headers.get("Authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -295,81 +257,117 @@ Deno.serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurado");
 
     const body = await req.json().catch(() => ({}));
-    const mode: "single" | "timed" | "batch" | "topics" = body.mode ?? "single";
+    const mode: "topics" | "single" | "variations" | "series" | "regen_paragraph" = body.mode ?? "topics";
 
     let tool: any;
     let toolName: string;
     let userMsg: string;
-    let systemPrompt = SYSTEM_PROMPT;
+    let systemPrompt: string;
+
+    const theme = body.theme ?? "padrão relacional";
+    const myPerspective = body.my_perspective ?? "";
+    const objective = body.objective ?? "identificacao";
+    const format = body.format ?? "reel";
+    const anchor = body.anchor ?? "auto";
+    const audienceContext = body.audience_context ?? "";
+    const voiceCalibration = body.voice_calibration ?? "";
+
+    const calibrationBlock = voiceCalibration
+      ? `\n═══ CALIBRAÇÃO DE VOZ (exemplos da forma como ela fala — espelhe o ritmo, vocabulário e maneirismos) ═══\n${voiceCalibration}\n`
+      : "";
+
+    const audienceBlock = audienceContext
+      ? `\n═══ CONTEXTO DA AUDIÊNCIA ═══\n${audienceContext}\n`
+      : "";
+
+    const perspectiveBlock = myPerspective
+      ? `\n═══ O QUE A PSICÓLOGA PENSA SOBRE ESSE TEMA (matéria-prima principal) ═══\n${myPerspective}\n`
+      : "";
 
     if (mode === "topics") {
       tool = TOPICS_TOOL;
       toolName = "build_recording_topics";
       systemPrompt = TOPICS_SYSTEM_PROMPT;
-      const theme = body.theme ?? "padrão relacional";
-      const myPerspective = body.my_perspective ?? "";
-      const objective = body.objective ?? "identificacao";
-      const format = body.format ?? "reel";
-      const anchor = body.anchor ?? "auto";
-      const audienceContext = body.audience_context ?? "";
-      userMsg = `Gere TÓPICOS-PERGUNTA para gravação. Não escreva roteiro pronto.
+      userMsg = `Gere TEMA + PARÁGRAFO GUIA para gravação. Não perguntas. Não roteiro pronto.
 
 TEMA: ${theme}
 FORMATO: ${format}
 OBJETIVO: ${objective}
-ÂNCORA CLÍNICA: ${anchor === "auto" ? "você decide entre IBCT, Gottman ou IBCT+Gottman" : anchor}
-
-═══ O QUE A PSICÓLOGA PENSA SOBRE ESSE TEMA (use como matéria-prima principal) ═══
-${myPerspective || "(não informado — peça para ela preencher)"}
-
-${audienceContext ? `═══ CONTEXTO DA AUDIÊNCIA ═══\n${audienceContext}\n` : ""}
-Entregue: hook (pergunta de abertura), 3 a 5 tópicos (cada um com nome do bloco, pergunta para ela responder, contexto sintetizado do PDV dela, âncora clínica em comportamento), fechamento como direção (não frase pronta).`;
+ÂNCORA CLÍNICA: ${anchor === "auto" ? "você decide" : anchor}
+${perspectiveBlock}${audienceBlock}${calibrationBlock}
+Entregue: arco narrativo (1 frase), gancho (tema+guia), 3 a 5 tópicos (tema + parágrafo guia + conecta-com-próximo), fechamento (tema+guia).`;
     } else if (mode === "single") {
-      tool = SINGLE_TOOL;
-      toolName = "build_relational_content";
-      const theme = body.theme ?? body.insight ?? "padrão relacional";
-      const objective = body.objective ?? "identificacao";
-      const format = body.format ?? "reel";
-      const anchor = body.anchor ?? "IBCT+Gottman";
+      tool = SCRIPT_TOOL;
+      toolName = "build_authored_script";
+      systemPrompt = SCRIPT_SYSTEM_PROMPT;
       const avoid: string[] = body.avoid ?? [];
-      const audienceContext = body.audience_context ?? "";
-      userMsg = `Construa UM conteúdo seguindo o motor narrativo de 5 camadas.
-
-TEMA/INSIGHT: ${theme}
-OBJETIVO: ${objective}
-FORMATO: ${format}
-ANCORAGEM CLÍNICA: ${anchor}
-${audienceContext ? `\nCONTEXTO DA AUDIÊNCIA (use como matéria-prima da linguagem, sem copiar literalmente):\n${audienceContext}` : ""}
-${avoid.length ? `\nEVITE repetir estas aberturas/ângulos já usados:\n- ${avoid.join("\n- ")}` : ""}
-
-Lembre: nada de clichê, nada de "você sabia", nada de emoji decorativo. Voz clínica humanizada, frases curtas, autoridade pela precisão.`;
-    } else if (mode === "timed") {
-      tool = TIMED_TOOL;
-      toolName = "build_timed_script";
-      const theme = body.theme ?? "padrão relacional";
-      const duration = body.duration_seconds ?? 60;
-      const objective = body.objective ?? "identificacao";
-      userMsg = `Construa um roteiro de ${duration}s com timecodes para um reel falado.
+      userMsg = `Gere ROTEIRO AUTORAL em texto corrido — voz de fala natural.
 
 TEMA: ${theme}
 OBJETIVO: ${objective}
-DURAÇÃO: ${duration} segundos
+FORMATO: ${format}
+ÂNCORA: ${anchor === "auto" ? "você decide" : anchor}
+${perspectiveBlock}${audienceBlock}${calibrationBlock}
+${avoid.length ? `EVITE estas aberturas:\n- ${avoid.join("\n- ")}\n` : ""}
+4-8 parágrafos curtos. Cada um uma unidade de pensamento. Voz de fala, não de texto.`;
+    } else if (mode === "regen_paragraph") {
+      tool = {
+        type: "function",
+        function: {
+          name: "regen_paragraph",
+          description: "Reescreve UM parágrafo do roteiro mantendo função e voz.",
+          parameters: {
+            type: "object",
+            properties: {
+              text: { type: "string" },
+            },
+            required: ["text"],
+            additionalProperties: false,
+          },
+        },
+      };
+      toolName = "regen_paragraph";
+      systemPrompt = SCRIPT_SYSTEM_PROMPT;
+      const role = body.role ?? "parágrafo";
+      const original = body.original ?? "";
+      const fullContext = body.full_context ?? "";
+      const direction = body.direction ?? "torne mais natural e direto";
+      userMsg = `Reescreva APENAS este parágrafo (função: ${role}).
 
-Distribua os blocos cobrindo do 0 ao ${duration}. Cada bloco com fala literal e direção curta de cena. Inclua texto de tela e legenda do post.`;
+CONTEXTO COMPLETO DO ROTEIRO:
+${fullContext}
+
+PARÁGRAFO ATUAL:
+${original}
+
+DIREÇÃO: ${direction}
+${perspectiveBlock}${calibrationBlock}
+Mantenha a função (${role}). Mude a forma, mantenha o lugar narrativo.`;
+    } else if (mode === "variations") {
+      tool = VARIATIONS_TOOL;
+      toolName = "build_angle_variations";
+      systemPrompt = VARIATIONS_SYSTEM_PROMPT;
+      userMsg = `Gere 3 ÂNGULOS diferentes de atacar este tema.
+
+TEMA: ${theme}
+${perspectiveBlock}${audienceBlock}
+3 entradas radicalmente diferentes. Cada uma com nome, essência, ideia de abertura e razão clínica.`;
+    } else if (mode === "series") {
+      tool = SERIES_TOOL;
+      toolName = "build_connected_series";
+      systemPrompt = SERIES_SYSTEM_PROMPT;
+      const pieceCount = body.piece_count ?? 5;
+      userMsg = `Gere uma SÉRIE de ${pieceCount} conteúdos conectados narrativamente.
+
+TEMA CENTRAL: ${theme}
+${perspectiveBlock}${audienceBlock}
+Cada post abre o próximo. Não são variações — é uma conversa que se desenvolve.`;
     } else {
-      tool = BATCH_TOOL;
-      toolName = "build_batch";
-      const quantity: number = Math.min(Math.max(body.quantity ?? 3, 1), 10);
-      const focus: string = body.focus ?? "";
-      const mix: string = body.mix ?? "distribuir";
-      userMsg = `Gere ${quantity} conteúdos variados, todos seguindo o motor narrativo.
-
-${focus ? `FOCO DO PERÍODO: ${focus}` : ""}
-MIX DE OBJETIVOS: ${mix === "distribuir" ? "distribua entre atrair_paciente, autoridade, identificacao e ensinar" : `todos com objetivo ${mix}`}
-
-Variar tema, formato e ângulo. Sem repetir aberturas. Sem clichê.`;
+      return new Response(JSON.stringify({ error: "Modo inválido" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
-
 
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -392,10 +390,10 @@ Variar tema, formato e ângulo. Sem repetir aberturas. Sem clichê.`;
       const t = await aiResp.text();
       console.error("AI error:", aiResp.status, t);
       if (aiResp.status === 429)
-        return new Response(
-          JSON.stringify({ error: "Limite de uso atingido. Tente novamente em alguns minutos." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+        return new Response(JSON.stringify({ error: "Limite de uso atingido. Tente novamente em alguns minutos." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       if (aiResp.status === 402)
         return new Response(JSON.stringify({ error: "Créditos da IA esgotados." }), {
           status: 402,
