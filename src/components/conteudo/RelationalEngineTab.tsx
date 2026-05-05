@@ -14,28 +14,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Heart,
-  Wand2,
-  Loader2,
-  Copy,
-  CheckCircle2,
-  Save,
-  Clock,
-  Layers,
-  Library,
-  Mic2,
-  FileText,
-  XCircle,
-  Sparkles,
+  Heart, Wand2, Loader2, Copy, Save, Library, Mic2, FileText, XCircle,
+  Sparkles, RefreshCw, Compass, Layers3, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   useGenerateRelational,
   useSaveRelationalAsIdea,
   useRelationalIdeas,
-  type RelationalSingleResult,
-  type RelationalTimedResult,
-  type RelationalBatchResult,
+  type RelationalTopicsResult,
+  type RelationalScriptResult,
+  type RelationalVariationsResult,
+  type RelationalSeriesResult,
+  type ScriptParagraph,
 } from "@/hooks/useRelationalEngine";
 import { useUpsertPiece } from "@/hooks/useContent";
 import { useScope } from "@/contexts/ScopeContext";
@@ -55,22 +46,6 @@ export type RelationalSeed = {
   onScriptReady?: (pieceId?: string) => void;
 };
 
-
-const THEME_PRESETS = [
-  "o casal que convive mas não se conecta",
-  "a briga que sempre volta sem nunca resolver",
-  "quando um persegue e o outro foge",
-  "o silêncio que virou distância",
-  "dependência emocional — precisar demais",
-  "a crítica que virou o idioma do casal",
-  "quando o stonewalling aparece",
-  "perda de amizade dentro do relacionamento",
-  "ciúme como rastreador de insegurança",
-  "o ciclo de polarização — opostos que se destroem",
-  "o casal que não briga mas também não se aproxima",
-  "quando um dos dois carrega tudo",
-];
-
 const OBJECTIVE_LABEL: Record<string, string> = {
   atrair_paciente: "Atrair paciente",
   autoridade: "Construir autoridade",
@@ -84,719 +59,29 @@ const FORMAT_LABEL: Record<string, string> = {
   legenda: "Legenda",
 };
 
-const ANCHOR_LABEL: Record<string, string> = {
-  IBCT: "IBCT",
-  Gottman: "Gottman",
-  "IBCT+Gottman": "IBCT + Gottman",
-  sem_nomear: "Sem nomear — só a lógica",
-};
-
 function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text);
   toast.success("Copiado");
 }
 
-// ─────────────────────────────────────────────
-// SUB-TAB 1: Gerador único
-// ─────────────────────────────────────────────
-function GeneratorSubTab({ seed }: { seed?: RelationalSeed | null }) {
-  const [theme, setTheme] = useState("");
-  const [insight, setInsight] = useState("");
-  const [objective, setObjective] = useState("identificacao");
-  const [format, setFormat] = useState("reel");
-  const [anchor, setAnchor] = useState("IBCT+Gottman");
-  const [audienceContext, setAudienceContext] = useState("");
-  const [result, setResult] = useState<RelationalSingleResult | null>(null);
-  const gen = useGenerateRelational();
-  const save = useSaveRelationalAsIdea();
-  const upsertPiece = useUpsertPiece();
-  const { scope } = useScope();
-
-  useEffect(() => {
-    if (!seed) return;
-    setInsight(seed.theme ?? "");
-    setAnchor(seed.anchor ?? "IBCT+Gottman");
-    setFormat(seed.format ?? "reel");
-    setAudienceContext(seed.audienceContext ?? "");
-  }, [seed]);
-
-  async function handleGenerate() {
-    const finalTheme = insight.trim() || theme.trim();
-    if (!finalTheme) {
-      toast.error("Escolha um tema ou descreva o insight");
-      return;
-    }
-    const data = (await gen.mutateAsync({
-      mode: "single",
-      theme: finalTheme,
-      objective,
-      format,
-      anchor,
-      audience_context: audienceContext.trim() || undefined,
-    })) as RelationalSingleResult;
-    setResult(data);
-  }
-
-  function handleSave() {
-    if (!result) return;
-    save.mutate({
-      title: result.opening.slice(0, 120),
-      theme: result.theme,
-      full_text: result.full_text,
-      format: result.format,
-      anchor: result.anchor,
-      objective: result.objective,
-    });
-  }
-
-  function sendToProduction() {
-    if (!result) return;
-    upsertPiece.mutate({
-      title: result.opening.slice(0, 160),
-      theme: result.theme,
-      format: ({ reel: "reels", carrossel: "carrossel", legenda: "texto" } as const)[result.format],
-      status: "em_producao",
-      pipeline_stage: "roteiro_pronto",
-      clinical_anchor: result.anchor,
-      audience_context: audienceContext || null,
-      hook: result.opening,
-      script: result.full_text,
-      notes: result.full_text,
-      idea_id: seed?.ideaId ?? null,
-      scope: (scope === "todos" ? "profissional" : scope) as any,
-    } as any, { onSuccess: (piece) => seed?.onScriptReady?.((piece as any)?.id) });
-  }
-
-  return (
-    <div className="space-y-4">
-      {seed?.sourceLabel && (
-        <Card className="p-3 border-accent/30 bg-accent/5 text-sm">
-          <span className="font-medium">Ideia:</span> {seed.sourceLabel} · Enviada da aba Ideias
-        </Card>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div>
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Tema relacional</Label>
-          <Select value={theme} onValueChange={setTheme}>
-            <SelectTrigger className="mt-2">
-              <SelectValue placeholder="— selecione um tema —" />
-            </SelectTrigger>
-            <SelectContent>
-              {THEME_PRESETS.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {t}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Ancoragem clínica</Label>
-          <Select value={anchor} onValueChange={setAnchor}>
-            <SelectTrigger className="mt-2">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(ANCHOR_LABEL).map(([k, v]) => (
-                <SelectItem key={k} value={k}>
-                  {v}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div>
-        <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-          Ou descreva o insight que quer explorar
-        </Label>
-        <Textarea
-          value={insight}
-          onChange={(e) => setInsight(e.target.value)}
-          placeholder="Ex: aquela coisa de querer que o outro adivinhe o que você precisa…"
-          rows={2}
-          className="mt-2"
-        />
-      </div>
-
-      {audienceContext && (
-        <div>
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Contexto da audiência</Label>
-          <Textarea
-            value={audienceContext}
-            onChange={(e) => setAudienceContext(e.target.value)}
-            rows={3}
-            className="mt-2"
-          />
-        </div>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div>
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Objetivo</Label>
-          <Select value={objective} onValueChange={setObjective}>
-            <SelectTrigger className="mt-2">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(OBJECTIVE_LABEL).map(([k, v]) => (
-                <SelectItem key={k} value={k}>
-                  {v}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Formato</Label>
-          <Select value={format} onValueChange={setFormat}>
-            <SelectTrigger className="mt-2">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(FORMAT_LABEL).map(([k, v]) => (
-                <SelectItem key={k} value={k}>
-                  {v}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <Button onClick={handleGenerate} disabled={gen.isPending} className="w-full" size="lg">
-        {gen.isPending ? (
-          <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Gerando com voz clínica…
-          </>
-        ) : (
-          <>
-            <Wand2 className="h-4 w-4 mr-2" />
-            Gerar conteúdo
-          </>
-        )}
-      </Button>
-
-      {result && (
-        <Card className="p-5 space-y-4 border-accent/30">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex gap-2 flex-wrap">
-              <Badge variant="secondary">{OBJECTIVE_LABEL[result.objective]}</Badge>
-              <Badge variant="outline">{FORMAT_LABEL[result.format]}</Badge>
-              <Badge variant="outline">{ANCHOR_LABEL[result.anchor]}</Badge>
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="ghost" onClick={() => copyToClipboard(result.full_text)}>
-                <Copy className="h-3.5 w-3.5 mr-1" />
-                Copiar
-              </Button>
-              <Button size="sm" onClick={handleSave} disabled={save.isPending}>
-                <Save className="h-3.5 w-3.5 mr-1" />
-                Salvar como ideia
-              </Button>
-              <Button size="sm" onClick={sendToProduction} disabled={upsertPiece.isPending}>
-                <Mic2 className="h-3.5 w-3.5 mr-1" />
-                Enviar para produção
-              </Button>
-            </div>
-          </div>
-
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Conteúdo final</p>
-            <div className="text-sm leading-relaxed whitespace-pre-wrap bg-muted/30 p-4 rounded-md">
-              {result.full_text}
-            </div>
-          </div>
-
-          <details className="text-xs">
-            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-              Ver camadas do motor narrativo
-            </summary>
-            <div className="mt-3 space-y-3">
-              {[
-                ["Abertura", result.opening],
-                ["Nomeação do padrão", result.pattern_naming],
-                ["Ancoragem clínica", result.clinical_anchor],
-                ["Insight reframe", result.reframe_insight],
-                ["Fechamento", result.closing],
-              ].map(([k, v]) => (
-                <div key={k} className="border-l-2 border-accent/40 pl-3">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{k}</p>
-                  <p className="text-sm">{v}</p>
-                </div>
-              ))}
-            </div>
-          </details>
-        </Card>
-      )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
-// SUB-TAB 2: Script por tempo
-// ─────────────────────────────────────────────
-function TimedScriptSubTab() {
-  const [theme, setTheme] = useState("");
-  const [duration, setDuration] = useState("60");
-  const [objective, setObjective] = useState("identificacao");
-  const [result, setResult] = useState<RelationalTimedResult | null>(null);
-  const gen = useGenerateRelational();
-
-  async function handleGenerate() {
-    if (!theme.trim()) {
-      toast.error("Descreva o tema ou insight");
-      return;
-    }
-    const data = (await gen.mutateAsync({
-      mode: "timed",
-      theme: theme.trim(),
-      duration_seconds: Number(duration),
-      objective,
-    })) as RelationalTimedResult;
-    setResult(data);
-  }
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <Label className="text-xs uppercase tracking-wide text-muted-foreground">Tema ou insight</Label>
-        <Textarea
-          value={theme}
-          onChange={(e) => setTheme(e.target.value)}
-          placeholder="Ex: o casal que parou de brigar e isso não é bom sinal"
-          rows={2}
-          className="mt-2"
-        />
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div>
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Duração</Label>
-          <Select value={duration} onValueChange={setDuration}>
-            <SelectTrigger className="mt-2">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="30">30s</SelectItem>
-              <SelectItem value="60">60s</SelectItem>
-              <SelectItem value="90">90s</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Objetivo</Label>
-          <Select value={objective} onValueChange={setObjective}>
-            <SelectTrigger className="mt-2">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="atrair_paciente">Atrair paciente</SelectItem>
-              <SelectItem value="autoridade">Construir autoridade</SelectItem>
-              <SelectItem value="identificacao">Gerar identificação</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <Button onClick={handleGenerate} disabled={gen.isPending} className="w-full" size="lg">
-        {gen.isPending ? (
-          <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Mapeando segundo a segundo…
-          </>
-        ) : (
-          <>
-            <Clock className="h-4 w-4 mr-2" />
-            Gerar script com marcação de tempo
-          </>
-        )}
-      </Button>
-
-      {result && (
-        <Card className="p-5 space-y-4 border-accent/30">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex gap-2 flex-wrap">
-              <Badge variant="secondary">{result.duration_seconds}s</Badge>
-              <Badge variant="outline">{OBJECTIVE_LABEL[result.objective]}</Badge>
-            </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                const txt = result.blocks
-                  .map((b) => `[${b.start}-${b.end}s] ${b.label.toUpperCase()}\n${b.text}\n(direção: ${b.direction})`)
-                  .join("\n\n");
-                copyToClipboard(`${txt}\n\n— TEXTO NA TELA —\n${result.on_screen_text}\n\n— LEGENDA —\n${result.caption}`);
-              }}
-            >
-              <Copy className="h-3.5 w-3.5 mr-1" />
-              Copiar tudo
-            </Button>
-          </div>
-
-          <div className="space-y-3">
-            {result.blocks.map((b, i) => (
-              <div key={i} className="border-l-2 border-accent/50 pl-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="outline" className="text-[10px]">
-                    {b.start}–{b.end}s
-                  </Badge>
-                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
-                    {b.label}
-                  </span>
-                </div>
-                <p className="text-sm leading-relaxed">{b.text}</p>
-                <p className="text-xs text-muted-foreground mt-1 italic">↳ {b.direction}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="bg-muted/30 p-3 rounded-md">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
-                Texto na tela
-              </p>
-              <p className="text-sm">{result.on_screen_text}</p>
-            </div>
-            <div className="bg-muted/30 p-3 rounded-md">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Legenda</p>
-              <p className="text-sm whitespace-pre-wrap">{result.caption}</p>
-            </div>
-          </div>
-        </Card>
-      )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
-// SUB-TAB 3: Lote
-// ─────────────────────────────────────────────
-function BatchSubTab() {
-  const [quantity, setQuantity] = useState("3");
-  const [focus, setFocus] = useState("");
-  const [mix, setMix] = useState("distribuir");
-  const [result, setResult] = useState<RelationalBatchResult | null>(null);
-  const gen = useGenerateRelational();
-  const save = useSaveRelationalAsIdea();
-
-  async function handleGenerate() {
-    const data = (await gen.mutateAsync({
-      mode: "batch",
-      quantity: Number(quantity),
-      focus,
-      mix,
-    })) as RelationalBatchResult;
-    setResult(data);
-  }
-
-  function handleSaveAll() {
-    if (!result) return;
-    Promise.all(
-      result.items.map((item) =>
-        save.mutateAsync({
-          title: item.opening.slice(0, 120),
-          theme: item.theme,
-          full_text: item.full_text,
-          format: item.format,
-          anchor: "IBCT+Gottman",
-          objective: item.objective,
-        }),
-      ),
-    ).then(() => toast.success(`${result.items.length} ideias salvas`));
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-3">
-        <div>
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Quantidade</Label>
-          <Select value={quantity} onValueChange={setQuantity}>
-            <SelectTrigger className="mt-2">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="3">3 conteúdos</SelectItem>
-              <SelectItem value="5">5 conteúdos</SelectItem>
-              <SelectItem value="7">7 conteúdos</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="md:col-span-2">
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-            Foco do período (opcional)
-          </Label>
-          <Input
-            value={focus}
-            onChange={(e) => setFocus(e.target.value)}
-            placeholder="Ex: semana sobre stonewalling"
-            className="mt-2"
-          />
-        </div>
-      </div>
-
-      <div>
-        <Label className="text-xs uppercase tracking-wide text-muted-foreground">Mix de objetivos</Label>
-        <Select value={mix} onValueChange={setMix}>
-          <SelectTrigger className="mt-2">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="distribuir">Distribuir automaticamente</SelectItem>
-            <SelectItem value="atrair_paciente">Tudo para atrair paciente</SelectItem>
-            <SelectItem value="autoridade">Tudo para autoridade</SelectItem>
-            <SelectItem value="identificacao">Tudo para identificação</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <Button onClick={handleGenerate} disabled={gen.isPending} className="w-full" size="lg">
-        {gen.isPending ? (
-          <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Construindo lote…
-          </>
-        ) : (
-          <>
-            <Layers className="h-4 w-4 mr-2" />
-            Gerar lote
-          </>
-        )}
-      </Button>
-
-      {result && (
-        <div className="space-y-3">
-          <div className="flex justify-end">
-            <Button size="sm" onClick={handleSaveAll} disabled={save.isPending}>
-              <Save className="h-3.5 w-3.5 mr-1" />
-              Salvar todos como ideias
-            </Button>
-          </div>
-          {result.items.map((item, i) => (
-            <Card key={i} className="p-4 space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="secondary">{OBJECTIVE_LABEL[item.objective]}</Badge>
-                <Badge variant="outline">{FORMAT_LABEL[item.format]}</Badge>
-                <Badge variant="outline" className="text-[10px]">
-                  {item.theme}
-                </Badge>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="ml-auto h-7"
-                  onClick={() => copyToClipboard(item.full_text)}
-                >
-                  <Copy className="h-3 w-3" />
-                </Button>
-              </div>
-              <p className="text-sm font-medium">{item.opening}</p>
-              <p className="text-sm whitespace-pre-wrap leading-relaxed text-muted-foreground">
-                {item.full_text}
-              </p>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
-// SUB-TAB 4: Banco de pautas
-// ─────────────────────────────────────────────
-function BankSubTab() {
-  const { data: ideas = [], isLoading } = useRelationalIdeas();
-  const [filter, setFilter] = useState("todos");
-
-  const filtered = (ideas as any[]).filter((i) => {
-    if (filter === "todos") return true;
-    return (i.source ?? "").toLowerCase().includes(filter.toLowerCase());
+function formatTopicsAsScript(r: RelationalTopicsResult): string {
+  const lines: string[] = [];
+  lines.push(`ARCO: ${r.narrative_arc}\n`);
+  lines.push(`GANCHO — ${r.hook.theme}\n${r.hook.guidance}\n`);
+  r.topics.forEach((t, i) => {
+    lines.push(`BLOCO ${i + 1} — ${t.theme}\n${t.guidance}\n→ conecta: ${t.connects_to_next}\n`);
   });
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-          Filtrar por ancoragem
-        </Label>
-        <Select value={filter} onValueChange={setFilter}>
-          <SelectTrigger className="mt-2 max-w-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos</SelectItem>
-            <SelectItem value="ibct">IBCT</SelectItem>
-            <SelectItem value="gottman">Gottman</SelectItem>
-            <SelectItem value="atrair_paciente">Atrair paciente</SelectItem>
-            <SelectItem value="autoridade">Autoridade</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center py-10">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      ) : filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-10">
-          Nenhuma pauta salva ainda. Gere conteúdos e salve como ideia.
-        </p>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map((idea) => (
-            <Card key={idea.id} className="p-3 hover:border-accent/50 transition-colors">
-              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <Badge variant="outline" className="text-[10px]">
-                  {idea.suggested_format}
-                </Badge>
-                <span className="text-[10px] text-muted-foreground">
-                  {formatDateBR(idea.created_at)}
-                </span>
-                {idea.used && <Badge className="text-[10px]">usada</Badge>}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="ml-auto h-7"
-                  onClick={() => copyToClipboard(idea.notes ?? idea.title)}
-                >
-                  <Copy className="h-3 w-3" />
-                </Button>
-              </div>
-              <p className="text-sm font-medium mb-1">{idea.title}</p>
-              {idea.notes && (
-                <p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-wrap">
-                  {idea.notes}
-                </p>
-              )}
-              {idea.source && (
-                <p className="text-[10px] text-muted-foreground mt-2 italic">{idea.source}</p>
-              )}
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  lines.push(`FECHAMENTO — ${r.closing.theme}\n${r.closing.guidance}`);
+  return lines.join("\n");
 }
 
-// ─────────────────────────────────────────────
-// SUB-TAB 5: Guia de voz
-// ─────────────────────────────────────────────
-function VoiceGuideSubTab() {
-  const items = [
-    {
-      title: "Como abrir — gancho",
-      wrong: ['"Você sabia que a comunicação é fundamental?"', '"Isso não é amor, é outra coisa."'],
-      right:
-        '"Tem uma coisa que aparece em quase todos os casais que chegam ao consultório — e que nenhum dos dois percebe até alguém apontar."',
-    },
-    {
-      title: "Como nomear o padrão",
-      wrong: ['"Isso não é comunicação, é repetição emocional."'],
-      right:
-        '"A discussão não é sobre a louça. Nunca foi. A louça é só onde a coisa apareceu dessa vez — mas o que está sendo negociado ali é muito mais antigo e mais fundo do que qualquer louça."',
-    },
-    {
-      title: "Como traduzir IBCT e Gottman",
-      wrong: ['"A IBCT trabalha com a aceitação terapêutica do outro."'],
-      right:
-        '"Existe uma diferença entre tentar mudar seu parceiro e conseguir enxergá-lo com clareza. Quando você para de brigar contra quem ele é — não porque desistiu, mas porque entendeu de onde ele vem — o relacionamento começa a funcionar de um jeito completamente diferente."',
-    },
-    {
-      title: "Como fechar — sem clichê",
-      wrong: ['"Se isso fez sentido, você já sabe o que fazer."', '"Você merece um relacionamento saudável."'],
-      right:
-        '"Se você se reconheceu nisso, não é coincidência. É o seu sistema nervoso te dizendo que essa leitura faz sentido. E quando você consegue ver o padrão com clareza — o que você faz com ele muda completamente."',
-    },
-    {
-      title: "Regra geral de tom",
-      wrong: [],
-      right:
-        '"Fale como quem senta na frente de alguém e diz algo que ela nunca ouviu dito assim. Direto, sem rodeios, sem julgamento. Didático no sentido real — não simplificando, mas traduzindo. Como se você estivesse explicando algo complexo para uma amiga muito inteligente que não é da área."',
-    },
-  ];
-
-  return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">
-        Referência de como a IA está calibrada. O que está proibido e como soa a versão certa.
-      </p>
-      {items.map((it, i) => (
-        <Card key={i} className="p-4">
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-3">
-            {it.title}
-          </p>
-          {it.wrong.map((w, j) => (
-            <div key={j} className="flex items-start gap-2 mb-2 text-sm">
-              <XCircle className="h-3.5 w-3.5 mt-0.5 text-destructive/60 shrink-0" />
-              <span className="text-muted-foreground line-through">{w}</span>
-            </div>
-          ))}
-          <div className="flex items-start gap-2 mt-2">
-            <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 text-accent shrink-0" />
-            <p className="text-sm italic border-l-2 border-accent pl-3 leading-relaxed">{it.right}</p>
-          </div>
-        </Card>
-      ))}
-    </div>
-  );
+function formatScriptAsText(r: RelationalScriptResult): string {
+  return r.paragraphs.map((p) => p.text).join("\n\n");
 }
 
-// ─────────────────────────────────────────────
-// SUB-TAB 6: System prompt (read-only)
-// ─────────────────────────────────────────────
-function SystemPromptSubTab() {
-  const description = `O system prompt clínico está configurado e fixo no backend (edge function 'relational-content-engine'). 
-Ele contém: identidade clínica (psicóloga IBCT + Gottman), motor narrativo de 5 camadas (abertura → nomeação → ancoragem → reframe → fechamento), guia de voz com proibições explícitas (sem "você sabia", sem clichê de coach, sem emoji decorativo), temas de domínio (4 cavaleiros, perseguidor/distanciador, stonewalling, polarização etc.) e exemplos de tom certo vs errado.
-
-Toda geração desta aba passa por esse prompt antes de chegar na sua tela.`;
-
-  return (
-    <div className="space-y-4">
-      <Card className="p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <Sparkles className="h-4 w-4 text-accent" />
-          <p className="text-sm font-semibold">Configuração clínica ativa</p>
-        </div>
-        <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{description}</p>
-      </Card>
-
-      <Card className="p-5 bg-muted/20">
-        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-2">
-          Camadas do motor
-        </p>
-        <ol className="text-sm space-y-2 list-decimal list-inside">
-          <li>
-            <strong>Abertura</strong> — observação clínica que para o scroll (nunca pergunta retórica).
-          </li>
-          <li>
-            <strong>Nomeação do padrão</strong> — clareza técnica traduzida.
-          </li>
-          <li>
-            <strong>Ancoragem clínica</strong> — IBCT, Gottman ou só a lógica.
-          </li>
-          <li>
-            <strong>Insight reframe</strong> — vira a chave, sem moralizar.
-          </li>
-          <li>
-            <strong>Fechamento</strong> — autoridade invisível, sem CTA explícito.
-          </li>
-        </ol>
-      </Card>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
-// EXPORT PRINCIPAL
-// ─────────────────────────────────────────────
-// ─────────────────────────────────────────────
-// SUB-TAB: Tópicos para gravação (NOVO - padrão)
-// ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+// TÓPICOS PARA GRAVAÇÃO — tema + parágrafo guia (não pergunta)
+// ═══════════════════════════════════════════════════════════
 function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
   const [theme, setTheme] = useState("");
   const [myPerspective, setMyPerspective] = useState("");
@@ -804,9 +89,9 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
   const [objective, setObjective] = useState("identificacao");
   const [anchor, setAnchor] = useState("auto");
   const [audienceContext, setAudienceContext] = useState("");
-  const [showAudience, setShowAudience] = useState(false);
-  const [result, setResult] = useState<import("@/hooks/useRelationalEngine").RelationalTopicsResult | null>(null);
-  const [avoidHooks, setAvoidHooks] = useState<string[]>([]);
+  const [voiceCalibration, setVoiceCalibration] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [result, setResult] = useState<RelationalTopicsResult | null>(null);
   const gen = useGenerateRelational();
   const upsertPiece = useUpsertPiece();
   const { scope } = useScope();
@@ -822,57 +107,54 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
   }, [seed]);
 
   async function handleGenerate() {
-    if (!theme.trim()) {
-      toast.error("Informe o tema");
-      return;
-    }
+    if (!theme.trim()) { toast.error("Informe o tema"); return; }
     const data = (await gen.mutateAsync({
       mode: "topics",
       theme: theme.trim(),
       my_perspective: myPerspective.trim(),
-      objective,
-      format,
-      anchor,
+      objective, format, anchor,
       audience_context: audienceContext.trim() || undefined,
-    })) as import("@/hooks/useRelationalEngine").RelationalTopicsResult;
+      voice_calibration: voiceCalibration.trim() || undefined,
+    })) as RelationalTopicsResult;
     setResult(data);
-    setAvoidHooks([]);
   }
 
-  async function rewriteHook() {
+  function updateBlock(kind: "hook" | "closing" | "topic", index: number, field: string, value: string) {
     if (!result) return;
-    const data = (await gen.mutateAsync({
-      mode: "topics",
-      theme: theme.trim(),
-      my_perspective: myPerspective.trim(),
-      objective,
-      format,
-      anchor,
-      audience_context: audienceContext.trim() || undefined,
-      avoid: [...avoidHooks, result.hook.question],
-    })) as import("@/hooks/useRelationalEngine").RelationalTopicsResult;
-    setAvoidHooks((prev) => [...prev, result.hook.question]);
-    setResult({ ...result, hook: data.hook });
-    toast.success("Novo gancho gerado");
+    if (kind === "topic") {
+      const topics = [...result.topics];
+      topics[index] = { ...topics[index], [field]: value };
+      setResult({ ...result, topics });
+    } else {
+      setResult({ ...result, [kind]: { ...result[kind], [field]: value } });
+    }
   }
 
-  function removeTopic(index: number) {
+  function removeTopic(i: number) {
     if (!result) return;
-    setResult({ ...result, topics: result.topics.filter((_, i) => i !== index) });
+    setResult({ ...result, topics: result.topics.filter((_, idx) => idx !== i) });
+  }
+
+  function addTopic() {
+    if (!result) return;
+    setResult({
+      ...result,
+      topics: [...result.topics, { theme: "Novo bloco", guidance: "", connects_to_next: "" }],
+    });
   }
 
   function sendToProduction() {
     if (!result) return;
     const formatted = formatTopicsAsScript(result);
     upsertPiece.mutate({
-      title: result.hook.question.slice(0, 160),
+      title: `${result.theme} — ${result.hook.theme}`.slice(0, 160),
       theme: result.theme,
       format: ({ reel: "reels", carrossel: "carrossel", legenda: "texto" } as const)[result.format],
       status: "em_producao",
       pipeline_stage: "roteiro_pronto",
       clinical_anchor: anchor === "auto" ? null : anchor,
       audience_context: audienceContext || null,
-      hook: result.hook.question,
+      hook: result.hook.guidance,
       script: formatted,
       notes: formatted,
       idea_id: seed?.ideaId ?? null,
@@ -884,16 +166,7 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
     <div className="space-y-4">
       {seed?.sourceLabel && (
         <Card className="p-3 border-accent/30 bg-accent/5">
-          <p className="text-sm">
-            <span className="font-medium">Desenvolvendo:</span> {seed.sourceLabel}
-            {seed.sourceOrigin && <span className="text-muted-foreground"> · origem: {seed.sourceOrigin}</span>}
-          </p>
-          {seed.audienceContext && (
-            <details className="mt-2 text-xs text-muted-foreground">
-              <summary className="cursor-pointer">Ver contexto da audiência</summary>
-              <pre className="whitespace-pre-wrap mt-2 text-[11px]">{seed.audienceContext}</pre>
-            </details>
-          )}
+          <p className="text-sm"><span className="font-medium">Desenvolvendo:</span> {seed.sourceLabel}</p>
         </Card>
       )}
 
@@ -912,10 +185,10 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
           value={myPerspective}
           onChange={(e) => setMyPerspective(e.target.value)}
           className="mt-2"
-          placeholder="Escreva como você falaria para uma paciente. Sem filtro, sem formatação. O que você realmente acha disso?"
+          placeholder="Sem filtro. O que você realmente acha — a leitura clínica, a observação que ninguém faz, o que você vê no consultório."
         />
         <p className="text-[11px] text-muted-foreground mt-1.5">
-          Isso determina se o conteúdo vai soar como você ou como qualquer outra psicóloga.
+          Determina se o conteúdo soa como você ou como qualquer outra psicóloga.
         </p>
       </div>
 
@@ -939,7 +212,7 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
           </Select>
         </div>
         <div>
-          <Label>Ancoragem clínica</Label>
+          <Label>Ancoragem</Label>
           <Select value={anchor} onValueChange={setAnchor}>
             <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -947,14 +220,32 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
               <SelectItem value="IBCT">IBCT</SelectItem>
               <SelectItem value="Gottman">Gottman</SelectItem>
               <SelectItem value="IBCT+Gottman">IBCT + Gottman</SelectItem>
-              <SelectItem value="sem_nomear">Só minha visão (sem nomear)</SelectItem>
+              <SelectItem value="sem_nomear">Sem nomear</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
+      <button type="button" onClick={() => setShowAdvanced((s) => !s)} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+        {showAdvanced ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        Contexto da audiência e calibração de voz
+      </button>
+
+      {showAdvanced && (
+        <div className="space-y-3 pl-3 border-l-2 border-border">
+          <div>
+            <Label className="text-xs">Contexto da audiência (opcional)</Label>
+            <Textarea rows={3} value={audienceContext} onChange={(e) => setAudienceContext(e.target.value)} className="mt-1.5" placeholder="Comentários, dúvidas e palavras que sua audiência usa." />
+          </div>
+          <div>
+            <Label className="text-xs">Calibração de voz (opcional)</Label>
+            <Textarea rows={3} value={voiceCalibration} onChange={(e) => setVoiceCalibration(e.target.value)} className="mt-1.5" placeholder="Cole aqui um trecho seu — uma legenda ou roteiro antigo. A IA vai espelhar seu ritmo e vocabulário." />
+          </div>
+        </div>
+      )}
+
       <Button onClick={handleGenerate} disabled={gen.isPending} size="lg" className="w-full">
-        {gen.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Gerando tópicos…</> : <><Wand2 className="h-4 w-4 mr-2" />Gerar tópicos para gravação</>}
+        {gen.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Construindo arco narrativo…</> : <><Wand2 className="h-4 w-4 mr-2" />Gerar tópicos para gravação</>}
       </Button>
 
       {result && (
@@ -967,47 +258,56 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
             </div>
             <div className="flex gap-2">
               <Button size="sm" variant="ghost" onClick={() => copyToClipboard(formatTopicsAsScript(result))}>
-                <Copy className="h-3.5 w-3.5 mr-1" /> Copiar
+                <Copy className="h-3.5 w-3.5 mr-1" />Copiar
               </Button>
               <Button size="sm" onClick={sendToProduction} disabled={upsertPiece.isPending}>
-                <Mic2 className="h-3.5 w-3.5 mr-1" /> Enviar para produção
+                <Mic2 className="h-3.5 w-3.5 mr-1" />Enviar ao Pipeline
               </Button>
             </div>
           </div>
 
-          <div className="border-l-2 border-accent pl-3">
-            <p className="text-[10px] uppercase tracking-widest text-accent mb-1">Gancho</p>
-            <p className="text-sm font-medium">{result.hook.question}</p>
-            <p className="text-xs text-muted-foreground italic mt-1">↳ {result.hook.note}</p>
-            <Button size="sm" variant="ghost" className="mt-2 h-7 text-xs" onClick={rewriteHook} disabled={gen.isPending}>
-              <Sparkles className="h-3 w-3 mr-1" /> Reescrever gancho
-            </Button>
+          <div className="bg-muted/30 p-3 rounded-md">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Arco narrativo</p>
+            <p className="text-sm italic">{result.narrative_arc}</p>
           </div>
 
+          <BlockEditor
+            badge="Gancho"
+            theme={result.hook.theme}
+            guidance={result.hook.guidance}
+            onThemeChange={(v) => updateBlock("hook", 0, "theme", v)}
+            onGuidanceChange={(v) => updateBlock("hook", 0, "guidance", v)}
+          />
+
           {result.topics.map((t, i) => (
-            <div key={i} className="border-l-2 border-border pl-3 group">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Tópico {i + 1} — {t.name}</p>
-                <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removeTopic(i)}>
-                  <XCircle className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              <p className="text-sm font-medium mt-1">Pergunta para você responder:</p>
-              <p className="text-sm">"{t.question}"</p>
-              <div className="mt-2 text-xs space-y-1">
-                <p><span className="text-muted-foreground">Contexto:</span> {t.context}</p>
-                <p><span className="text-muted-foreground">Âncora clínica:</span> {t.clinical_anchor}</p>
-              </div>
+            <div key={i} className="relative group">
+              <BlockEditor
+                badge={`Bloco ${i + 1}`}
+                theme={t.theme}
+                guidance={t.guidance}
+                connectsTo={t.connects_to_next}
+                onThemeChange={(v) => updateBlock("topic", i, "theme", v)}
+                onGuidanceChange={(v) => updateBlock("topic", i, "guidance", v)}
+                onConnectsChange={(v) => updateBlock("topic", i, "connects_to_next", v)}
+              />
+              <Button size="icon" variant="ghost" className="absolute top-0 right-0 h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => removeTopic(i)}>
+                <XCircle className="h-3.5 w-3.5" />
+              </Button>
             </div>
           ))}
 
-          <div className="border-l-2 border-accent pl-3">
-            <p className="text-[10px] uppercase tracking-widest text-accent mb-1">Fechamento</p>
-            <p className="text-sm italic">{result.closing.direction}</p>
-          </div>
+          <Button variant="outline" size="sm" onClick={addTopic} className="w-full">+ Adicionar bloco</Button>
 
-          <p className="text-[11px] text-muted-foreground border-t border-border pt-3">
-            Estes são tópicos para você responder na câmera com as próprias palavras — não um roteiro para ler.
+          <BlockEditor
+            badge="Fechamento"
+            theme={result.closing.theme}
+            guidance={result.closing.guidance}
+            onThemeChange={(v) => updateBlock("closing", 0, "theme", v)}
+            onGuidanceChange={(v) => updateBlock("closing", 0, "guidance", v)}
+          />
+
+          <p className="text-[11px] text-muted-foreground border-t pt-3">
+            Cada bloco é um <strong>tema + direção</strong>. Você fala com as próprias palavras, mantendo o fio.
           </p>
         </Card>
       )}
@@ -1015,19 +315,496 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
   );
 }
 
-function formatTopicsAsScript(r: import("@/hooks/useRelationalEngine").RelationalTopicsResult): string {
-  const lines: string[] = [];
-  lines.push(`GANCHO\n${r.hook.question}\n(direção: ${r.hook.note})\n`);
-  r.topics.forEach((t, i) => {
-    lines.push(`TÓPICO ${i + 1} — ${t.name}\nPergunta: "${t.question}"\nContexto: ${t.context}\nÂncora: ${t.clinical_anchor}\n`);
-  });
-  lines.push(`FECHAMENTO\n${r.closing.direction}`);
-  return lines.join("\n");
+function BlockEditor(props: {
+  badge: string;
+  theme: string;
+  guidance: string;
+  connectsTo?: string;
+  onThemeChange: (v: string) => void;
+  onGuidanceChange: (v: string) => void;
+  onConnectsChange?: (v: string) => void;
+}) {
+  return (
+    <div className="border-l-2 border-accent pl-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <Badge variant="outline" className="text-[10px] uppercase">{props.badge}</Badge>
+        <Input
+          value={props.theme}
+          onChange={(e) => props.onThemeChange(e.target.value)}
+          className="text-sm font-medium border-0 border-b rounded-none px-1 h-7 focus-visible:ring-0"
+        />
+      </div>
+      <Textarea
+        value={props.guidance}
+        onChange={(e) => props.onGuidanceChange(e.target.value)}
+        rows={3}
+        className="text-sm resize-none"
+        placeholder="Direção autoral — o que precisa ser dito aqui."
+      />
+      {props.onConnectsChange && (
+        <div className="flex items-start gap-2">
+          <span className="text-[10px] text-muted-foreground mt-2 shrink-0">→ conecta:</span>
+          <Input
+            value={props.connectsTo ?? ""}
+            onChange={(e) => props.onConnectsChange!(e.target.value)}
+            className="text-xs italic h-7"
+            placeholder="Como esse bloco abre o próximo"
+          />
+        </div>
+      )}
+    </div>
+  );
 }
 
-// ─────────────────────────────────────────────
-// EXPORT PRINCIPAL
-// ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+// ROTEIRO AUTORAL — texto livre, parágrafos editáveis individualmente
+// ═══════════════════════════════════════════════════════════
+function AuthoredScriptSubTab({ seed }: { seed?: RelationalSeed | null }) {
+  const [theme, setTheme] = useState("");
+  const [myPerspective, setMyPerspective] = useState("");
+  const [voiceCalibration, setVoiceCalibration] = useState("");
+  const [format, setFormat] = useState("reel");
+  const [objective, setObjective] = useState("identificacao");
+  const [anchor, setAnchor] = useState("auto");
+  const [result, setResult] = useState<RelationalScriptResult | null>(null);
+  const [regenIndex, setRegenIndex] = useState<number | null>(null);
+  const [regenDirection, setRegenDirection] = useState("");
+  const gen = useGenerateRelational();
+  const upsertPiece = useUpsertPiece();
+  const save = useSaveRelationalAsIdea();
+  const { scope } = useScope();
+
+  useEffect(() => {
+    if (!seed) return;
+    setTheme(seed.theme ?? "");
+    setMyPerspective(seed.myPerspective ?? "");
+    setFormat(seed.format ?? "reel");
+    setAnchor(seed.anchor ?? "auto");
+    setObjective(seed.objective ?? "identificacao");
+  }, [seed]);
+
+  async function handleGenerate() {
+    if (!theme.trim()) { toast.error("Informe o tema"); return; }
+    const data = (await gen.mutateAsync({
+      mode: "single",
+      theme: theme.trim(),
+      my_perspective: myPerspective.trim(),
+      voice_calibration: voiceCalibration.trim() || undefined,
+      objective, format, anchor,
+    })) as RelationalScriptResult;
+    setResult(data);
+  }
+
+  function updateParagraph(i: number, text: string) {
+    if (!result) return;
+    const paragraphs = [...result.paragraphs];
+    paragraphs[i] = { ...paragraphs[i], text };
+    setResult({ ...result, paragraphs });
+  }
+
+  async function regenerateParagraph(i: number) {
+    if (!result) return;
+    const original = result.paragraphs[i];
+    const fullContext = result.paragraphs.map((p, idx) => `[${idx === i ? ">>" : "  "}] ${p.text}`).join("\n\n");
+    const data = await gen.mutateAsync({
+      mode: "regen_paragraph",
+      role: original.role,
+      original: original.text,
+      full_context: fullContext,
+      direction: regenDirection.trim() || "torne mais natural, direto e na minha voz",
+      my_perspective: myPerspective.trim(),
+      voice_calibration: voiceCalibration.trim() || undefined,
+    }) as { text: string };
+    updateParagraph(i, data.text);
+    setRegenIndex(null);
+    setRegenDirection("");
+    toast.success("Parágrafo reescrito");
+  }
+
+  function removeParagraph(i: number) {
+    if (!result) return;
+    setResult({ ...result, paragraphs: result.paragraphs.filter((_, idx) => idx !== i) });
+  }
+
+  function addParagraph(after: number) {
+    if (!result) return;
+    const paragraphs = [...result.paragraphs];
+    paragraphs.splice(after + 1, 0, { role: "desenvolvimento", text: "" });
+    setResult({ ...result, paragraphs });
+  }
+
+  function sendToProduction() {
+    if (!result) return;
+    const text = formatScriptAsText(result);
+    upsertPiece.mutate({
+      title: `${result.theme}`.slice(0, 160),
+      theme: result.theme,
+      format: ({ reel: "reels", carrossel: "carrossel", legenda: "texto" } as const)[result.format],
+      status: "em_producao",
+      pipeline_stage: "roteiro_pronto",
+      clinical_anchor: anchor === "auto" ? null : anchor,
+      hook: result.paragraphs[0]?.text ?? null,
+      script: text,
+      notes: text,
+      idea_id: seed?.ideaId ?? null,
+      scope: (scope === "todos" ? "profissional" : scope) as any,
+    } as any, { onSuccess: (piece) => { seed?.onScriptReady?.((piece as any)?.id); toast.success("Enviado ao Pipeline"); } });
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-3 bg-muted/30">
+        <p className="text-xs text-muted-foreground">
+          Roteiro em texto corrido com voz de fala. Cada parágrafo é editável e pode ser reescrito individualmente sem perder o resto.
+        </p>
+      </Card>
+
+      <div>
+        <Label>Tema</Label>
+        <Input value={theme} onChange={(e) => setTheme(e.target.value)} className="mt-2" />
+      </div>
+
+      <div>
+        <Label>O que você pensa sobre isso</Label>
+        <Textarea rows={4} value={myPerspective} onChange={(e) => setMyPerspective(e.target.value)} className="mt-2" placeholder="Sua leitura clínica autêntica." />
+      </div>
+
+      <div>
+        <Label className="flex items-center gap-2">Calibração de voz <Badge variant="outline" className="text-[10px]">recomendado</Badge></Label>
+        <Textarea rows={3} value={voiceCalibration} onChange={(e) => setVoiceCalibration(e.target.value)} className="mt-2" placeholder="Cole 1-2 trechos seus (legendas ou falas anteriores). A IA vai espelhar seu ritmo." />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <div>
+          <Label>Formato</Label>
+          <Select value={format} onValueChange={setFormat}>
+            <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
+            <SelectContent>{Object.entries(FORMAT_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Objetivo</Label>
+          <Select value={objective} onValueChange={setObjective}>
+            <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
+            <SelectContent>{Object.entries(OBJECTIVE_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Ancoragem</Label>
+          <Select value={anchor} onValueChange={setAnchor}>
+            <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="auto">A IA decide</SelectItem>
+              <SelectItem value="IBCT">IBCT</SelectItem>
+              <SelectItem value="Gottman">Gottman</SelectItem>
+              <SelectItem value="IBCT+Gottman">IBCT + Gottman</SelectItem>
+              <SelectItem value="sem_nomear">Sem nomear</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button onClick={handleGenerate} disabled={gen.isPending} size="lg" className="w-full">
+        {gen.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Escrevendo na sua voz…</> : <><FileText className="h-4 w-4 mr-2" />Gerar roteiro autoral</>}
+      </Button>
+
+      {result && (
+        <Card className="p-5 space-y-4 border-accent/30">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap">
+              <Badge variant="secondary">{FORMAT_LABEL[result.format]}</Badge>
+              <Badge variant="outline">{result.paragraphs.length} parágrafos</Badge>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="ghost" onClick={() => copyToClipboard(formatScriptAsText(result))}>
+                <Copy className="h-3.5 w-3.5 mr-1" />Copiar
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => save.mutate({
+                title: result.theme,
+                theme: result.theme,
+                full_text: formatScriptAsText(result),
+                format: result.format,
+                anchor: result.anchor,
+                objective: result.objective,
+              })}>
+                <Save className="h-3.5 w-3.5 mr-1" />Salvar
+              </Button>
+              <Button size="sm" onClick={sendToProduction} disabled={upsertPiece.isPending}>
+                <Mic2 className="h-3.5 w-3.5 mr-1" />Pipeline
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {result.paragraphs.map((p, i) => (
+              <div key={i} className="group relative border-l-2 border-border hover:border-accent/50 pl-3 transition-colors">
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge variant="outline" className="text-[9px] uppercase">{p.role}</Badge>
+                  <div className="flex gap-1 ml-auto opacity-0 group-hover:opacity-100">
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setRegenIndex(regenIndex === i ? null : i)}>
+                      <RefreshCw className="h-3 w-3" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => addParagraph(i)}>
+                      <span className="text-xs">+</span>
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeParagraph(i)}>
+                      <XCircle className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+                <Textarea
+                  value={p.text}
+                  onChange={(e) => updateParagraph(i, e.target.value)}
+                  rows={Math.max(2, Math.ceil(p.text.length / 90))}
+                  className="text-sm resize-none border-0 px-0 focus-visible:ring-0 leading-relaxed"
+                />
+                {regenIndex === i && (
+                  <div className="mt-2 p-2 bg-muted/40 rounded space-y-2">
+                    <Input
+                      value={regenDirection}
+                      onChange={(e) => setRegenDirection(e.target.value)}
+                      placeholder="Direção: ex: 'mais curto', 'mais concreto', 'comece pela cena'"
+                      className="text-xs h-8"
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => regenerateParagraph(i)} disabled={gen.isPending}>
+                        {gen.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Reescrever"}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setRegenIndex(null)}>Cancelar</Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// VARIAÇÕES — 3 ângulos diferentes do mesmo tema
+// ═══════════════════════════════════════════════════════════
+function VariationsSubTab({ seed }: { seed?: RelationalSeed | null }) {
+  const [theme, setTheme] = useState("");
+  const [myPerspective, setMyPerspective] = useState("");
+  const [audienceContext, setAudienceContext] = useState("");
+  const [result, setResult] = useState<RelationalVariationsResult | null>(null);
+  const gen = useGenerateRelational();
+
+  useEffect(() => {
+    if (!seed) return;
+    setTheme(seed.theme ?? "");
+    setMyPerspective(seed.myPerspective ?? "");
+    setAudienceContext(seed.audienceContext ?? "");
+  }, [seed]);
+
+  async function handleGenerate() {
+    if (!theme.trim()) { toast.error("Informe o tema"); return; }
+    const data = (await gen.mutateAsync({
+      mode: "variations",
+      theme: theme.trim(),
+      my_perspective: myPerspective.trim(),
+      audience_context: audienceContext.trim() || undefined,
+    })) as RelationalVariationsResult;
+    setResult(data);
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-3 bg-muted/30">
+        <p className="text-xs text-muted-foreground">
+          3 ângulos radicalmente diferentes para o mesmo tema. Use antes de gravar para escolher a porta de entrada certa.
+        </p>
+      </Card>
+
+      <div>
+        <Label>Tema</Label>
+        <Input value={theme} onChange={(e) => setTheme(e.target.value)} className="mt-2" />
+      </div>
+      <div>
+        <Label>O que você pensa sobre isso (opcional)</Label>
+        <Textarea rows={3} value={myPerspective} onChange={(e) => setMyPerspective(e.target.value)} className="mt-2" />
+      </div>
+
+      <Button onClick={handleGenerate} disabled={gen.isPending} size="lg" className="w-full">
+        {gen.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Mapeando ângulos…</> : <><Compass className="h-4 w-4 mr-2" />Gerar 3 ângulos</>}
+      </Button>
+
+      {result && (
+        <div className="grid gap-3 md:grid-cols-3">
+          {result.variations.map((v, i) => (
+            <Card key={i} className="p-4 space-y-3 hover:border-accent/50 transition-colors">
+              <Badge variant="secondary" className="text-[10px]">Ângulo {i + 1}</Badge>
+              <h4 className="font-display font-semibold text-sm">{v.angle_name}</h4>
+              <p className="text-sm italic border-l-2 border-accent/40 pl-2">{v.one_liner}</p>
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Como abrir</p>
+                <p className="text-xs leading-relaxed">{v.opening_idea}</p>
+              </div>
+              <div className="bg-muted/30 p-2 rounded text-xs">
+                <span className="text-muted-foreground">Por quê: </span>{v.why_this_works}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// SÉRIE — N conteúdos conectados
+// ═══════════════════════════════════════════════════════════
+function SeriesSubTab() {
+  const [theme, setTheme] = useState("");
+  const [myPerspective, setMyPerspective] = useState("");
+  const [pieceCount, setPieceCount] = useState("5");
+  const [result, setResult] = useState<RelationalSeriesResult | null>(null);
+  const gen = useGenerateRelational();
+  const save = useSaveRelationalAsIdea();
+
+  async function handleGenerate() {
+    if (!theme.trim()) { toast.error("Informe o tema central"); return; }
+    const data = (await gen.mutateAsync({
+      mode: "series",
+      theme: theme.trim(),
+      my_perspective: myPerspective.trim(),
+      piece_count: Number(pieceCount),
+    })) as RelationalSeriesResult;
+    setResult(data);
+  }
+
+  function saveAll() {
+    if (!result) return;
+    Promise.all(
+      result.pieces.map((p) =>
+        save.mutateAsync({
+          title: `[${result.series_name} ${p.order}/${result.pieces.length}] ${p.theme}`,
+          theme: p.theme,
+          full_text: `${p.one_liner}\n\n${p.guidance}\n\n→ conecta com anterior: ${p.builds_on_previous}`,
+          format: p.format,
+        }),
+      ),
+    ).then(() => toast.success(`${result.pieces.length} posts salvos no Banco`));
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-3 bg-muted/30">
+        <p className="text-xs text-muted-foreground">
+          Série de posts que se desenvolvem como uma conversa. Cada um abre o próximo. Não são posts soltos sobre o mesmo assunto.
+        </p>
+      </Card>
+
+      <div>
+        <Label>Tema central</Label>
+        <Input value={theme} onChange={(e) => setTheme(e.target.value)} className="mt-2" placeholder="Ex: como casais que ficam juntos lidam com conflito" />
+      </div>
+      <div>
+        <Label>Sua leitura sobre o tema</Label>
+        <Textarea rows={3} value={myPerspective} onChange={(e) => setMyPerspective(e.target.value)} className="mt-2" />
+      </div>
+      <div className="max-w-xs">
+        <Label>Quantos posts</Label>
+        <Select value={pieceCount} onValueChange={setPieceCount}>
+          <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="3">3 posts</SelectItem>
+            <SelectItem value="5">5 posts</SelectItem>
+            <SelectItem value="7">7 posts</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Button onClick={handleGenerate} disabled={gen.isPending} size="lg" className="w-full">
+        {gen.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Construindo arco da série…</> : <><Layers3 className="h-4 w-4 mr-2" />Gerar série conectada</>}
+      </Button>
+
+      {result && (
+        <Card className="p-5 space-y-4 border-accent/30">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <h3 className="font-display font-semibold">{result.series_name}</h3>
+              <p className="text-xs italic text-muted-foreground mt-1">{result.narrative_arc}</p>
+            </div>
+            <Button size="sm" onClick={saveAll} disabled={save.isPending}>
+              <Save className="h-3.5 w-3.5 mr-1" />Salvar todos no Banco
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            {result.pieces.map((p) => (
+              <Card key={p.order} className="p-3 space-y-1.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="secondary" className="text-[10px]">{p.order}/{result.pieces.length}</Badge>
+                  <Badge variant="outline" className="text-[10px]">{FORMAT_LABEL[p.format]}</Badge>
+                  <span className="text-sm font-medium">{p.theme}</span>
+                </div>
+                <p className="text-sm italic">{p.one_liner}</p>
+                <p className="text-xs text-muted-foreground">{p.guidance}</p>
+                {p.order > 1 && (
+                  <p className="text-[11px] text-muted-foreground border-l-2 border-accent/30 pl-2 italic">
+                    ↳ vem do anterior: {p.builds_on_previous}
+                  </p>
+                )}
+              </Card>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// BANCO — pautas salvas
+// ═══════════════════════════════════════════════════════════
+function BankSubTab() {
+  const { data: ideas = [], isLoading } = useRelationalIdeas();
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        Tudo que você salvou do Motor Relacional. Tópicos, roteiros e séries.
+      </p>
+
+      {isLoading ? (
+        <div className="flex justify-center py-10">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : (ideas as any[]).length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-10">
+          Nenhuma pauta salva ainda.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {(ideas as any[]).map((idea) => (
+            <Card key={idea.id} className="p-3">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <Badge variant="outline" className="text-[10px]">{idea.suggested_format}</Badge>
+                <span className="text-[10px] text-muted-foreground">{formatDateBR(idea.created_at)}</span>
+                {idea.used && <Badge className="text-[10px]">usada</Badge>}
+                <Button size="sm" variant="ghost" className="ml-auto h-7" onClick={() => copyToClipboard(idea.notes ?? idea.title)}>
+                  <Copy className="h-3 w-3" />
+                </Button>
+              </div>
+              <p className="text-sm font-medium mb-1">{idea.title}</p>
+              {idea.notes && (
+                <p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-wrap">{idea.notes}</p>
+              )}
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════════════════
 export function RelationalEngineTab({ seed }: { seed?: RelationalSeed | null }) {
   return (
     <div className="space-y-4">
@@ -1035,9 +812,9 @@ export function RelationalEngineTab({ seed }: { seed?: RelationalSeed | null }) 
         <div className="flex items-start gap-3">
           <Heart className="h-5 w-5 text-accent mt-0.5 shrink-0" />
           <div>
-            <p className="font-semibold text-sm">Motor Relacional — tópicos para gravação</p>
+            <p className="font-semibold text-sm">Motor Relacional</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Gera perguntas para você responder na câmera com as próprias palavras. Não é roteiro para ler.
+              4 modos de criação clínica autoral. Sua voz, sua leitura, com fio narrativo.
             </p>
           </div>
         </div>
@@ -1045,22 +822,19 @@ export function RelationalEngineTab({ seed }: { seed?: RelationalSeed | null }) 
 
       <Tabs defaultValue="topicos">
         <TabsList className="flex flex-wrap h-auto w-full justify-start gap-1">
-          <TabsTrigger value="topicos"><Mic2 className="h-3.5 w-3.5 mr-1" />Tópicos para gravação</TabsTrigger>
-          <TabsTrigger value="gerador"><Wand2 className="h-3.5 w-3.5 mr-1" />Roteiro escrito</TabsTrigger>
-          <TabsTrigger value="tempo"><Clock className="h-3.5 w-3.5 mr-1" />Por tempo</TabsTrigger>
-          <TabsTrigger value="lote"><Layers className="h-3.5 w-3.5 mr-1" />Lote</TabsTrigger>
+          <TabsTrigger value="topicos"><Mic2 className="h-3.5 w-3.5 mr-1" />Tópicos para gravar</TabsTrigger>
+          <TabsTrigger value="roteiro"><FileText className="h-3.5 w-3.5 mr-1" />Roteiro autoral</TabsTrigger>
+          <TabsTrigger value="angulos"><Compass className="h-3.5 w-3.5 mr-1" />3 ângulos</TabsTrigger>
+          <TabsTrigger value="serie"><Layers3 className="h-3.5 w-3.5 mr-1" />Série conectada</TabsTrigger>
           <TabsTrigger value="banco"><Library className="h-3.5 w-3.5 mr-1" />Banco</TabsTrigger>
-          <TabsTrigger value="voz"><FileText className="h-3.5 w-3.5 mr-1" />Guia de voz</TabsTrigger>
         </TabsList>
 
         <TabsContent value="topicos" className="mt-4"><TopicsSubTab seed={seed} /></TabsContent>
-        <TabsContent value="gerador" className="mt-4"><GeneratorSubTab seed={seed} /></TabsContent>
-        <TabsContent value="tempo" className="mt-4"><TimedScriptSubTab /></TabsContent>
-        <TabsContent value="lote" className="mt-4"><BatchSubTab /></TabsContent>
+        <TabsContent value="roteiro" className="mt-4"><AuthoredScriptSubTab seed={seed} /></TabsContent>
+        <TabsContent value="angulos" className="mt-4"><VariationsSubTab seed={seed} /></TabsContent>
+        <TabsContent value="serie" className="mt-4"><SeriesSubTab /></TabsContent>
         <TabsContent value="banco" className="mt-4"><BankSubTab /></TabsContent>
-        <TabsContent value="voz" className="mt-4"><VoiceGuideSubTab /></TabsContent>
       </Tabs>
     </div>
   );
 }
-
