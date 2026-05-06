@@ -84,6 +84,7 @@ export const useGenerateRelational = () => {
       objective?: string;
       format?: string;
       anchor?: string;
+      prompt?: string;
       audience_context?: string;
       voice_calibration?: string;
       avoid?: string[];
