@@ -97,12 +97,48 @@ function copyToClipboard(text: string) {
   toast.success("Copiado");
 }
 
+function HybridChipInput(props: {
+  label: string;
+  chips: string[];
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>{props.label}</Label>
+      <div className="flex flex-wrap gap-1.5">
+        {props.chips.map((chip) => (
+          <button
+            key={chip}
+            type="button"
+            onClick={() => props.onChange(chip)}
+            className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+              props.value === chip
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-card hover:border-primary/40"
+            }`}
+          >
+            {chip}
+          </button>
+        ))}
+      </div>
+      <Input
+        value={props.value}
+        onChange={(e) => props.onChange(e.target.value)}
+        className="h-9 text-sm"
+        placeholder={props.placeholder}
+      />
+    </div>
+  );
+}
+
 function formatTopicsAsScript(r: RelationalTopicsResult): string {
   const lines: string[] = [];
   lines.push(`ARCO: ${r.narrative_arc}\n`);
   lines.push(`GANCHO — ${r.hook.theme}\n${r.hook.guidance}\n`);
   r.topics.forEach((t, i) => {
-    lines.push(`BLOCO ${i + 1} — ${t.theme}\n${t.guidance}\n→ conecta: ${t.connects_to_next}\n`);
+    lines.push(`TÓPICO ${i + 1} — ${t.theme}\nPergunta para você responder: "${t.question ?? ""}"\nContexto: ${t.context ?? ""}\nÂncora clínica: ${t.clinical_anchor ?? ""}\n\nLinha guia: ${t.guidance}\n→ conecta: ${t.connects_to_next}\n`);
   });
   lines.push(`FECHAMENTO — ${r.closing.theme}\n${r.closing.guidance}`);
   return lines.join("\n");
