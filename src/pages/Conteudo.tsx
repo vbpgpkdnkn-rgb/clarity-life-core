@@ -284,7 +284,16 @@ function EditorialTab({ pieces, ideas, consistency }: { pieces: ContentPiece[]; 
             <h3 className="font-display font-semibold">Plano semanal editorial</h3>
             <p className="text-xs text-muted-foreground">Distribuição por pilares: padrão relacional, função emocional, transformação e qualidade relacional.</p>
           </div>
-          <Button size="sm" onClick={() => weeklyPlan.mutate({
+          <div className="flex gap-2 flex-wrap">
+            <Input value={focus} onChange={(e) => setFocus(e.target.value)} placeholder="Foco da semana" className="h-9 w-48" />
+            <Button size="sm" variant="outline" onClick={() => generateLine.mutate({
+              week_start: weekStart,
+              focus,
+              recent_titles: pieces.filter((p) => p.status === "publicado").slice(0, 12).map((p) => p.title),
+            })} disabled={generateLine.isPending}>
+              <CalendarCheck className="h-3.5 w-3.5 mr-1" />{generateLine.isPending ? "Gerando…" : "Gerar linha V5"}
+            </Button>
+            <Button size="sm" onClick={() => weeklyPlan.mutate({
             target_per_week: consistency.targetPerWeek,
             consistency_pct: consistency.pct,
             briefing: "Distribua formatos e temas pelos pilares: Padrão relacional, Função emocional, Transformação, Qualidade relacional.",
@@ -292,8 +301,33 @@ function EditorialTab({ pieces, ideas, consistency }: { pieces: ContentPiece[]; 
             ideas: ideas.slice(0, 20).map((i) => ({ id: i.id, title: i.title, theme: i.theme, suggested_format: i.suggested_format })),
           })} disabled={weeklyPlan.isPending}>
             <Sparkles className="h-3.5 w-3.5 mr-1" />{weeklyPlan.isPending ? "Gerando…" : "Gerar plano semanal com IA"}
-          </Button>
+            </Button>
+          </div>
         </div>
+        {line.data?.plan?.days && (
+          <div className="mt-4 grid gap-2 md:grid-cols-7 border-t border-border pt-3">
+            {line.data.plan.days.map((day) => {
+              const date = dayISOFromWeekday(weekStart, day.weekday);
+              const filled = pieces.some((p) => p.planned_date === date || (p as any).target_publish_at?.startsWith(date));
+              return (
+                <Card key={day.weekday} className={`p-2 space-y-2 ${filled ? "border-success/30" : "border-border"}`}>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{WEEKDAY_LABEL[day.weekday]}</span>
+                    {filled ? <CheckCircle2 className="h-3.5 w-3.5 text-success" /> : <Circle className="h-3.5 w-3.5 text-muted-foreground" />}
+                  </div>
+                  <p className="text-xs font-medium leading-snug line-clamp-3">{day.suggestion}</p>
+                  <div className="flex flex-wrap gap-1">
+                    <Badge variant="outline" className="text-[9px] px-1 py-0">{PILLAR_LABEL[day.pillar]}</Badge>
+                    <Badge variant="secondary" className="text-[9px] px-1 py-0">{day.format}</Badge>
+                  </div>
+                  {!filled && day.format !== "descanso" && (
+                    <Button size="sm" variant="ghost" className="h-7 w-full text-[11px]" onClick={() => createFromEditorialDay(day)}>Criar slot</Button>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        )}
         {weeklyPlan.data && <div className="mt-4 space-y-2 border-t border-border pt-3">{weeklyPlan.data.plan.schedule.map((s, i) => <div key={i} className="text-sm border border-border rounded-md p-2"><strong>{s.day}: {s.title}</strong><p className="text-xs text-muted-foreground">{s.reason}</p></div>)}</div>}
       </Card>
 
