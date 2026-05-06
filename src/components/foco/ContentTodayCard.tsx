@@ -1,12 +1,17 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clapperboard, ChevronRight, AlertCircle, Flame } from "lucide-react";
+import { Clapperboard, ChevronRight, AlertCircle, Flame, CalendarDays, CheckCircle2, Circle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTodayContent, useContentConsistency } from "@/hooks/useContent";
 import { useStoriesConsistency, useConsistencyAlerts } from "@/hooks/useStoriesAndReferences";
+import { currentWeekStart, dayISOFromWeekday, useEditorialLine } from "@/hooks/useEditorialLine";
 import { useScope } from "@/contexts/ScopeContext";
-import { formatDateBR } from "@/lib/format";
+import { formatDateBR, todayISO } from "@/lib/format";
+
+const WEEKDAY_SHORT: Record<string, string> = {
+  segunda: "seg", terca: "ter", quarta: "qua", quinta: "qui", sexta: "sex", sabado: "sáb", domingo: "dom",
+};
 
 export function ContentTodayCard() {
   const navigate = useNavigate();
@@ -15,8 +20,12 @@ export function ContentTodayCard() {
   const consistency = useContentConsistency(scope === "todos" ? undefined : (scope as any));
   const stories = useStoriesConsistency(scope === "todos" ? undefined : (scope as any), 7);
   const alerts = useConsistencyAlerts(scope === "todos" ? undefined : (scope as any));
+  const weekStart = currentWeekStart();
+  const { data: editorialLine } = useEditorialLine(weekStart);
+  const today = todayISO();
 
-  const hasAnything = dueToday.length > 0 || stories.todayPlanned > 0 || alerts.length > 0 || consistency.publishedCount > 0;
+  const upcomingLine = editorialLine?.plan?.days?.filter((d) => dayISOFromWeekday(weekStart, d.weekday) >= today).slice(0, 4) ?? [];
+  const hasAnything = dueToday.length > 0 || stories.todayPlanned > 0 || alerts.length > 0 || consistency.publishedCount > 0 || upcomingLine.length > 0;
   if (!hasAnything) return null;
 
   return (
@@ -74,6 +83,29 @@ export function ContentTodayCard() {
         <p className="text-xs text-muted-foreground">
           Próximo post: <span className="text-foreground">{next.title}</span> ({formatDateBR(next.planned_date!)})
         </p>
+      )}
+
+      {upcomingLine.length > 0 && (
+        <div className="mt-3 rounded-md border border-border bg-card/70 p-2">
+          <div className="mb-2 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            <CalendarDays className="h-3 w-3" /> Linha editorial da semana
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {upcomingLine.map((day) => {
+              const date = dayISOFromWeekday(weekStart, day.weekday);
+              const filled = dueToday.some((p) => p.planned_date === date) || next?.planned_date === date;
+              return (
+                <button key={day.weekday} onClick={() => navigate("/conteudo")} className="flex items-start gap-1.5 rounded border border-border/70 p-1.5 text-left hover:border-primary/40">
+                  {filled ? <CheckCircle2 className="mt-0.5 h-3 w-3 text-success" /> : <Circle className="mt-0.5 h-3 w-3 text-muted-foreground" />}
+                  <span className="min-w-0">
+                    <span className="block text-[10px] uppercase text-muted-foreground">{WEEKDAY_SHORT[day.weekday]}</span>
+                    <span className="block truncate text-[11px] font-medium">{day.suggestion}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       {/* Indicadores de consistência */}

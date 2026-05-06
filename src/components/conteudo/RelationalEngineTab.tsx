@@ -59,9 +59,78 @@ const FORMAT_LABEL: Record<string, string> = {
   legenda: "Legenda",
 };
 
+const FORMAT_CHIPS = ["Reel", "Carrossel", "Legenda"];
+const OBJECTIVE_CHIPS = ["Atrair paciente", "Construir autoridade", "Gerar identificação", "Ensinar algo concreto"];
+const ANCHOR_CHIPS = ["IBCT", "Gottman", "IBCT + Gottman", "Só minha visão", "A IA decide"];
+
+function displayFormat(value?: string) {
+  if (!value) return "Formato";
+  return FORMAT_LABEL[value] ?? value;
+}
+
+function displayObjective(value?: string) {
+  if (!value) return "Objetivo";
+  return OBJECTIVE_LABEL[value] ?? value;
+}
+
+function normalizeText(value?: string) {
+  return (value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function toContentFormat(value?: string) {
+  const normalized = normalizeText(value);
+  if (normalized.includes("carrossel")) return "carrossel" as const;
+  if (normalized.includes("legenda") || normalized.includes("texto")) return "texto" as const;
+  return "reels" as const;
+}
+
+function seedFormatToText(value?: string) {
+  return value ? FORMAT_LABEL[value] ?? value : "Reel";
+}
+
+function seedObjectiveToText(value?: string) {
+  return value ? OBJECTIVE_LABEL[value] ?? value : "Gerar identificação";
+}
+
 function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text);
   toast.success("Copiado");
+}
+
+function HybridChipInput(props: {
+  label: string;
+  chips: string[];
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>{props.label}</Label>
+      <div className="flex flex-wrap gap-1.5">
+        {props.chips.map((chip) => (
+          <button
+            key={chip}
+            type="button"
+            onClick={() => props.onChange(chip)}
+            className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+              props.value === chip
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-card hover:border-primary/40"
+            }`}
+          >
+            {chip}
+          </button>
+        ))}
+      </div>
+      <Input
+        value={props.value}
+        onChange={(e) => props.onChange(e.target.value)}
+        className="h-9 text-sm"
+        placeholder={props.placeholder}
+      />
+    </div>
+  );
 }
 
 function formatTopicsAsScript(r: RelationalTopicsResult): string {
@@ -69,7 +138,7 @@ function formatTopicsAsScript(r: RelationalTopicsResult): string {
   lines.push(`ARCO: ${r.narrative_arc}\n`);
   lines.push(`GANCHO — ${r.hook.theme}\n${r.hook.guidance}\n`);
   r.topics.forEach((t, i) => {
-    lines.push(`BLOCO ${i + 1} — ${t.theme}\n${t.guidance}\n→ conecta: ${t.connects_to_next}\n`);
+    lines.push(`TÓPICO ${i + 1} — ${t.theme}\nPergunta para você responder: "${t.question ?? ""}"\nContexto: ${t.context ?? ""}\nÂncora clínica: ${t.clinical_anchor ?? ""}\n\nLinha guia: ${t.guidance}\n→ conecta: ${t.connects_to_next}\n`);
   });
   lines.push(`FECHAMENTO — ${r.closing.theme}\n${r.closing.guidance}`);
   return lines.join("\n");
@@ -85,9 +154,9 @@ function formatScriptAsText(r: RelationalScriptResult): string {
 function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
   const [theme, setTheme] = useState("");
   const [myPerspective, setMyPerspective] = useState("");
-  const [format, setFormat] = useState("reel");
-  const [objective, setObjective] = useState("identificacao");
-  const [anchor, setAnchor] = useState("auto");
+  const [format, setFormat] = useState("Reel");
+  const [objective, setObjective] = useState("Gerar identificação");
+  const [anchor, setAnchor] = useState("A IA decide");
   const [audienceContext, setAudienceContext] = useState("");
   const [voiceCalibration, setVoiceCalibration] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -100,19 +169,72 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
     if (!seed) return;
     setTheme(seed.theme ?? "");
     setMyPerspective(seed.myPerspective ?? "");
-    setFormat(seed.format ?? "reel");
-    setAnchor(seed.anchor ?? "auto");
-    setObjective(seed.objective ?? "identificacao");
+    setFormat(seedFormatToText(seed.format));
+    setAnchor(seed.anchor ?? "A IA decide");
+    setObjective(seedObjectiveToText(seed.objective));
     setAudienceContext(seed.audienceContext ?? "");
   }, [seed]);
 
   async function handleGenerate() {
     if (!theme.trim()) { toast.error("Informe o tema"); return; }
+    if (!myPerspective.trim()) {
+      toast.error("Este campo é o coração do conteúdo. Escreva o que você realmente pensa sobre esse tema antes de gerar.");
+      return;
+    }
+    const promptParaAPI = `
+Você é uma IA de criação de conteúdo para uma psicóloga clínica especializada em relacionamentos e terapia de casal (IBCT + Gottman).
+
+TEMA OU IDEIA:
+${theme.trim()}
+
+O QUE A PSICÓLOGA PENSA SOBRE ESSE TEMA (campo central — use tudo isso):
+${myPerspective.trim()}
+
+FORMATO: ${format.trim()}
+OBJETIVO: ${objective.trim()}
+ANCORAGEM CLÍNICA: ${anchor.trim()}
+
+COM BASE NISSO, gere os tópicos para gravação. 
+
+REGRAS:
+- O GANCHO deve ser uma frase ou pergunta específica que parte diretamente do que ela escreveu no campo "O que você pensa". Não invente um tema genérico.
+- Cada TÓPICO deve ser uma pergunta real que ela responde na câmera. A pergunta deve partir do raciocínio dela, não de um conceito abstrato.
+- O CONTEXTO de cada tópico deve citar algo específico que ela escreveu — não resumo genérico do tema.
+- A ÂNCORA CLÍNICA deve ser o conceito de IBCT ou Gottman traduzido em comportamento cotidiano — nunca jargão solto.
+- O FECHAMENTO deve indicar uma direção, não uma frase pronta.
+- Se o campo "O que você pensa" contiver raciocínio incompleto, fragmentado ou ditado por voz, interprete a intenção — não descarte. Conecte os pontos e use o raciocínio que está ali.
+
+FORMATO DE SAÍDA OBRIGATÓRIO (preencha todos os campos, nunca deixe vazio):
+
+GANCHO
+[frase ou pergunta de abertura — específica, vinda do raciocínio dela]
+
+TÓPICO 1 — [nome do bloco]
+Pergunta para você responder: "[pergunta real e específica]"
+Contexto: [o que ela escreveu que sustenta este tópico]
+Âncora clínica: [conceito em comportamento cotidiano]
+
+TÓPICO 2 — [nome do bloco]
+Pergunta para você responder: "[pergunta real e específica]"
+Contexto: [...]
+Âncora clínica: [...]
+
+TÓPICO 3 — [nome do bloco] (adicionar mais se o tema pedir)
+Pergunta para você responder: "[...]"
+Contexto: [...]
+Âncora clínica: [...]
+
+FECHAMENTO
+Direção: [não uma frase pronta — o que ela quer que a pessoa sinta ou faça depois de assistir]
+`;
     const data = (await gen.mutateAsync({
       mode: "topics",
       theme: theme.trim(),
       my_perspective: myPerspective.trim(),
-      objective, format, anchor,
+      objective: objective.trim(),
+      format: format.trim(),
+      anchor: anchor.trim(),
+      prompt: promptParaAPI,
       audience_context: audienceContext.trim() || undefined,
       voice_calibration: voiceCalibration.trim() || undefined,
     })) as RelationalTopicsResult;
@@ -130,6 +252,13 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
     }
   }
 
+  function updateTopic(i: number, patch: Partial<RelationalTopicsResult["topics"][number]>) {
+    if (!result) return;
+    const topics = [...result.topics];
+    topics[i] = { ...topics[i], ...patch };
+    setResult({ ...result, topics });
+  }
+
   function removeTopic(i: number) {
     if (!result) return;
     setResult({ ...result, topics: result.topics.filter((_, idx) => idx !== i) });
@@ -139,7 +268,7 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
     if (!result) return;
     setResult({
       ...result,
-      topics: [...result.topics, { theme: "Novo bloco", guidance: "", connects_to_next: "" }],
+      topics: [...result.topics, { theme: "Novo bloco", question: "", context: "", clinical_anchor: "", guidance: "", connects_to_next: "" }],
     });
   }
 
@@ -149,10 +278,10 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
     upsertPiece.mutate({
       title: `${result.theme} — ${result.hook.theme}`.slice(0, 160),
       theme: result.theme,
-      format: ({ reel: "reels", carrossel: "carrossel", legenda: "texto" } as const)[result.format],
+      format: toContentFormat(result.format),
       status: "em_producao",
       pipeline_stage: "roteiro_pronto",
-      clinical_anchor: anchor === "auto" ? null : anchor,
+      clinical_anchor: anchor === "A IA decide" ? null : anchor,
       audience_context: audienceContext || null,
       hook: result.hook.guidance,
       script: formatted,
@@ -193,37 +322,9 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div>
-          <Label>Formato</Label>
-          <Select value={format} onValueChange={setFormat}>
-            <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {Object.entries(FORMAT_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label>Objetivo</Label>
-          <Select value={objective} onValueChange={setObjective}>
-            <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {Object.entries(OBJECTIVE_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label>Ancoragem</Label>
-          <Select value={anchor} onValueChange={setAnchor}>
-            <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="auto">A IA decide</SelectItem>
-              <SelectItem value="IBCT">IBCT</SelectItem>
-              <SelectItem value="Gottman">Gottman</SelectItem>
-              <SelectItem value="IBCT+Gottman">IBCT + Gottman</SelectItem>
-              <SelectItem value="sem_nomear">Sem nomear</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <HybridChipInput label="Formato" chips={FORMAT_CHIPS} value={format} onChange={setFormat} placeholder="Ou descreva o formato..." />
+        <HybridChipInput label="Objetivo" chips={OBJECTIVE_CHIPS} value={objective} onChange={setObjective} placeholder="Ou descreva o objetivo..." />
+        <HybridChipInput label="Ancoragem clínica" chips={ANCHOR_CHIPS} value={anchor} onChange={setAnchor} placeholder="Ou descreva a ancoragem que quer usar..." />
       </div>
 
       <button type="button" onClick={() => setShowAdvanced((s) => !s)} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
@@ -252,8 +353,8 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
         <Card className="p-5 space-y-4 border-accent/30">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex gap-2 flex-wrap">
-              <Badge variant="secondary">{FORMAT_LABEL[result.format]}</Badge>
-              <Badge variant="outline">{OBJECTIVE_LABEL[result.objective]}</Badge>
+              <Badge variant="secondary">{displayFormat(result.format)}</Badge>
+              <Badge variant="outline">{displayObjective(result.objective)}</Badge>
               <Badge variant="outline">{result.anchor}</Badge>
             </div>
             <div className="flex gap-2">
@@ -281,14 +382,10 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
 
           {result.topics.map((t, i) => (
             <div key={i} className="relative group">
-              <BlockEditor
-                badge={`Bloco ${i + 1}`}
-                theme={t.theme}
-                guidance={t.guidance}
-                connectsTo={t.connects_to_next}
-                onThemeChange={(v) => updateBlock("topic", i, "theme", v)}
-                onGuidanceChange={(v) => updateBlock("topic", i, "guidance", v)}
-                onConnectsChange={(v) => updateBlock("topic", i, "connects_to_next", v)}
+              <TopicEditor
+                index={i}
+                topic={t}
+                onChange={(patch) => updateTopic(i, patch)}
               />
               <Button size="icon" variant="ghost" className="absolute top-0 right-0 h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => removeTopic(i)}>
                 <XCircle className="h-3.5 w-3.5" />
@@ -356,6 +453,66 @@ function BlockEditor(props: {
   );
 }
 
+function TopicEditor(props: {
+  index: number;
+  topic: RelationalTopicsResult["topics"][number];
+  onChange: (patch: Partial<RelationalTopicsResult["topics"][number]>) => void;
+}) {
+  const t = props.topic;
+  return (
+    <div className="border-l-2 border-accent pl-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <Badge variant="outline" className="text-[10px] uppercase">Tópico {props.index + 1}</Badge>
+        <Input
+          value={t.theme}
+          onChange={(e) => props.onChange({ theme: e.target.value })}
+          className="text-sm font-medium border-0 border-b rounded-none px-1 h-7 focus-visible:ring-0"
+          placeholder="Nome do bloco"
+        />
+      </div>
+      <Textarea
+        value={t.question ?? ""}
+        onChange={(e) => props.onChange({ question: e.target.value })}
+        rows={2}
+        className="text-sm resize-none"
+        placeholder="Pergunta para você responder na câmera"
+      />
+      <div className="grid gap-2 md:grid-cols-2">
+        <Textarea
+          value={t.context ?? ""}
+          onChange={(e) => props.onChange({ context: e.target.value })}
+          rows={3}
+          className="text-xs resize-none"
+          placeholder="Contexto vindo do que você escreveu"
+        />
+        <Textarea
+          value={t.clinical_anchor ?? ""}
+          onChange={(e) => props.onChange({ clinical_anchor: e.target.value })}
+          rows={3}
+          className="text-xs resize-none"
+          placeholder="Âncora clínica traduzida em comportamento"
+        />
+      </div>
+      <Textarea
+        value={t.guidance}
+        onChange={(e) => props.onChange({ guidance: e.target.value })}
+        rows={3}
+        className="text-sm resize-none"
+        placeholder="Tema + parágrafo curto guiando sua linha de fala."
+      />
+      <div className="flex items-start gap-2">
+        <span className="text-[10px] text-muted-foreground mt-2 shrink-0">→ conecta:</span>
+        <Input
+          value={t.connects_to_next ?? ""}
+          onChange={(e) => props.onChange({ connects_to_next: e.target.value })}
+          className="text-xs italic h-7"
+          placeholder="Como esse bloco abre o próximo"
+        />
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════
 // ROTEIRO AUTORAL — texto livre, parágrafos editáveis individualmente
 // ═══════════════════════════════════════════════════════════
@@ -363,9 +520,9 @@ function AuthoredScriptSubTab({ seed }: { seed?: RelationalSeed | null }) {
   const [theme, setTheme] = useState("");
   const [myPerspective, setMyPerspective] = useState("");
   const [voiceCalibration, setVoiceCalibration] = useState("");
-  const [format, setFormat] = useState("reel");
-  const [objective, setObjective] = useState("identificacao");
-  const [anchor, setAnchor] = useState("auto");
+  const [format, setFormat] = useState("Reel");
+  const [objective, setObjective] = useState("Gerar identificação");
+  const [anchor, setAnchor] = useState("A IA decide");
   const [result, setResult] = useState<RelationalScriptResult | null>(null);
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [regenDirection, setRegenDirection] = useState("");
@@ -378,9 +535,9 @@ function AuthoredScriptSubTab({ seed }: { seed?: RelationalSeed | null }) {
     if (!seed) return;
     setTheme(seed.theme ?? "");
     setMyPerspective(seed.myPerspective ?? "");
-    setFormat(seed.format ?? "reel");
-    setAnchor(seed.anchor ?? "auto");
-    setObjective(seed.objective ?? "identificacao");
+    setFormat(seedFormatToText(seed.format));
+    setAnchor(seed.anchor ?? "A IA decide");
+    setObjective(seedObjectiveToText(seed.objective));
   }, [seed]);
 
   async function handleGenerate() {
@@ -390,7 +547,9 @@ function AuthoredScriptSubTab({ seed }: { seed?: RelationalSeed | null }) {
       theme: theme.trim(),
       my_perspective: myPerspective.trim(),
       voice_calibration: voiceCalibration.trim() || undefined,
-      objective, format, anchor,
+      objective: objective.trim(),
+      format: format.trim(),
+      anchor: anchor.trim(),
     })) as RelationalScriptResult;
     setResult(data);
   }
@@ -439,10 +598,10 @@ function AuthoredScriptSubTab({ seed }: { seed?: RelationalSeed | null }) {
     upsertPiece.mutate({
       title: `${result.theme}`.slice(0, 160),
       theme: result.theme,
-      format: ({ reel: "reels", carrossel: "carrossel", legenda: "texto" } as const)[result.format],
+      format: toContentFormat(result.format),
       status: "em_producao",
       pipeline_stage: "roteiro_pronto",
-      clinical_anchor: anchor === "auto" ? null : anchor,
+      clinical_anchor: anchor === "A IA decide" ? null : anchor,
       hook: result.paragraphs[0]?.text ?? null,
       script: text,
       notes: text,
@@ -475,33 +634,9 @@ function AuthoredScriptSubTab({ seed }: { seed?: RelationalSeed | null }) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div>
-          <Label>Formato</Label>
-          <Select value={format} onValueChange={setFormat}>
-            <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
-            <SelectContent>{Object.entries(FORMAT_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label>Objetivo</Label>
-          <Select value={objective} onValueChange={setObjective}>
-            <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
-            <SelectContent>{Object.entries(OBJECTIVE_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label>Ancoragem</Label>
-          <Select value={anchor} onValueChange={setAnchor}>
-            <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="auto">A IA decide</SelectItem>
-              <SelectItem value="IBCT">IBCT</SelectItem>
-              <SelectItem value="Gottman">Gottman</SelectItem>
-              <SelectItem value="IBCT+Gottman">IBCT + Gottman</SelectItem>
-              <SelectItem value="sem_nomear">Sem nomear</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <HybridChipInput label="Formato" chips={FORMAT_CHIPS} value={format} onChange={setFormat} placeholder="Ou descreva o formato..." />
+        <HybridChipInput label="Objetivo" chips={OBJECTIVE_CHIPS} value={objective} onChange={setObjective} placeholder="Ou descreva o objetivo..." />
+        <HybridChipInput label="Ancoragem clínica" chips={ANCHOR_CHIPS} value={anchor} onChange={setAnchor} placeholder="Ou descreva a ancoragem que quer usar..." />
       </div>
 
       <Button onClick={handleGenerate} disabled={gen.isPending} size="lg" className="w-full">
@@ -512,7 +647,7 @@ function AuthoredScriptSubTab({ seed }: { seed?: RelationalSeed | null }) {
         <Card className="p-5 space-y-4 border-accent/30">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex gap-2 flex-wrap">
-              <Badge variant="secondary">{FORMAT_LABEL[result.format]}</Badge>
+              <Badge variant="secondary">{displayFormat(result.format)}</Badge>
               <Badge variant="outline">{result.paragraphs.length} parágrafos</Badge>
             </div>
             <div className="flex gap-2">

@@ -12,11 +12,12 @@ import {
 import {
   Drawer, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle,
 } from "@/components/ui/drawer";
-import { Plus, Check, Trash2, Flame, CheckCircle2, Circle } from "lucide-react";
+import { Plus, Check, Trash2, Flame, CheckCircle2, Circle, Wand2, Loader2, Send } from "lucide-react";
 import {
   ContentStory, StorySlot, STORY_SLOT_LABEL,
   useContentStories, useUpsertStory, useToggleStory, useDeleteStory, useStoriesConsistency,
 } from "@/hooks/useStoriesAndReferences";
+import { useGenerateStorySequence, useSaveStorySequence, type StorySequenceItem } from "@/hooks/useStorySequence";
 import { useScope } from "@/contexts/ScopeContext";
 import { todayISO, formatDateBR, addDaysISO } from "@/lib/format";
 import { toast } from "sonner";
@@ -37,6 +38,13 @@ export function StoriesTab() {
   const del = useDeleteStory();
   const cons = useStoriesConsistency(scope === "todos" ? undefined : (scope as any), 7);
   const [editing, setEditing] = useState<Partial<ContentStory> | null>(null);
+  const [storyTheme, setStoryTheme] = useState("");
+  const [sourceContent, setSourceContent] = useState("");
+  const [objective, setObjective] = useState("aprofundar");
+  const [tone, setTone] = useState("mesmo");
+  const [sequence, setSequence] = useState<StorySequenceItem[]>([]);
+  const generateSequence = useGenerateStorySequence();
+  const saveSequence = useSaveStorySequence();
 
   const today = todayISO();
   const filteredStories = scope === "todos" ? stories : stories.filter((s) => s.scope === scope);
@@ -60,6 +68,21 @@ export function StoriesTab() {
     });
     if (count) toast.success(`${count} stories planejados para hoje`);
     else toast.info("Hoje já está planejado");
+  };
+
+  const generateStories = async () => {
+    if (!storyTheme.trim() && !sourceContent.trim()) {
+      toast.error("Informe um tema ou cole o conteúdo de origem");
+      return;
+    }
+    const data = await generateSequence.mutateAsync({
+      theme: storyTheme.trim() || undefined,
+      source_content: sourceContent.trim() || undefined,
+      objective,
+      tone,
+      quantity: "auto",
+    });
+    setSequence(data.stories);
   };
 
   return (
@@ -109,6 +132,67 @@ export function StoriesTab() {
             </Button>
           </div>
         </div>
+      </Card>
+
+      <Card className="p-4 space-y-3 border-accent/30">
+        <div>
+          <h3 className="font-display font-semibold">Sequência inteligente de stories</h3>
+          <p className="text-xs text-muted-foreground">Crie 4–7 stories conectados para continuar uma conversa, não só preencher slots.</p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div>
+            <Label>Tema</Label>
+            <Input value={storyTheme} onChange={(e) => setStoryTheme(e.target.value)} placeholder="Ex: quando o casamento vira logística" className="mt-1.5" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label>Objetivo</Label>
+              <Select value={objective} onValueChange={setObjective}>
+                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="aprofundar">Aprofundar</SelectItem>
+                  <SelectItem value="bastidor">Bastidor clínico</SelectItem>
+                  <SelectItem value="dms">Gerar DMs</SelectItem>
+                  <SelectItem value="conexao">Conexão</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Tom</Label>
+              <Select value={tone} onValueChange={setTone}>
+                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mesmo">Mesmo tom</SelectItem>
+                  <SelectItem value="pessoal">Mais pessoal</SelectItem>
+                  <SelectItem value="didatico">Mais didático</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+        <Textarea rows={3} value={sourceContent} onChange={(e) => setSourceContent(e.target.value)} placeholder="Opcional: cole roteiro, tópicos ou legenda de origem para os stories continuarem a conversa." />
+        <Button onClick={generateStories} disabled={generateSequence.isPending} className="w-full">
+          {generateSequence.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Gerando sequência…</> : <><Wand2 className="h-4 w-4 mr-2" />Gerar sequência de stories</>}
+        </Button>
+        {sequence.length > 0 && (
+          <div className="space-y-2 border-t border-border pt-3">
+            {sequence.map((s, i) => (
+              <Card key={`${s.label}-${i}`} className="p-3 space-y-1.5 bg-muted/20">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="secondary" className="text-[10px]">Story {i + 1}</Badge>
+                  <Badge variant="outline" className="text-[10px]">{s.type}</Badge>
+                  <span className="text-sm font-medium">{s.label}</span>
+                </div>
+                <p className="text-xs leading-relaxed">{s.narrative}</p>
+                {s.text_overlay && <p className="text-xs text-muted-foreground border-l-2 border-accent/30 pl-2">Texto: {s.text_overlay}</p>}
+                {s.interaction && <p className="text-xs text-muted-foreground">Interação: {s.interaction}</p>}
+              </Card>
+            ))}
+            <Button size="sm" onClick={() => saveSequence.mutate({ theme: storyTheme, objective, tone, stories: sequence, scheduled_date: today })} disabled={saveSequence.isPending}>
+              <Send className="h-3.5 w-3.5 mr-1" />Enviar para hoje no Editorial
+            </Button>
+          </div>
+        )}
       </Card>
 
       {/* Calendário 7 dias */}

@@ -20,18 +20,18 @@ OBRIGATÓRIO:
 - Conceito clínico SEMPRE traduzido em comportamento reconhecível
 - Frases curtas. Ritmo de fala, não de texto escrito`;
 
-// ─── TÓPICOS: tema + parágrafo guia (não pergunta) ───
+// ─── TÓPICOS: pergunta real + contexto + âncora clínica ───
 const TOPICS_TOOL = {
   type: "function",
   function: {
     name: "build_recording_topics",
-    description: "Gera 3-5 blocos: cada um é um TEMA com parágrafo guia explicando o ponto e como conecta ao próximo. Não perguntas. Não roteiro pronto.",
+    description: "Gera gancho e 3-5 tópicos para gravação com pergunta real, contexto vindo do pensamento da psicóloga e âncora clínica traduzida em comportamento.",
     parameters: {
       type: "object",
       properties: {
         theme: { type: "string" },
-        format: { type: "string", enum: ["reel", "carrossel", "legenda"] },
-        objective: { type: "string", enum: ["atrair_paciente", "autoridade", "identificacao", "ensinar"] },
+        format: { type: "string" },
+        objective: { type: "string" },
         anchor: { type: "string" },
         narrative_arc: {
           type: "string",
@@ -40,8 +40,8 @@ const TOPICS_TOOL = {
         hook: {
           type: "object",
           properties: {
-            theme: { type: "string", description: "Nome curto do gancho (ex: 'a cena que ninguém percebe')." },
-            guidance: { type: "string", description: "Parágrafo de 2-3 frases descrevendo O QUE dizer no gancho — não a frase pronta. Explica a imagem concreta a usar e o ponto que para o scroll." },
+            theme: { type: "string", description: "GANCHO" },
+            guidance: { type: "string", description: "Frase ou pergunta de abertura específica, vinda diretamente do raciocínio dela. Nunca vazio." },
           },
           required: ["theme", "guidance"],
           additionalProperties: false,
@@ -53,11 +53,14 @@ const TOPICS_TOOL = {
           items: {
             type: "object",
             properties: {
-              theme: { type: "string", description: "Nome do tema/bloco em 2-5 palavras (ex: 'a virada', 'o mecanismo invisível')." },
-              guidance: { type: "string", description: "Parágrafo de 2-3 frases explicando O QUE precisa ser dito aqui, qual imagem usar, qual a leitura clínica em comportamento. Não é fala pronta — é direção autoral." },
+              theme: { type: "string", description: "Nome do bloco." },
+              question: { type: "string", description: "Pergunta real e específica para ela responder na câmera. Nunca vazio." },
+              context: { type: "string", description: "Citação, recorte ou referência específica ao que ela escreveu que sustenta este tópico. Nunca genérico." },
+              clinical_anchor: { type: "string", description: "Conceito de IBCT ou Gottman traduzido em comportamento cotidiano. Nunca jargão solto." },
+              guidance: { type: "string", description: "Tema + parágrafo curto guiando a linha de fala de modo coeso, conectado e autoral." },
               connects_to_next: { type: "string", description: "1 frase: como esse bloco abre o próximo. Garante o fio." },
             },
-            required: ["theme", "guidance", "connects_to_next"],
+            required: ["theme", "question", "context", "clinical_anchor", "guidance", "connects_to_next"],
             additionalProperties: false,
           },
         },
@@ -65,7 +68,7 @@ const TOPICS_TOOL = {
           type: "object",
           properties: {
             theme: { type: "string" },
-            guidance: { type: "string", description: "Parágrafo de 2-3 frases sobre como aterrissar — o que precisa ficar com quem assistiu. Não CTA." },
+            guidance: { type: "string", description: "Direção de fechamento: o que ela quer que a pessoa sinta, perceba ou faça depois de assistir. Não frase pronta. Nunca vazio." },
           },
           required: ["theme", "guidance"],
           additionalProperties: false,
@@ -77,20 +80,23 @@ const TOPICS_TOOL = {
   },
 };
 
-const TOPICS_SYSTEM_PROMPT = `Você é IA de conteúdo de uma psicóloga clínica especialista em relacionamentos (IBCT + Gottman).
+const TOPICS_SYSTEM_PROMPT = `Você é uma IA de criação de conteúdo para uma psicóloga clínica especializada em relacionamentos e terapia de casal.
 
-REGRA #1: O campo "O que você pensa sobre esse tema" é o coração. Tudo parte do PONTO DE VISTA dela. Nunca descrição neutra.
+Seu trabalho é diferente de gerar conteúdo genérico. Você trabalha por CONEXÃO, não por dedução.
 
-FORMATO DE SAÍDA: Não perguntas. Não roteiro. Cada bloco é um TEMA + PARÁGRAFO GUIA.
-- TEMA: nome curto que ela bate o olho e sabe sobre o que vai falar.
-- PARÁGRAFO GUIA: 2-3 frases descrevendo O QUE precisa ser dito aqui — qual imagem concreta usar, qual a leitura clínica traduzida em comportamento. NÃO é frase pronta para ler — é direção autoral para ela falar com as próprias palavras.
-- CONECTA COM PRÓXIMO: 1 frase indicando o fio narrativo. Cada bloco prepara o seguinte.
+Isso significa:
+- Você lê o que a psicóloga escreveu e conecta os pontos do raciocínio dela
+- Você não substitui o pensamento dela por conceitos padrão do nicho
+- Se o texto vier fragmentado, ditado por voz ou com ideias incompletas, você interpreta a intenção e constrói a partir disso
+- O output deve soar como ela — não como uma descrição do tema
 
-COESÃO: Antes de gerar os blocos, defina o ARCO NARRATIVO (uma frase) — para onde a conversa vai do gancho ao fechamento. Cada bloco precisa avançar nesse arco. Nada solto.
+O campo "O que você pensa sobre esse tema" é o coração do conteúdo. Cada tópico gerado deve partir de algo específico que ela escreveu nesse campo. Nunca ignore esse campo. Nunca o substitua por generalidades.
 
-ÂNCORA CLÍNICA — SEMPRE traduzida:
-- IBCT em comportamento: "cada um, ao tentar resolver do seu lado, amplifica o que o outro faz"
-- Gottman em consequência: "o que diferencia casais que ficam não é ausência de conflito, é o que fazem nos momentos pequenos"
+Se ela escreveu sobre casamento virando lista de tarefas, os tópicos falam sobre isso — não sobre "comunicação no relacionamento".
+Se ela escreveu sobre propósito no casamento, os tópicos falam sobre isso — não sobre "conexão emocional" genérica.
+Se ela discordou de algo, o conteúdo reflete a discordância — não suaviza para algo neutro.
+
+Preencha todos os campos estruturados. Nunca deixe strings vazias. Contexto e âncora clínica devem ser específicos.
 
 ${VOICE_RULES}`;
 
@@ -104,8 +110,8 @@ const SCRIPT_TOOL = {
       type: "object",
       properties: {
         theme: { type: "string" },
-        objective: { type: "string", enum: ["atrair_paciente", "autoridade", "identificacao", "ensinar"] },
-        format: { type: "string", enum: ["reel", "carrossel", "legenda"] },
+        objective: { type: "string" },
+        format: { type: "string" },
         anchor: { type: "string" },
         paragraphs: {
           type: "array",
@@ -288,14 +294,51 @@ Deno.serve(async (req) => {
       tool = TOPICS_TOOL;
       toolName = "build_recording_topics";
       systemPrompt = TOPICS_SYSTEM_PROMPT;
-      userMsg = `Gere TEMA + PARÁGRAFO GUIA para gravação. Não perguntas. Não roteiro pronto.
+      userMsg = body.prompt || `Você é uma IA de criação de conteúdo para uma psicóloga clínica especializada em relacionamentos e terapia de casal (IBCT + Gottman).
 
-TEMA: ${theme}
+TEMA OU IDEIA:
+${theme}
+
+O QUE A PSICÓLOGA PENSA SOBRE ESSE TEMA (campo central — use tudo isso):
+${myPerspective}
+
 FORMATO: ${format}
 OBJETIVO: ${objective}
-ÂNCORA CLÍNICA: ${anchor === "auto" ? "você decide" : anchor}
-${perspectiveBlock}${audienceBlock}${calibrationBlock}
-Entregue: arco narrativo (1 frase), gancho (tema+guia), 3 a 5 tópicos (tema + parágrafo guia + conecta-com-próximo), fechamento (tema+guia).`;
+ANCORAGEM CLÍNICA: ${anchor}
+${audienceBlock}${calibrationBlock}
+
+COM BASE NISSO, gere os tópicos para gravação. 
+
+REGRAS:
+- O GANCHO deve ser uma frase ou pergunta específica que parte diretamente do que ela escreveu no campo "O que você pensa". Não invente um tema genérico.
+- Cada TÓPICO deve ser uma pergunta real que ela responde na câmera. A pergunta deve partir do raciocínio dela, não de um conceito abstrato.
+- O CONTEXTO de cada tópico deve citar algo específico que ela escreveu — não resumo genérico do tema.
+- A ÂNCORA CLÍNICA deve ser o conceito de IBCT ou Gottman traduzido em comportamento cotidiano — nunca jargão solto.
+- O FECHAMENTO deve indicar uma direção, não uma frase pronta.
+- Se o campo "O que você pensa" contiver raciocínio incompleto, fragmentado ou ditado por voz, interprete a intenção — não descarte. Conecte os pontos e use o raciocínio que está ali.
+
+FORMATO DE SAÍDA OBRIGATÓRIO (preencha todos os campos, nunca deixe vazio):
+
+GANCHO
+[frase ou pergunta de abertura — específica, vinda do raciocínio dela]
+
+TÓPICO 1 — [nome do bloco]
+Pergunta para você responder: "[pergunta real e específica]"
+Contexto: [o que ela escreveu que sustenta este tópico]
+Âncora clínica: [conceito em comportamento cotidiano]
+
+TÓPICO 2 — [nome do bloco]
+Pergunta para você responder: "[pergunta real e específica]"
+Contexto: [...]
+Âncora clínica: [...]
+
+TÓPICO 3 — [nome do bloco] (adicionar mais se o tema pedir)
+Pergunta para você responder: "[...]"
+Contexto: [...]
+Âncora clínica: [...]
+
+FECHAMENTO
+Direção: [não uma frase pronta — o que ela quer que a pessoa sinta ou faça depois de assistir]`;
     } else if (mode === "single") {
       tool = SCRIPT_TOOL;
       toolName = "build_authored_script";
