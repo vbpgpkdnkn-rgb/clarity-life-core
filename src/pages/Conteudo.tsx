@@ -247,7 +247,11 @@ function EditorialTab({ pieces, ideas, consistency }: { pieces: ContentPiece[]; 
   const weeklyPlan = useContentWeeklyPlan();
   const upsert = useUpsertPiece();
   const [editPiece, setEditPiece] = useState<ContentPiece | null>(null);
+  const [focus, setFocus] = useState("");
   const today = todayISO();
+  const weekStart = currentWeekStart();
+  const line = useEditorialLine(weekStart);
+  const generateLine = useGenerateEditorialLine();
   const days = Array.from({ length: 14 }, (_, i) => addDaysISO(today, i - 3));
   const schedulable = pieces.filter((p: any) => p.status !== "publicado" && p.status !== "arquivado" && !p.planned_date);
 
@@ -255,6 +259,21 @@ function EditorialTab({ pieces, ideas, consistency }: { pieces: ContentPiece[]; 
     const p = pieces.find((x) => x.id === id);
     if (!p) return;
     upsert.mutate({ id, title: p.title, planned_date: date, pipeline_stage: "agendado", status: "pronto" } as any);
+  };
+
+  const createFromEditorialDay = (day: EditorialDay) => {
+    const plannedDate = dayISOFromWeekday(weekStart, day.weekday);
+    upsert.mutate({
+      title: day.suggestion,
+      theme: PILLAR_LABEL[day.pillar] ?? day.pillar,
+      format: FORMAT_MAP[day.format] ?? (day.format === "stories" ? "stories" : "texto"),
+      status: "pronto",
+      pipeline_stage: "agendado",
+      planned_date: plannedDate,
+      clinical_anchor: day.pillar === "descanso" ? null : PILLAR_LABEL[day.pillar] ?? day.pillar,
+      notes: `${PILLAR_LABEL[day.pillar] ?? day.pillar} · ${EDITORIAL_OBJECTIVE_LABEL[day.objective] ?? day.objective}`,
+      scope: "profissional",
+    } as any);
   };
 
   return (
