@@ -453,6 +453,66 @@ function BlockEditor(props: {
   );
 }
 
+function TopicEditor(props: {
+  index: number;
+  topic: RelationalTopicsResult["topics"][number];
+  onChange: (patch: Partial<RelationalTopicsResult["topics"][number]>) => void;
+}) {
+  const t = props.topic;
+  return (
+    <div className="border-l-2 border-accent pl-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <Badge variant="outline" className="text-[10px] uppercase">Tópico {props.index + 1}</Badge>
+        <Input
+          value={t.theme}
+          onChange={(e) => props.onChange({ theme: e.target.value })}
+          className="text-sm font-medium border-0 border-b rounded-none px-1 h-7 focus-visible:ring-0"
+          placeholder="Nome do bloco"
+        />
+      </div>
+      <Textarea
+        value={t.question ?? ""}
+        onChange={(e) => props.onChange({ question: e.target.value })}
+        rows={2}
+        className="text-sm resize-none"
+        placeholder="Pergunta para você responder na câmera"
+      />
+      <div className="grid gap-2 md:grid-cols-2">
+        <Textarea
+          value={t.context ?? ""}
+          onChange={(e) => props.onChange({ context: e.target.value })}
+          rows={3}
+          className="text-xs resize-none"
+          placeholder="Contexto vindo do que você escreveu"
+        />
+        <Textarea
+          value={t.clinical_anchor ?? ""}
+          onChange={(e) => props.onChange({ clinical_anchor: e.target.value })}
+          rows={3}
+          className="text-xs resize-none"
+          placeholder="Âncora clínica traduzida em comportamento"
+        />
+      </div>
+      <Textarea
+        value={t.guidance}
+        onChange={(e) => props.onChange({ guidance: e.target.value })}
+        rows={3}
+        className="text-sm resize-none"
+        placeholder="Tema + parágrafo curto guiando sua linha de fala."
+      />
+      <div className="flex items-start gap-2">
+        <span className="text-[10px] text-muted-foreground mt-2 shrink-0">→ conecta:</span>
+        <Input
+          value={t.connects_to_next ?? ""}
+          onChange={(e) => props.onChange({ connects_to_next: e.target.value })}
+          className="text-xs italic h-7"
+          placeholder="Como esse bloco abre o próximo"
+        />
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════
 // ROTEIRO AUTORAL — texto livre, parágrafos editáveis individualmente
 // ═══════════════════════════════════════════════════════════
