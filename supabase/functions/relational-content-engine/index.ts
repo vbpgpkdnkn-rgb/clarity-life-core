@@ -20,18 +20,18 @@ OBRIGATÓRIO:
 - Conceito clínico SEMPRE traduzido em comportamento reconhecível
 - Frases curtas. Ritmo de fala, não de texto escrito`;
 
-// ─── TÓPICOS: tema + parágrafo guia (não pergunta) ───
+// ─── TÓPICOS: pergunta real + contexto + âncora clínica ───
 const TOPICS_TOOL = {
   type: "function",
   function: {
     name: "build_recording_topics",
-    description: "Gera 3-5 blocos: cada um é um TEMA com parágrafo guia explicando o ponto e como conecta ao próximo. Não perguntas. Não roteiro pronto.",
+    description: "Gera gancho e 3-5 tópicos para gravação com pergunta real, contexto vindo do pensamento da psicóloga e âncora clínica traduzida em comportamento.",
     parameters: {
       type: "object",
       properties: {
         theme: { type: "string" },
-        format: { type: "string", enum: ["reel", "carrossel", "legenda"] },
-        objective: { type: "string", enum: ["atrair_paciente", "autoridade", "identificacao", "ensinar"] },
+        format: { type: "string" },
+        objective: { type: "string" },
         anchor: { type: "string" },
         narrative_arc: {
           type: "string",
@@ -40,8 +40,8 @@ const TOPICS_TOOL = {
         hook: {
           type: "object",
           properties: {
-            theme: { type: "string", description: "Nome curto do gancho (ex: 'a cena que ninguém percebe')." },
-            guidance: { type: "string", description: "Parágrafo de 2-3 frases descrevendo O QUE dizer no gancho — não a frase pronta. Explica a imagem concreta a usar e o ponto que para o scroll." },
+            theme: { type: "string", description: "GANCHO" },
+            guidance: { type: "string", description: "Frase ou pergunta de abertura específica, vinda diretamente do raciocínio dela. Nunca vazio." },
           },
           required: ["theme", "guidance"],
           additionalProperties: false,
@@ -53,11 +53,14 @@ const TOPICS_TOOL = {
           items: {
             type: "object",
             properties: {
-              theme: { type: "string", description: "Nome do tema/bloco em 2-5 palavras (ex: 'a virada', 'o mecanismo invisível')." },
-              guidance: { type: "string", description: "Parágrafo de 2-3 frases explicando O QUE precisa ser dito aqui, qual imagem usar, qual a leitura clínica em comportamento. Não é fala pronta — é direção autoral." },
+              theme: { type: "string", description: "Nome do bloco." },
+              question: { type: "string", description: "Pergunta real e específica para ela responder na câmera. Nunca vazio." },
+              context: { type: "string", description: "Citação, recorte ou referência específica ao que ela escreveu que sustenta este tópico. Nunca genérico." },
+              clinical_anchor: { type: "string", description: "Conceito de IBCT ou Gottman traduzido em comportamento cotidiano. Nunca jargão solto." },
+              guidance: { type: "string", description: "Tema + parágrafo curto guiando a linha de fala de modo coeso, conectado e autoral." },
               connects_to_next: { type: "string", description: "1 frase: como esse bloco abre o próximo. Garante o fio." },
             },
-            required: ["theme", "guidance", "connects_to_next"],
+            required: ["theme", "question", "context", "clinical_anchor", "guidance", "connects_to_next"],
             additionalProperties: false,
           },
         },
@@ -65,7 +68,7 @@ const TOPICS_TOOL = {
           type: "object",
           properties: {
             theme: { type: "string" },
-            guidance: { type: "string", description: "Parágrafo de 2-3 frases sobre como aterrissar — o que precisa ficar com quem assistiu. Não CTA." },
+            guidance: { type: "string", description: "Direção de fechamento: o que ela quer que a pessoa sinta, perceba ou faça depois de assistir. Não frase pronta. Nunca vazio." },
           },
           required: ["theme", "guidance"],
           additionalProperties: false,
