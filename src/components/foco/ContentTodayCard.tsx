@@ -85,6 +85,29 @@ export function ContentTodayCard() {
         </p>
       )}
 
+      {upcomingLine.length > 0 && (
+        <div className="mt-3 rounded-md border border-border bg-card/70 p-2">
+          <div className="mb-2 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            <CalendarDays className="h-3 w-3" /> Linha editorial da semana
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {upcomingLine.map((day) => {
+              const date = dayISOFromWeekday(weekStart, day.weekday);
+              const filled = dueToday.some((p) => p.planned_date === date) || next?.planned_date === date;
+              return (
+                <button key={day.weekday} onClick={() => navigate("/conteudo")} className="flex items-start gap-1.5 rounded border border-border/70 p-1.5 text-left hover:border-primary/40">
+                  {filled ? <CheckCircle2 className="mt-0.5 h-3 w-3 text-success" /> : <Circle className="mt-0.5 h-3 w-3 text-muted-foreground" />}
+                  <span className="min-w-0">
+                    <span className="block text-[10px] uppercase text-muted-foreground">{WEEKDAY_SHORT[day.weekday]}</span>
+                    <span className="block truncate text-[11px] font-medium">{day.suggestion}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Indicadores de consistência */}
       <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-border text-center">
         <div>
