@@ -261,7 +261,7 @@ Direção: [não uma frase pronta — o que ela quer que a pessoa sinta ou faça
     if (!result) return;
     setResult({
       ...result,
-      topics: [...result.topics, { theme: "Novo bloco", guidance: "", connects_to_next: "" }],
+      topics: [...result.topics, { theme: "Novo bloco", question: "", context: "", clinical_anchor: "", guidance: "", connects_to_next: "" }],
     });
   }
 
@@ -271,10 +271,10 @@ Direção: [não uma frase pronta — o que ela quer que a pessoa sinta ou faça
     upsertPiece.mutate({
       title: `${result.theme} — ${result.hook.theme}`.slice(0, 160),
       theme: result.theme,
-      format: ({ reel: "reels", carrossel: "carrossel", legenda: "texto" } as const)[result.format],
+      format: toContentFormat(result.format),
       status: "em_producao",
       pipeline_stage: "roteiro_pronto",
-      clinical_anchor: anchor === "auto" ? null : anchor,
+      clinical_anchor: anchor === "A IA decide" ? null : anchor,
       audience_context: audienceContext || null,
       hook: result.hook.guidance,
       script: formatted,
