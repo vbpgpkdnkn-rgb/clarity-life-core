@@ -252,6 +252,13 @@ Direção: [não uma frase pronta — o que ela quer que a pessoa sinta ou faça
     }
   }
 
+  function updateTopic(i: number, patch: Partial<RelationalTopicsResult["topics"][number]>) {
+    if (!result) return;
+    const topics = [...result.topics];
+    topics[i] = { ...topics[i], ...patch };
+    setResult({ ...result, topics });
+  }
+
   function removeTopic(i: number) {
     if (!result) return;
     setResult({ ...result, topics: result.topics.filter((_, idx) => idx !== i) });
