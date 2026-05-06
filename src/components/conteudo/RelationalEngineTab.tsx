@@ -520,9 +520,9 @@ function AuthoredScriptSubTab({ seed }: { seed?: RelationalSeed | null }) {
   const [theme, setTheme] = useState("");
   const [myPerspective, setMyPerspective] = useState("");
   const [voiceCalibration, setVoiceCalibration] = useState("");
-  const [format, setFormat] = useState("reel");
-  const [objective, setObjective] = useState("identificacao");
-  const [anchor, setAnchor] = useState("auto");
+  const [format, setFormat] = useState("Reel");
+  const [objective, setObjective] = useState("Gerar identificação");
+  const [anchor, setAnchor] = useState("A IA decide");
   const [result, setResult] = useState<RelationalScriptResult | null>(null);
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [regenDirection, setRegenDirection] = useState("");
@@ -535,9 +535,9 @@ function AuthoredScriptSubTab({ seed }: { seed?: RelationalSeed | null }) {
     if (!seed) return;
     setTheme(seed.theme ?? "");
     setMyPerspective(seed.myPerspective ?? "");
-    setFormat(seed.format ?? "reel");
-    setAnchor(seed.anchor ?? "auto");
-    setObjective(seed.objective ?? "identificacao");
+    setFormat(seedFormatToText(seed.format));
+    setAnchor(seed.anchor ?? "A IA decide");
+    setObjective(seedObjectiveToText(seed.objective));
   }, [seed]);
 
   async function handleGenerate() {
@@ -547,7 +547,9 @@ function AuthoredScriptSubTab({ seed }: { seed?: RelationalSeed | null }) {
       theme: theme.trim(),
       my_perspective: myPerspective.trim(),
       voice_calibration: voiceCalibration.trim() || undefined,
-      objective, format, anchor,
+      objective: objective.trim(),
+      format: format.trim(),
+      anchor: anchor.trim(),
     })) as RelationalScriptResult;
     setResult(data);
   }
@@ -596,10 +598,10 @@ function AuthoredScriptSubTab({ seed }: { seed?: RelationalSeed | null }) {
     upsertPiece.mutate({
       title: `${result.theme}`.slice(0, 160),
       theme: result.theme,
-      format: ({ reel: "reels", carrossel: "carrossel", legenda: "texto" } as const)[result.format],
+      format: toContentFormat(result.format),
       status: "em_producao",
       pipeline_stage: "roteiro_pronto",
-      clinical_anchor: anchor === "auto" ? null : anchor,
+      clinical_anchor: anchor === "A IA decide" ? null : anchor,
       hook: result.paragraphs[0]?.text ?? null,
       script: text,
       notes: text,
