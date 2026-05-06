@@ -76,6 +76,29 @@ const PIPELINE: { key: PipelineStage; label: string; status: ContentStatus }[] =
 
 const STAGE_LABEL = Object.fromEntries(PIPELINE.map((p) => [p.key, p.label])) as Record<PipelineStage, string>;
 const FORMAT_MAP: Record<string, ContentFormat> = { reel: "reels", carrossel: "carrossel", legenda: "texto" };
+const PILLAR_LABEL: Record<string, string> = {
+  padrao_relacional: "Padrão relacional",
+  funcao_emocional: "Função emocional",
+  transformacao: "Transformação",
+  qualidade_relacional: "Qualidade relacional",
+  descanso: "Descanso",
+};
+const EDITORIAL_OBJECTIVE_LABEL: Record<string, string> = {
+  identificacao: "Identificação",
+  autoridade: "Autoridade",
+  atrair_paciente: "Atrair paciente",
+  ensinar: "Ensinar",
+  descanso: "Descanso",
+};
+const WEEKDAY_LABEL: Record<string, string> = {
+  segunda: "Segunda",
+  terca: "Terça",
+  quarta: "Quarta",
+  quinta: "Quinta",
+  sexta: "Sexta",
+  sabado: "Sábado",
+  domingo: "Domingo",
+};
 
 export default function Conteudo() {
   const { scope } = useScope();
