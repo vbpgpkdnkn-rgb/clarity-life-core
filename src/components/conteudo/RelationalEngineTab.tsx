@@ -154,9 +154,9 @@ function formatScriptAsText(r: RelationalScriptResult): string {
 function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
   const [theme, setTheme] = useState("");
   const [myPerspective, setMyPerspective] = useState("");
-  const [format, setFormat] = useState("reel");
-  const [objective, setObjective] = useState("identificacao");
-  const [anchor, setAnchor] = useState("auto");
+  const [format, setFormat] = useState("Reel");
+  const [objective, setObjective] = useState("Gerar identificação");
+  const [anchor, setAnchor] = useState("A IA decide");
   const [audienceContext, setAudienceContext] = useState("");
   const [voiceCalibration, setVoiceCalibration] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -169,19 +169,72 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
     if (!seed) return;
     setTheme(seed.theme ?? "");
     setMyPerspective(seed.myPerspective ?? "");
-    setFormat(seed.format ?? "reel");
-    setAnchor(seed.anchor ?? "auto");
-    setObjective(seed.objective ?? "identificacao");
+    setFormat(seedFormatToText(seed.format));
+    setAnchor(seed.anchor ?? "A IA decide");
+    setObjective(seedObjectiveToText(seed.objective));
     setAudienceContext(seed.audienceContext ?? "");
   }, [seed]);
 
   async function handleGenerate() {
     if (!theme.trim()) { toast.error("Informe o tema"); return; }
+    if (!myPerspective.trim()) {
+      toast.error("Este campo é o coração do conteúdo. Escreva o que você realmente pensa sobre esse tema antes de gerar.");
+      return;
+    }
+    const promptParaAPI = `
+Você é uma IA de criação de conteúdo para uma psicóloga clínica especializada em relacionamentos e terapia de casal (IBCT + Gottman).
+
+TEMA OU IDEIA:
+${theme.trim()}
+
+O QUE A PSICÓLOGA PENSA SOBRE ESSE TEMA (campo central — use tudo isso):
+${myPerspective.trim()}
+
+FORMATO: ${format.trim()}
+OBJETIVO: ${objective.trim()}
+ANCORAGEM CLÍNICA: ${anchor.trim()}
+
+COM BASE NISSO, gere os tópicos para gravação. 
+
+REGRAS:
+- O GANCHO deve ser uma frase ou pergunta específica que parte diretamente do que ela escreveu no campo "O que você pensa". Não invente um tema genérico.
+- Cada TÓPICO deve ser uma pergunta real que ela responde na câmera. A pergunta deve partir do raciocínio dela, não de um conceito abstrato.
+- O CONTEXTO de cada tópico deve citar algo específico que ela escreveu — não resumo genérico do tema.
+- A ÂNCORA CLÍNICA deve ser o conceito de IBCT ou Gottman traduzido em comportamento cotidiano — nunca jargão solto.
+- O FECHAMENTO deve indicar uma direção, não uma frase pronta.
+- Se o campo "O que você pensa" contiver raciocínio incompleto, fragmentado ou ditado por voz, interprete a intenção — não descarte. Conecte os pontos e use o raciocínio que está ali.
+
+FORMATO DE SAÍDA OBRIGATÓRIO (preencha todos os campos, nunca deixe vazio):
+
+GANCHO
+[frase ou pergunta de abertura — específica, vinda do raciocínio dela]
+
+TÓPICO 1 — [nome do bloco]
+Pergunta para você responder: "[pergunta real e específica]"
+Contexto: [o que ela escreveu que sustenta este tópico]
+Âncora clínica: [conceito em comportamento cotidiano]
+
+TÓPICO 2 — [nome do bloco]
+Pergunta para você responder: "[pergunta real e específica]"
+Contexto: [...]
+Âncora clínica: [...]
+
+TÓPICO 3 — [nome do bloco] (adicionar mais se o tema pedir)
+Pergunta para você responder: "[...]"
+Contexto: [...]
+Âncora clínica: [...]
+
+FECHAMENTO
+Direção: [não uma frase pronta — o que ela quer que a pessoa sinta ou faça depois de assistir]
+`;
     const data = (await gen.mutateAsync({
       mode: "topics",
       theme: theme.trim(),
       my_perspective: myPerspective.trim(),
-      objective, format, anchor,
+      objective: objective.trim(),
+      format: format.trim(),
+      anchor: anchor.trim(),
+      prompt: promptParaAPI,
       audience_context: audienceContext.trim() || undefined,
       voice_calibration: voiceCalibration.trim() || undefined,
     })) as RelationalTopicsResult;
