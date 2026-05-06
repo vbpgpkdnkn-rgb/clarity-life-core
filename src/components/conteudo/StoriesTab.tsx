@@ -12,11 +12,12 @@ import {
 import {
   Drawer, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle,
 } from "@/components/ui/drawer";
-import { Plus, Check, Trash2, Flame, CheckCircle2, Circle } from "lucide-react";
+import { Plus, Check, Trash2, Flame, CheckCircle2, Circle, Wand2, Loader2, Send } from "lucide-react";
 import {
   ContentStory, StorySlot, STORY_SLOT_LABEL,
   useContentStories, useUpsertStory, useToggleStory, useDeleteStory, useStoriesConsistency,
 } from "@/hooks/useStoriesAndReferences";
+import { useGenerateStorySequence, useSaveStorySequence, type StorySequenceItem } from "@/hooks/useStorySequence";
 import { useScope } from "@/contexts/ScopeContext";
 import { todayISO, formatDateBR, addDaysISO } from "@/lib/format";
 import { toast } from "sonner";
@@ -37,6 +38,13 @@ export function StoriesTab() {
   const del = useDeleteStory();
   const cons = useStoriesConsistency(scope === "todos" ? undefined : (scope as any), 7);
   const [editing, setEditing] = useState<Partial<ContentStory> | null>(null);
+  const [storyTheme, setStoryTheme] = useState("");
+  const [sourceContent, setSourceContent] = useState("");
+  const [objective, setObjective] = useState("aprofundar");
+  const [tone, setTone] = useState("mesmo");
+  const [sequence, setSequence] = useState<StorySequenceItem[]>([]);
+  const generateSequence = useGenerateStorySequence();
+  const saveSequence = useSaveStorySequence();
 
   const today = todayISO();
   const filteredStories = scope === "todos" ? stories : stories.filter((s) => s.scope === scope);
@@ -60,6 +68,21 @@ export function StoriesTab() {
     });
     if (count) toast.success(`${count} stories planejados para hoje`);
     else toast.info("Hoje já está planejado");
+  };
+
+  const generateStories = async () => {
+    if (!storyTheme.trim() && !sourceContent.trim()) {
+      toast.error("Informe um tema ou cole o conteúdo de origem");
+      return;
+    }
+    const data = await generateSequence.mutateAsync({
+      theme: storyTheme.trim() || undefined,
+      source_content: sourceContent.trim() || undefined,
+      objective,
+      tone,
+      quantity: "auto",
+    });
+    setSequence(data.stories);
   };
 
   return (
