@@ -8,14 +8,17 @@ export type RelationalFormat = "reel" | "carrossel" | "legenda";
 // ─── Tópicos: tema + parágrafo guia ───
 export interface TopicBlock {
   theme: string;
+  question?: string;
+  context?: string;
+  clinical_anchor?: string;
   guidance: string;
   connects_to_next: string;
 }
 export interface RelationalTopicsResult {
   mode: "topics";
   theme: string;
-  format: RelationalFormat;
-  objective: RelationalObjective;
+  format: string;
+  objective: string;
   anchor: string;
   narrative_arc: string;
   hook: { theme: string; guidance: string };
@@ -31,8 +34,8 @@ export interface ScriptParagraph {
 export interface RelationalScriptResult {
   mode: "single";
   theme: string;
-  objective: RelationalObjective;
-  format: RelationalFormat;
+  objective: string;
+  format: string;
   anchor: string;
   paragraphs: ScriptParagraph[];
 }
@@ -54,7 +57,7 @@ export interface RelationalVariationsResult {
 export interface SeriesPiece {
   order: number;
   theme: string;
-  format: RelationalFormat;
+  format: string;
   one_liner: string;
   guidance: string;
   builds_on_previous: string;
