@@ -294,14 +294,51 @@ Deno.serve(async (req) => {
       tool = TOPICS_TOOL;
       toolName = "build_recording_topics";
       systemPrompt = TOPICS_SYSTEM_PROMPT;
-      userMsg = `Gere TEMA + PARÁGRAFO GUIA para gravação. Não perguntas. Não roteiro pronto.
+      userMsg = body.prompt || `Você é uma IA de criação de conteúdo para uma psicóloga clínica especializada em relacionamentos e terapia de casal (IBCT + Gottman).
 
-TEMA: ${theme}
+TEMA OU IDEIA:
+${theme}
+
+O QUE A PSICÓLOGA PENSA SOBRE ESSE TEMA (campo central — use tudo isso):
+${myPerspective}
+
 FORMATO: ${format}
 OBJETIVO: ${objective}
-ÂNCORA CLÍNICA: ${anchor === "auto" ? "você decide" : anchor}
-${perspectiveBlock}${audienceBlock}${calibrationBlock}
-Entregue: arco narrativo (1 frase), gancho (tema+guia), 3 a 5 tópicos (tema + parágrafo guia + conecta-com-próximo), fechamento (tema+guia).`;
+ANCORAGEM CLÍNICA: ${anchor}
+${audienceBlock}${calibrationBlock}
+
+COM BASE NISSO, gere os tópicos para gravação. 
+
+REGRAS:
+- O GANCHO deve ser uma frase ou pergunta específica que parte diretamente do que ela escreveu no campo "O que você pensa". Não invente um tema genérico.
+- Cada TÓPICO deve ser uma pergunta real que ela responde na câmera. A pergunta deve partir do raciocínio dela, não de um conceito abstrato.
+- O CONTEXTO de cada tópico deve citar algo específico que ela escreveu — não resumo genérico do tema.
+- A ÂNCORA CLÍNICA deve ser o conceito de IBCT ou Gottman traduzido em comportamento cotidiano — nunca jargão solto.
+- O FECHAMENTO deve indicar uma direção, não uma frase pronta.
+- Se o campo "O que você pensa" contiver raciocínio incompleto, fragmentado ou ditado por voz, interprete a intenção — não descarte. Conecte os pontos e use o raciocínio que está ali.
+
+FORMATO DE SAÍDA OBRIGATÓRIO (preencha todos os campos, nunca deixe vazio):
+
+GANCHO
+[frase ou pergunta de abertura — específica, vinda do raciocínio dela]
+
+TÓPICO 1 — [nome do bloco]
+Pergunta para você responder: "[pergunta real e específica]"
+Contexto: [o que ela escreveu que sustenta este tópico]
+Âncora clínica: [conceito em comportamento cotidiano]
+
+TÓPICO 2 — [nome do bloco]
+Pergunta para você responder: "[pergunta real e específica]"
+Contexto: [...]
+Âncora clínica: [...]
+
+TÓPICO 3 — [nome do bloco] (adicionar mais se o tema pedir)
+Pergunta para você responder: "[...]"
+Contexto: [...]
+Âncora clínica: [...]
+
+FECHAMENTO
+Direção: [não uma frase pronta — o que ela quer que a pessoa sinta ou faça depois de assistir]`;
     } else if (mode === "single") {
       tool = SCRIPT_TOOL;
       toolName = "build_authored_script";
