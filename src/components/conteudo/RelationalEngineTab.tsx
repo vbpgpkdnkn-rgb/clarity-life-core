@@ -382,14 +382,10 @@ Direção: [não uma frase pronta — o que ela quer que a pessoa sinta ou faça
 
           {result.topics.map((t, i) => (
             <div key={i} className="relative group">
-              <BlockEditor
-                badge={`Bloco ${i + 1}`}
-                theme={t.theme}
-                guidance={t.guidance}
-                connectsTo={t.connects_to_next}
-                onThemeChange={(v) => updateBlock("topic", i, "theme", v)}
-                onGuidanceChange={(v) => updateBlock("topic", i, "guidance", v)}
-                onConnectsChange={(v) => updateBlock("topic", i, "connects_to_next", v)}
+              <TopicEditor
+                index={i}
+                topic={t}
+                onChange={(patch) => updateTopic(i, patch)}
               />
               <Button size="icon" variant="ghost" className="absolute top-0 right-0 h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => removeTopic(i)}>
                 <XCircle className="h-3.5 w-3.5" />
