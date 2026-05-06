@@ -18,6 +18,7 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronDown,
+  Circle,
   Clapperboard,
   Eye,
   Hammer,
