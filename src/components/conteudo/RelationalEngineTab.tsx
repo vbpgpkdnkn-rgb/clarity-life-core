@@ -59,6 +59,39 @@ const FORMAT_LABEL: Record<string, string> = {
   legenda: "Legenda",
 };
 
+const FORMAT_CHIPS = ["Reel", "Carrossel", "Legenda"];
+const OBJECTIVE_CHIPS = ["Atrair paciente", "Construir autoridade", "Gerar identificação", "Ensinar algo concreto"];
+const ANCHOR_CHIPS = ["IBCT", "Gottman", "IBCT + Gottman", "Só minha visão", "A IA decide"];
+
+function displayFormat(value?: string) {
+  if (!value) return "Formato";
+  return FORMAT_LABEL[value] ?? value;
+}
+
+function displayObjective(value?: string) {
+  if (!value) return "Objetivo";
+  return OBJECTIVE_LABEL[value] ?? value;
+}
+
+function normalizeText(value?: string) {
+  return (value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function toContentFormat(value?: string) {
+  const normalized = normalizeText(value);
+  if (normalized.includes("carrossel")) return "carrossel" as const;
+  if (normalized.includes("legenda") || normalized.includes("texto")) return "texto" as const;
+  return "reels" as const;
+}
+
+function seedFormatToText(value?: string) {
+  return value ? FORMAT_LABEL[value] ?? value : "Reel";
+}
+
+function seedObjectiveToText(value?: string) {
+  return value ? OBJECTIVE_LABEL[value] ?? value : "Gerar identificação";
+}
+
 function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text);
   toast.success("Copiado");
