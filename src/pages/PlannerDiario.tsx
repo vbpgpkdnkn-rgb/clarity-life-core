@@ -8,6 +8,7 @@ import { InputWithMic } from "@/components/ui/input-with-mic";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TextareaWithMic } from "@/components/ui/textarea-with-mic";
 import { TaskFormDrawer } from "@/components/forms/TaskFormDrawer";
+import { ContentTodayCard } from "@/components/foco/ContentTodayCard";
 import { SessionFormDrawer } from "@/components/psicoterapia/SessionFormDrawer";
 import { useTasks, useUpsertTask } from "@/hooks/useData";
 import { useDailyPlan, useEvents, useUpsertDailyPlan, useUpsertEvent } from "@/hooks/usePlanner";
@@ -251,6 +252,8 @@ export default function PlannerDiario() {
       }
     >
       <div className="mx-auto max-w-7xl space-y-5">
+        <ContentTodayCard />
+
         <section className="sticky top-0 z-20 rounded-b-lg border border-t-0 border-border/70 bg-background/95 p-4 shadow-sm backdrop-blur">
           <div className="grid gap-3 md:grid-cols-[1.1fr_0.9fr]">
             <label className="space-y-1.5">
