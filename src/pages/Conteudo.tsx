@@ -36,6 +36,13 @@ import { RelationalEngineTab, RelationalSeed } from "@/components/conteudo/Relat
 import { FloatingIdeaCapture, IdeasTab } from "@/components/conteudo/IdeasTab";
 import { AudienceIntelligenceTab } from "@/components/conteudo/AudienceIntelligenceTab";
 import {
+  currentWeekStart,
+  dayISOFromWeekday,
+  useEditorialLine,
+  useGenerateEditorialLine,
+  type EditorialDay,
+} from "@/hooks/useEditorialLine";
+import {
   ContentFormat,
   ContentPiece,
   ContentStatus,
