@@ -110,8 +110,8 @@ const SCRIPT_TOOL = {
       type: "object",
       properties: {
         theme: { type: "string" },
-        objective: { type: "string", enum: ["atrair_paciente", "autoridade", "identificacao", "ensinar"] },
-        format: { type: "string", enum: ["reel", "carrossel", "legenda"] },
+        objective: { type: "string" },
+        format: { type: "string" },
         anchor: { type: "string" },
         paragraphs: {
           type: "array",
