@@ -315,37 +315,9 @@ Direção: [não uma frase pronta — o que ela quer que a pessoa sinta ou faça
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div>
-          <Label>Formato</Label>
-          <Select value={format} onValueChange={setFormat}>
-            <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {Object.entries(FORMAT_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label>Objetivo</Label>
-          <Select value={objective} onValueChange={setObjective}>
-            <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {Object.entries(OBJECTIVE_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label>Ancoragem</Label>
-          <Select value={anchor} onValueChange={setAnchor}>
-            <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="auto">A IA decide</SelectItem>
-              <SelectItem value="IBCT">IBCT</SelectItem>
-              <SelectItem value="Gottman">Gottman</SelectItem>
-              <SelectItem value="IBCT+Gottman">IBCT + Gottman</SelectItem>
-              <SelectItem value="sem_nomear">Sem nomear</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <HybridChipInput label="Formato" chips={FORMAT_CHIPS} value={format} onChange={setFormat} placeholder="Ou descreva o formato..." />
+        <HybridChipInput label="Objetivo" chips={OBJECTIVE_CHIPS} value={objective} onChange={setObjective} placeholder="Ou descreva o objetivo..." />
+        <HybridChipInput label="Ancoragem clínica" chips={ANCHOR_CHIPS} value={anchor} onChange={setAnchor} placeholder="Ou descreva a ancoragem que quer usar..." />
       </div>
 
       <button type="button" onClick={() => setShowAdvanced((s) => !s)} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
@@ -374,8 +346,8 @@ Direção: [não uma frase pronta — o que ela quer que a pessoa sinta ou faça
         <Card className="p-5 space-y-4 border-accent/30">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex gap-2 flex-wrap">
-              <Badge variant="secondary">{FORMAT_LABEL[result.format]}</Badge>
-              <Badge variant="outline">{OBJECTIVE_LABEL[result.objective]}</Badge>
+              <Badge variant="secondary">{displayFormat(result.format)}</Badge>
+              <Badge variant="outline">{displayObjective(result.objective)}</Badge>
               <Badge variant="outline">{result.anchor}</Badge>
             </div>
             <div className="flex gap-2">
