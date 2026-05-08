@@ -381,15 +381,25 @@ Direção: [não uma frase pronta — o que ela quer que a pessoa sinta ou faça
           />
 
           {result.topics.map((t, i) => (
-            <div key={i} className="relative group">
-              <TopicEditor
-                index={i}
-                topic={t}
-                onChange={(patch) => updateTopic(i, patch)}
-              />
-              <Button size="icon" variant="ghost" className="absolute top-0 right-0 h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => removeTopic(i)}>
-                <XCircle className="h-3.5 w-3.5" />
-              </Button>
+            <div key={i}>
+              <div className="relative group">
+                <TopicEditor
+                  index={i}
+                  topic={t}
+                  isLast={i === result.topics.length - 1}
+                  onChange={(patch) => updateTopic(i, patch)}
+                />
+                <Button size="icon" variant="ghost" className="absolute top-0 right-0 h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => removeTopic(i)}>
+                  <XCircle className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              {i < result.topics.length - 1 && (
+                <div className="flex flex-col items-center py-1.5" aria-hidden="true">
+                  <div className="w-px h-3 bg-accent/60" />
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground">↓ leva ao próximo</div>
+                  <div className="w-px h-3 bg-accent/60" />
+                </div>
+              )}
             </div>
           ))}
 
