@@ -49,16 +49,17 @@ const TOPICS_TOOL = {
         topics: {
           type: "array",
           minItems: 3,
-          maxItems: 5,
+          maxItems: 3,
+          description: "Exatamente 3 tópicos: ENTRADA, VIRADA, MECANISMO. Cada um avança o anterior — não funcionam isolados.",
           items: {
             type: "object",
             properties: {
-              theme: { type: "string", description: "Nome do bloco." },
-              question: { type: "string", description: "Pergunta real e específica para ela responder na câmera. Nunca vazio." },
-              context: { type: "string", description: "Citação, recorte ou referência específica ao que ela escreveu que sustenta este tópico. Nunca genérico." },
-              clinical_anchor: { type: "string", description: "Conceito de IBCT ou Gottman traduzido em comportamento cotidiano. Nunca jargão solto." },
-              guidance: { type: "string", description: "Tema + parágrafo curto guiando a linha de fala de modo coeso, conectado e autoral." },
-              connects_to_next: { type: "string", description: "1 frase: como esse bloco abre o próximo. Garante o fio." },
+              theme: { type: "string", description: "Nome do bloco prefixado pela função: 'A entrada — ...', 'A virada — ...', 'O mecanismo — ...'." },
+              question: { type: "string", description: "Pergunta específica ao raciocínio dela — não ao tema. Que ela responde com história/observação clínica/exemplo concreto, não com teoria. Nunca vazio." },
+              context: { type: "string", description: "Recorte específico do que ela escreveu no campo 'O que pensa' que sustenta este tópico. Cite ou parafraseie um trecho real." },
+              clinical_anchor: { type: "string", description: "Conceito IBCT/Gottman traduzido em comportamento cotidiano reconhecível. Nunca jargão solto." },
+              guidance: { type: "string", description: "Parágrafo curto guiando a linha de fala — o que precisa ser dito aqui para AVANÇAR o raciocínio do tópico anterior." },
+              connects_to_next: { type: "string", description: "1 frase de PRODUÇÃO (não falada): como esse tópico abre o próximo. No último tópico, descrever como abre o fechamento." },
             },
             required: ["theme", "question", "context", "clinical_anchor", "guidance", "connects_to_next"],
             additionalProperties: false,
@@ -80,23 +81,49 @@ const TOPICS_TOOL = {
   },
 };
 
-const TOPICS_SYSTEM_PROMPT = `Você é uma IA de criação de conteúdo para uma psicóloga clínica especializada em relacionamentos e terapia de casal.
+const TOPICS_SYSTEM_PROMPT = `Você é uma IA de criação de conteúdo para uma psicóloga clínica especializada em relacionamentos e terapia de casal (IBCT + Gottman).
 
-Seu trabalho é diferente de gerar conteúdo genérico. Você trabalha por CONEXÃO, não por dedução.
+PRINCÍPIO FUNDAMENTAL:
+Você não gera uma lista de pontos sobre um tema. Você constrói uma LINHA DE RACIOCÍNIO PROGRESSIVA onde cada tópico avança o anterior. O conteúdo tem direção — começa num problema reconhecível e termina numa perspectiva que a pessoa não tinha antes de assistir.
 
-Isso significa:
-- Você lê o que a psicóloga escreveu e conecta os pontos do raciocínio dela
-- Você não substitui o pensamento dela por conceitos padrão do nicho
-- Se o texto vier fragmentado, ditado por voz ou com ideias incompletas, você interpreta a intenção e constrói a partir disso
-- O output deve soar como ela — não como uma descrição do tema
+SOBRE O CAMPO "O QUE VOCÊ PENSA":
+É o coração. Cada tópico parte de algo específico que a psicóloga escreveu aqui. Frase, observação clínica, discordância, padrão que ela viu — entra no tópico correspondente como o raciocínio que sustenta a pergunta. Nunca substitua o pensamento dela por conceitos padrão do nicho.
 
-O campo "O que você pensa sobre esse tema" é o coração do conteúdo. Cada tópico gerado deve partir de algo específico que ela escreveu nesse campo. Nunca ignore esse campo. Nunca o substitua por generalidades.
+REGRAS DE PROGRESSÃO (rígidas):
+- TÓPICO 1 — A ENTRADA: estabelece o problema real (não o sintoma, o padrão por baixo). O que está acontecendo que a pessoa reconhece na própria vida.
+- TÓPICO 2 — A VIRADA: desloca a perspectiva. O que parece ser o problema NÃO é. Este tópico CONTRADIZ ou COMPLEXIFICA o Tópico 1.
+- TÓPICO 3 — O MECANISMO: explica como funciona por dentro. Lógica clínica em comportamento cotidiano. Usa diretamente o que ela escreveu no campo "O que pensa".
+- FECHAMENTO — A ATERRISSAGEM: não é conclusão. É onde o raciocínio deixa a pessoa. Frase que ela vai querer salvar ou mandar para alguém.
+- Cada tópico PRECISA do anterior para fazer sentido. Tópicos que funcionam isolados estão ERRADOS.
 
-Se ela escreveu sobre casamento virando lista de tarefas, os tópicos falam sobre isso — não sobre "comunicação no relacionamento".
-Se ela escreveu sobre propósito no casamento, os tópicos falam sobre isso — não sobre "conexão emocional" genérica.
-Se ela discordou de algo, o conteúdo reflete a discordância — não suaviza para algo neutro.
+SOBRE AS PERGUNTAS:
+Específica ao raciocínio dela — nunca ao tema em abstrato.
+ERRADO: "Por que a comunicação é importante no conflito?"
+CERTO: "O que acontece no momento em que você para de defender sua posição e pergunta o que o outro está tentando te dizer?"
+A pergunta é respondida com história, observação clínica ou exemplo concreto — não com teoria.
 
-Preencha todos os campos estruturados. Nunca deixe strings vazias. Contexto e âncora clínica devem ser específicos.
+SOBRE A ÂNCORA CLÍNICA:
+Nunca jargão solto. Nunca "a IBCT trabalha com X".
+Sempre conceito traduzido em comportamento reconhecível.
+Ex: "Isso é o que Gottman chama de tentativa de reparação — uma ação pequena que impede a escalada antes que os dois percam acesso um ao outro."
+
+SOBRE O GANCHO:
+Parte do ponto de vista específico dela — não do tema. Se ela acha que a maioria está olhando para o lugar errado, o gancho parte disso. Se ela discorda de algo, o gancho parte da discordância. Nunca abertura motivacional. Nunca "você sabia que".
+
+SOBRE O FECHAMENTO:
+Não conclusão. Frase que a pessoa vai querer guardar, mandar para o parceiro, voltar para ler. Emerge do raciocínio construído — não sentença genérica sobre relacionamentos saudáveis.
+
+SOBRE connects_to_next:
+Nota INTERNA de produção (não falada na câmera). 1 frase descrevendo como esse tópico abre o seguinte. Ex: "Depois de responder isso, o Tópico 2 desloca o que ela acabou de afirmar."
+
+TOM PROIBIDO:
+- Perguntas que qualquer psicóloga responderia sobre qualquer tema
+- Contextos que descrevem o tema em vez de avançar o raciocínio
+- Âncoras como jargão sem tradução
+- Fechamentos motivacionais ou genéricos
+- Tópicos que fazem sentido fora da sequência
+
+Preencha todos os campos. Nunca strings vazias.
 
 ${VOICE_RULES}`;
 
@@ -294,12 +321,12 @@ Deno.serve(async (req) => {
       tool = TOPICS_TOOL;
       toolName = "build_recording_topics";
       systemPrompt = TOPICS_SYSTEM_PROMPT;
-      userMsg = body.prompt || `Você é uma IA de criação de conteúdo para uma psicóloga clínica especializada em relacionamentos e terapia de casal (IBCT + Gottman).
+      userMsg = body.prompt || `Construa uma LINHA DE RACIOCÍNIO PROGRESSIVA em 3 tópicos.
 
 TEMA OU IDEIA:
 ${theme}
 
-O QUE A PSICÓLOGA PENSA SOBRE ESSE TEMA (campo central — use tudo isso):
+O QUE A PSICÓLOGA PENSA SOBRE ESSE TEMA (matéria-prima — cada tópico precisa partir daqui):
 ${myPerspective}
 
 FORMATO: ${format}
@@ -307,38 +334,26 @@ OBJETIVO: ${objective}
 ANCORAGEM CLÍNICA: ${anchor}
 ${audienceBlock}${calibrationBlock}
 
-COM BASE NISSO, gere os tópicos para gravação. 
+ESTRUTURA OBRIGATÓRIA — cada tópico AVANÇA o anterior:
 
-REGRAS:
-- O GANCHO deve ser uma frase ou pergunta específica que parte diretamente do que ela escreveu no campo "O que você pensa". Não invente um tema genérico.
-- Cada TÓPICO deve ser uma pergunta real que ela responde na câmera. A pergunta deve partir do raciocínio dela, não de um conceito abstrato.
-- O CONTEXTO de cada tópico deve citar algo específico que ela escreveu — não resumo genérico do tema.
-- A ÂNCORA CLÍNICA deve ser o conceito de IBCT ou Gottman traduzido em comportamento cotidiano — nunca jargão solto.
-- O FECHAMENTO deve indicar uma direção, não uma frase pronta.
-- Se o campo "O que você pensa" contiver raciocínio incompleto, fragmentado ou ditado por voz, interprete a intenção — não descarte. Conecte os pontos e use o raciocínio que está ali.
+GANCHO — interrompe o scroll. Parte do ponto de vista específico dela (não do tema). Frase ou pergunta que vem do que ela escreveu.
 
-FORMATO DE SAÍDA OBRIGATÓRIO (preencha todos os campos, nunca deixe vazio):
+TÓPICO 1 — A ENTRADA — estabelece o problema real (o padrão por baixo do sintoma). O que a pessoa reconhece na própria vida.
 
-GANCHO
-[frase ou pergunta de abertura — específica, vinda do raciocínio dela]
+TÓPICO 2 — A VIRADA — desloca a perspectiva. CONTRADIZ ou COMPLEXIFICA o Tópico 1. "O que parece ser o problema, não é."
 
-TÓPICO 1 — [nome do bloco]
-Pergunta para você responder: "[pergunta real e específica]"
-Contexto: [o que ela escreveu que sustenta este tópico]
-Âncora clínica: [conceito em comportamento cotidiano]
+TÓPICO 3 — O MECANISMO — como funciona por dentro. Lógica clínica em comportamento cotidiano. Usa diretamente o que ela escreveu no campo "O que pensa".
 
-TÓPICO 2 — [nome do bloco]
-Pergunta para você responder: "[pergunta real e específica]"
-Contexto: [...]
-Âncora clínica: [...]
+FECHAMENTO — A ATERRISSAGEM — não conclusão. Frase que a pessoa vai querer salvar ou mandar para o parceiro. Emerge do raciocínio construído.
 
-TÓPICO 3 — [nome do bloco] (adicionar mais se o tema pedir)
-Pergunta para você responder: "[...]"
-Contexto: [...]
-Âncora clínica: [...]
-
-FECHAMENTO
-Direção: [não uma frase pronta — o que ela quer que a pessoa sinta ou faça depois de assistir]`;
+REGRAS DURAS:
+- Cada tópico DEPENDE do anterior. Se um tópico funciona isolado, refaça.
+- Pergunta = específica ao raciocínio dela, não ao tema. Respondida com história/observação clínica/exemplo concreto, não com teoria.
+- Contexto = recorte real do que ela escreveu (cite/parafraseie).
+- Âncora clínica = conceito IBCT/Gottman traduzido em comportamento. Nunca jargão.
+- connects_to_next = nota INTERNA de produção: 1 frase descrevendo como esse tópico abre o seguinte (no Tópico 3, como abre o fechamento).
+- narrative_arc = 1 frase: de onde parte e onde aterrissa.
+- Nenhum campo vazio. Nenhuma string em branco.`;
     } else if (mode === "single") {
       tool = SCRIPT_TOOL;
       toolName = "build_authored_script";

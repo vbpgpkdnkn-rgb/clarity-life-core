@@ -381,15 +381,25 @@ Direção: [não uma frase pronta — o que ela quer que a pessoa sinta ou faça
           />
 
           {result.topics.map((t, i) => (
-            <div key={i} className="relative group">
-              <TopicEditor
-                index={i}
-                topic={t}
-                onChange={(patch) => updateTopic(i, patch)}
-              />
-              <Button size="icon" variant="ghost" className="absolute top-0 right-0 h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => removeTopic(i)}>
-                <XCircle className="h-3.5 w-3.5" />
-              </Button>
+            <div key={i}>
+              <div className="relative group">
+                <TopicEditor
+                  index={i}
+                  topic={t}
+                  isLast={i === result.topics.length - 1}
+                  onChange={(patch) => updateTopic(i, patch)}
+                />
+                <Button size="icon" variant="ghost" className="absolute top-0 right-0 h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => removeTopic(i)}>
+                  <XCircle className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              {i < result.topics.length - 1 && (
+                <div className="flex flex-col items-center py-1.5" aria-hidden="true">
+                  <div className="w-px h-3 bg-accent/60" />
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground">↓ leva ao próximo</div>
+                  <div className="w-px h-3 bg-accent/60" />
+                </div>
+              )}
             </div>
           ))}
 
@@ -456,13 +466,15 @@ function BlockEditor(props: {
 function TopicEditor(props: {
   index: number;
   topic: RelationalTopicsResult["topics"][number];
+  isLast?: boolean;
   onChange: (patch: Partial<RelationalTopicsResult["topics"][number]>) => void;
 }) {
   const t = props.topic;
+  const stageLabel = props.index === 0 ? "Entrada" : props.index === 1 ? "Virada" : props.index === 2 ? "Mecanismo" : `Bloco ${props.index + 1}`;
   return (
     <div className="border-l-2 border-accent pl-3 space-y-2">
       <div className="flex items-center gap-2">
-        <Badge variant="outline" className="text-[10px] uppercase">Tópico {props.index + 1}</Badge>
+        <Badge variant="outline" className="text-[10px] uppercase">Tópico {props.index + 1} · {stageLabel}</Badge>
         <Input
           value={t.theme}
           onChange={(e) => props.onChange({ theme: e.target.value })}
@@ -500,15 +512,19 @@ function TopicEditor(props: {
         className="text-sm resize-none"
         placeholder="Tema + parágrafo curto guiando sua linha de fala."
       />
-      <div className="flex items-start gap-2">
-        <span className="text-[10px] text-muted-foreground mt-2 shrink-0">→ conecta:</span>
-        <Input
-          value={t.connects_to_next ?? ""}
-          onChange={(e) => props.onChange({ connects_to_next: e.target.value })}
-          className="text-xs italic h-7"
-          placeholder="Como esse bloco abre o próximo"
-        />
-      </div>
+      {!props.isLast && (
+        <div className="bg-muted/40 border border-dashed rounded-md p-2 space-y-1">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] uppercase tracking-widest text-muted-foreground">Nota de produção · não falar</span>
+          </div>
+          <Input
+            value={t.connects_to_next ?? ""}
+            onChange={(e) => props.onChange({ connects_to_next: e.target.value })}
+            className="text-xs italic h-7 bg-background/50 border-muted"
+            placeholder="Como esse tópico abre o próximo"
+          />
+        </div>
+      )}
     </div>
   );
 }
