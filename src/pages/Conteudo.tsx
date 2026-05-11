@@ -36,6 +36,7 @@ import { GrowthTab } from "@/components/conteudo/GrowthTab";
 import { RelationalEngineTab, RelationalSeed } from "@/components/conteudo/RelationalEngineTab";
 import { FloatingIdeaCapture, IdeasTab } from "@/components/conteudo/IdeasTab";
 import { AudienceIntelligenceTab } from "@/components/conteudo/AudienceIntelligenceTab";
+import { ContentPipelineTab } from "@/components/conteudo/ContentPipelineTab";
 import {
   currentWeekStart,
   dayISOFromWeekday,
