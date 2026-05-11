@@ -36,6 +36,7 @@ import { GrowthTab } from "@/components/conteudo/GrowthTab";
 import { RelationalEngineTab, RelationalSeed } from "@/components/conteudo/RelationalEngineTab";
 import { FloatingIdeaCapture, IdeasTab } from "@/components/conteudo/IdeasTab";
 import { AudienceIntelligenceTab } from "@/components/conteudo/AudienceIntelligenceTab";
+import { ContentPipelineTab } from "@/components/conteudo/ContentPipelineTab";
 import {
   currentWeekStart,
   dayISOFromWeekday,
@@ -159,6 +160,7 @@ export default function Conteudo() {
           <TabsTrigger value="audiencia"><Brain className="h-3.5 w-3.5 mr-1" />Inteligência de Audiência</TabsTrigger>
           <TabsTrigger value="ideias"><Lightbulb className="h-3.5 w-3.5 mr-1" />Ideias</TabsTrigger>
           <TabsTrigger value="motor"><MessageCircle className="h-3.5 w-3.5 mr-1" />Motor Relacional</TabsTrigger>
+          <TabsTrigger value="esteira"><Sparkles className="h-3.5 w-3.5 mr-1" />Esteira</TabsTrigger>
           <TabsTrigger value="pipeline"><Hammer className="h-3.5 w-3.5 mr-1" />Pipeline</TabsTrigger>
           <TabsTrigger value="editorial"><CalendarDays className="h-3.5 w-3.5 mr-1" />Editorial</TabsTrigger>
           <TabsTrigger value="crescimento"><TrendingUp className="h-3.5 w-3.5 mr-1" />Crescimento</TabsTrigger>
@@ -167,6 +169,7 @@ export default function Conteudo() {
         <TabsContent value="audiencia"><AudienceIntelligenceTab onDevelop={sendIdeaToMotor} /></TabsContent>
         <TabsContent value="ideias"><IdeasTab onDevelop={sendIdeaToMotor} onOpenAudience={() => setTab("audiencia")} /></TabsContent>
         <TabsContent value="motor"><RelationalEngineTab seed={seed} /></TabsContent>
+        <TabsContent value="esteira"><ContentPipelineTab /></TabsContent>
         <TabsContent value="pipeline"><PipelineTab pieces={pieces} metrics={metrics} /></TabsContent>
         <TabsContent value="editorial"><EditorialTab pieces={pieces} ideas={ideas as any} consistency={consistency} /></TabsContent>
         <TabsContent value="crescimento"><GrowthPerformanceTab pieces={pieces} metrics={metrics} /></TabsContent>

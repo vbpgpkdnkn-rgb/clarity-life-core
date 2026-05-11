@@ -793,6 +793,133 @@ export type Database = {
           },
         ]
       }
+      content_project_stages: {
+        Row: {
+          ai_reasoning: string | null
+          created_at: string
+          id: string
+          input: Json
+          output: Json
+          project_id: string
+          stage: number
+          status: string
+          updated_at: string
+          user_decisions: Json
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          created_at?: string
+          id?: string
+          input?: Json
+          output?: Json
+          project_id: string
+          stage: number
+          status?: string
+          updated_at?: string
+          user_decisions?: Json
+        }
+        Update: {
+          ai_reasoning?: string | null
+          created_at?: string
+          id?: string
+          input?: Json
+          output?: Json
+          project_id?: string
+          stage?: number
+          status?: string
+          updated_at?: string
+          user_decisions?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_project_stages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "content_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_project_versions: {
+        Row: {
+          created_at: string
+          diff_from_previous: Json | null
+          id: string
+          label: string | null
+          payload: Json
+          project_id: string
+          stage: number
+        }
+        Insert: {
+          created_at?: string
+          diff_from_previous?: Json | null
+          id?: string
+          label?: string | null
+          payload?: Json
+          project_id: string
+          stage: number
+        }
+        Update: {
+          created_at?: string
+          diff_from_previous?: Json | null
+          id?: string
+          label?: string | null
+          payload?: Json
+          project_id?: string
+          stage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_project_versions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "content_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_projects: {
+        Row: {
+          context: Json
+          created_at: string
+          current_stage: number
+          id: string
+          intent: string | null
+          linked_piece_id: string | null
+          scope: string
+          source_idea_id: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          context?: Json
+          created_at?: string
+          current_stage?: number
+          id?: string
+          intent?: string | null
+          linked_piece_id?: string | null
+          scope?: string
+          source_idea_id?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          context?: Json
+          created_at?: string
+          current_stage?: number
+          id?: string
+          intent?: string | null
+          linked_piece_id?: string | null
+          scope?: string
+          source_idea_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       content_references: {
         Row: {
           adapted_format: Database["public"]["Enums"]["content_format"] | null
