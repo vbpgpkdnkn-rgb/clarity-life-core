@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ProjectMemorySidebar } from "./ProjectMemorySidebar";
 import { StageTimeline } from "./StageTimeline";
+import { NarrativeCorePanel } from "./pipeline/NarrativeCorePanel";
+import { EditableBlock } from "./pipeline/EditableBlock";
+import { EvolutionLog } from "./pipeline/EvolutionLog";
 import {
   useContentProjects,
   useContentProject,
@@ -17,7 +20,13 @@ import {
   useRunStageAgent,
   STAGE_LABELS,
 } from "@/hooks/useContentProject";
-import { estimateSeconds, formatDuration, retentionRisk, totalSeconds } from "@/lib/timing";
+import { formatDuration, retentionRisk, totalSeconds } from "@/lib/timing";
+
+// garante que cada item da coleção tenha um id estável
+function ensureIds<T extends { id?: string }>(arr: T[] | undefined, prefix: string): (T & { id: string })[] {
+  if (!Array.isArray(arr)) return [];
+  return arr.map((b, i) => ({ ...b, id: b.id ?? `${prefix}${i + 1}` }));
+}
 
 export function ContentPipelineTab() {
   const { data: projects = [] } = useContentProjects();
@@ -34,10 +43,14 @@ export function ContentPipelineTab() {
   const doneStages = useMemo(() => stages.filter((s) => s.status === "done").map((s) => s.stage), [stages]);
   const stageOutput = (n: number) => stages.find((s) => s.stage === n)?.output ?? null;
 
-  const structure = stageOutput(4);
-  const topics = stageOutput(5);
-  const script = stageOutput(6);
+  const structureRaw = stageOutput(4);
+  const topicsRaw = stageOutput(5);
+  const scriptRaw = stageOutput(6);
   const critic = stageOutput(7);
+
+  const structureBlocks = useMemo(() => ensureIds(structureRaw?.blocks, "b"), [structureRaw]);
+  const topicsList = useMemo(() => ensureIds(topicsRaw?.topics, "t"), [topicsRaw]);
+  const scriptParagraphs = useMemo(() => ensureIds(scriptRaw?.paragraphs, "p"), [scriptRaw]);
 
   if (!activeId) {
     return (
@@ -129,6 +142,8 @@ export function ContentPipelineTab() {
         <Badge variant="outline">Estágio atual: {project.current_stage} · {STAGE_LABELS[project.current_stage - 1]}</Badge>
       </div>
 
+      <NarrativeCorePanel project={project} />
+
       <Card className="p-2">
         <StageTimeline currentStage={project.current_stage} doneStages={doneStages} />
       </Card>
@@ -150,31 +165,29 @@ export function ContentPipelineTab() {
                   <CardTitle className="text-base">Arco narrativo</CardTitle>
                   <Button
                     size="sm"
-                    onClick={() =>
-                      runAgent.mutate({ project, agent: "structurer", stage: 4 })
-                    }
+                    onClick={() => runAgent.mutate({ project, agent: "structurer", stage: 4 })}
                     disabled={runAgent.isPending}
                   >
                     {runAgent.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Wand2 className="h-3 w-3 mr-1" />}
-                    {structure ? "Regerar" : "Gerar"}
+                    {structureBlocks.length ? "Regerar tudo" : "Gerar"}
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {!structure && (
+                  {!structureBlocks.length && (
                     <p className="text-xs text-muted-foreground">
-                      Gere a estrutura — ela usa toda a memória do projeto (intenção, audiência, ângulo, ativos aprovados).
+                      Gere a estrutura — depois edite cada bloco diretamente, peça alternativas ou refine por tom.
                     </p>
                   )}
-                  {structure?.blocks?.map((b: any, i: number) => (
-                    <div key={i} className="border rounded-md p-3 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <Badge variant="outline" className="uppercase text-[10px]">{b.role}</Badge>
-                        <span className="text-[11px] text-muted-foreground">⏱ {b.target_seconds}s</span>
-                      </div>
-                      <p className="text-xs"><span className="text-muted-foreground">Objetivo:</span> {b.emotional_goal}</p>
-                      <p className="text-sm font-medium">{b.main_idea}</p>
-                      {b.tension && <p className="text-xs italic text-muted-foreground">Tensão: {b.tension}</p>}
-                    </div>
+                  {structureBlocks.map((b, i) => (
+                    <EditableBlock
+                      key={b.id}
+                      project={project}
+                      stage={4}
+                      collectionKey="blocks"
+                      block={b as any}
+                      textField="main_idea"
+                      index={i}
+                    />
                   ))}
                 </CardContent>
               </Card>
@@ -187,32 +200,27 @@ export function ContentPipelineTab() {
                   <CardTitle className="text-base">Tópicos de gravação</CardTitle>
                   <Button
                     size="sm"
-                    disabled={!structure || runAgent.isPending}
+                    disabled={!structureBlocks.length || runAgent.isPending}
                     onClick={() =>
-                      runAgent.mutate({ project, agent: "topic-writer", stage: 5, payload: { blocks: structure?.blocks } })
+                      runAgent.mutate({ project, agent: "topic-writer", stage: 5, payload: { blocks: structureBlocks } })
                     }
                   >
                     {runAgent.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Wand2 className="h-3 w-3 mr-1" />}
-                    {topics ? "Regerar" : "Gerar"}
+                    {topicsList.length ? "Regerar tudo" : "Gerar"}
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {!structure && <p className="text-xs text-muted-foreground">Gere a estrutura antes.</p>}
-                  {topics?.topics?.map((t: any, i: number) => (
-                    <div key={i} className="border rounded-md p-3 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <Badge variant="secondary" className="uppercase text-[10px]">{t.role}</Badge>
-                        <span className="text-[11px] text-muted-foreground">⏱ {t.target_seconds}s</span>
-                      </div>
-                      <p className="text-sm font-medium">{t.main_idea}</p>
-                      <p className="text-xs"><span className="text-muted-foreground">Micro-hook:</span> "{t.micro_hook}"</p>
-                      <p className="text-xs italic">"{t.strong_phrase}"</p>
-                      {t.recording_note && (
-                        <p className="text-[11px] text-muted-foreground border-t pt-1 mt-1">
-                          Gravação: {t.recording_note}
-                        </p>
-                      )}
-                    </div>
+                  {!structureBlocks.length && <p className="text-xs text-muted-foreground">Gere a estrutura antes.</p>}
+                  {topicsList.map((t, i) => (
+                    <EditableBlock
+                      key={t.id}
+                      project={project}
+                      stage={5}
+                      collectionKey="topics"
+                      block={t as any}
+                      textField="strong_phrase"
+                      index={i}
+                    />
                   ))}
                 </CardContent>
               </Card>
@@ -225,19 +233,44 @@ export function ContentPipelineTab() {
                   <CardTitle className="text-base">Roteiro final</CardTitle>
                   <Button
                     size="sm"
-                    disabled={!topics || runAgent.isPending}
+                    disabled={!topicsList.length || runAgent.isPending}
                     onClick={() =>
-                      runAgent.mutate({ project, agent: "script-writer", stage: 6, payload: { topics: topics?.topics } })
+                      runAgent.mutate({ project, agent: "script-writer", stage: 6, payload: { topics: topicsList } })
                     }
                   >
                     {runAgent.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Wand2 className="h-3 w-3 mr-1" />}
-                    {script ? "Regerar" : "Gerar"}
+                    {scriptParagraphs.length ? "Regerar tudo" : "Gerar"}
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {!topics && <p className="text-xs text-muted-foreground">Gere os tópicos antes.</p>}
-                  {script?.paragraphs && (
-                    <ScriptDisplay paragraphs={script.paragraphs} />
+                  {!topicsList.length && <p className="text-xs text-muted-foreground">Gere os tópicos antes.</p>}
+                  {scriptParagraphs.length > 0 && (
+                    <ScriptHeader paragraphs={scriptParagraphs} />
+                  )}
+                  {scriptParagraphs.map((p, i) => (
+                    <EditableBlock
+                      key={p.id}
+                      project={project}
+                      stage={6}
+                      collectionKey="paragraphs"
+                      block={p as any}
+                      textField="text"
+                      index={i}
+                    />
+                  ))}
+                  {scriptParagraphs.length > 0 && (
+                    <div className="flex justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const txt = scriptParagraphs.map((p: any) => p.text).join("\n\n");
+                          navigator.clipboard.writeText(txt);
+                        }}
+                      >
+                        Copiar roteiro
+                      </Button>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -250,9 +283,9 @@ export function ContentPipelineTab() {
                   <CardTitle className="text-base">Revisão crítica</CardTitle>
                   <Button
                     size="sm"
-                    disabled={!script || runAgent.isPending}
+                    disabled={!scriptParagraphs.length || runAgent.isPending}
                     onClick={() =>
-                      runAgent.mutate({ project, agent: "script-critic", stage: 7, payload: { paragraphs: script?.paragraphs } })
+                      runAgent.mutate({ project, agent: "script-critic", stage: 7, payload: { paragraphs: scriptParagraphs } })
                     }
                   >
                     {runAgent.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
@@ -260,7 +293,7 @@ export function ContentPipelineTab() {
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {!script && <p className="text-xs text-muted-foreground">Gere o roteiro antes.</p>}
+                  {!scriptParagraphs.length && <p className="text-xs text-muted-foreground">Gere o roteiro antes.</p>}
                   {critic && (
                     <>
                       <div className="flex items-center gap-3">
@@ -307,21 +340,25 @@ export function ContentPipelineTab() {
           </Tabs>
         </div>
 
-        <ProjectMemorySidebar project={project} />
+        <div className="space-y-3">
+          <ProjectMemorySidebar project={project} />
+          <EvolutionLog project={project} />
+        </div>
       </div>
     </div>
   );
 }
 
-function ScriptDisplay({ paragraphs }: { paragraphs: any[] }) {
-  const blocks = paragraphs.map((p: any) => ({ text: p.text, role: p.role, target_seconds: p.target_seconds }));
+function ScriptHeader({ paragraphs }: { paragraphs: any[] }) {
+  const blocks = paragraphs.map((p: any) => ({ text: p.text ?? "", role: p.role, target_seconds: p.target_seconds }));
   const total = totalSeconds(blocks);
   const alerts = retentionRisk(blocks);
-
   return (
-    <div className="space-y-2">
+    <>
       <div className="flex items-center justify-between p-2 rounded bg-muted/40 text-xs">
-        <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Total estimado: <strong>{formatDuration(total)}</strong></span>
+        <span className="flex items-center gap-1">
+          <Clock className="h-3 w-3" /> Total estimado: <strong>{formatDuration(total)}</strong>
+        </span>
       </div>
       {alerts.length > 0 && (
         <div className="space-y-1">
@@ -341,20 +378,6 @@ function ScriptDisplay({ paragraphs }: { paragraphs: any[] }) {
           ))}
         </div>
       )}
-      {paragraphs.map((p: any, i: number) => {
-        const sec = estimateSeconds(p.text);
-        return (
-          <div key={i} className="border rounded-md p-3 space-y-1">
-            <div className="flex items-center justify-between">
-              <Badge variant="outline" className="uppercase text-[10px]">{p.role}</Badge>
-              <span className="text-[11px] text-muted-foreground">
-                ⏱ {sec}s {p.target_seconds && `/ alvo ${p.target_seconds}s`}
-              </span>
-            </div>
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">{p.text}</p>
-          </div>
-        );
-      })}
-    </div>
+    </>
   );
 }
