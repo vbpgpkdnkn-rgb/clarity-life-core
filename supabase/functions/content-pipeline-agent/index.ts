@@ -1,32 +1,102 @@
-import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
-const SHARED_SYSTEM = `Você é parte de uma esteira de produção de conteúdo com MEMÓRIA CONTEXTUAL.
+const SHARED_SYSTEM = `Você é parte de uma esteira VIVA de produção de conteúdo, com MEMÓRIA CONTEXTUAL persistente.
 Regras inegociáveis:
 1. NUNCA reinicie o raciocínio. Tudo no CONTEXTO foi construído nas etapas anteriores e deve ser respeitado.
-2. RESPEITE approved_assets (use ou referencie). EVITE qualquer padrão listado em rejected.
-3. MANTENHA o tom, ângulo e posicionamento do projeto. Não mude de direção sem motivo explícito.
-4. Trabalhe de forma INCREMENTAL: refine, não reescreva do zero.
+2. NUNCA regenere o que não foi explicitamente pedido. Se o usuário pediu refinar UM bloco, devolva APENAS aquele bloco.
+3. RESPEITE narrative_core (intent, promise, tension, positioning, tone) e approved_assets. EVITE qualquer padrão em rejected.
+4. Refinamento é INCREMENTAL: lapide, não reescreva do zero. Mantenha estrutura, mude o que precisa.
 5. SEJA específico, evite generalidades. Use os exemplos e dores do contexto.
-6. Responda SEMPRE em JSON válido, sem markdown wrapper, sem comentários.`;
+6. Para qualquer mudança, devolva também 'why' (por que mudou) e 'impact' (efeito estratégico esperado).
+7. Responda SEMPRE em JSON válido, sem markdown wrapper, sem comentários.`;
 
-function buildPrompt(agent: string, context: any, payload: any) {
+function buildPrompt(mode: string, agent: string, context: any, payload: any) {
   const ctxBlock = `CONTEXTO DO PROJETO:\n${JSON.stringify(context, null, 2)}\n\nPAYLOAD ATUAL:\n${JSON.stringify(payload, null, 2)}`;
 
+  // ========= MODO REFINE =========
+  if (mode === "refine") {
+    return `${ctxBlock}\n\nMODO: refine.
+O usuário quer refinar UM bloco específico. NÃO regere outros blocos.
+Bloco alvo: payload.target_block (text + role)
+Instrução: payload.instruction (ex.: "mais emocional", "mais curto", "mais agressivo", "mais curioso", "mais cinematográfico")
+
+Devolva JSON:
+{
+  "block": { "role": "...", "text": "..." (refinado), "target_seconds": number },
+  "why": "1 frase explicando o que mudou",
+  "impact": "1 frase sobre o efeito estratégico esperado"
+}`;
+  }
+
+  // ========= MODO ALTERNATIVES =========
+  if (mode === "alternatives") {
+    return `${ctxBlock}\n\nMODO: alternatives.
+Gere 4 variações do bloco em payload.target_block, cada uma com um sabor diferente.
+Mantenha o papel narrativo do bloco. Use o narrative_core e approved_assets.
+
+Devolva JSON:
+{
+  "alternatives": [
+    { "flavor": "mais emocional", "text": "...", "why": "..." },
+    { "flavor": "mais curto", "text": "...", "why": "..." },
+    { "flavor": "mais provocativo", "text": "...", "why": "..." },
+    { "flavor": "mais cinematográfico", "text": "...", "why": "..." }
+  ]
+}`;
+  }
+
+  // ========= MODO CRITIQUE-INLINE =========
+  if (mode === "critique-inline") {
+    return `${ctxBlock}\n\nMODO: critique-inline.
+Analise os blocos em payload.blocks. Para cada problema encontrado, gere uma anotação ANCORADA num bloco específico.
+Tipos: weak_hook, repetition, low_emotion, weak_cta, overexplained, rhythm_break, lost_tension, generic.
+
+Devolva JSON:
+{
+  "annotations": [
+    {
+      "block_id": "id do bloco",
+      "type": "string",
+      "severity": "low|medium|high",
+      "excerpt": "trecho exato do texto onde mora o problema (curto)",
+      "message": "diagnóstico em 1 frase",
+      "suggestion": "frase reescrita pronta para aplicar"
+    }
+  ],
+  "overall_score": number,
+  "retention_estimate": "baixa|moderada|alta"
+}`;
+  }
+
+  // ========= MODO NARRATIVE-KEEPER =========
+  if (mode === "narrative-keeper") {
+    return `${ctxBlock}\n\nMODO: narrative-keeper.
+O usuário editou parte do conteúdo (payload.changed). Releia o narrative_core e devolva ajustes mínimos para mantê-lo coerente com a nova edição. NÃO reescreva tudo. Apenas o que precisa.
+
+Devolva JSON:
+{
+  "narrative_core_patch": {
+    "intent"?: "...", "promise"?: "...", "tension"?: "...",
+    "positioning"?: "...", "tone"?: "...", "emotional_goal"?: "..."
+  },
+  "why": "1 frase"
+}`;
+  }
+
+  // ========= MODO GENERATE (agentes existentes) =========
   switch (agent) {
     case "structurer":
       return `${ctxBlock}\n\nSEU PAPEL: structurer.
-Converta o contexto em um arco narrativo de 4 blocos funcionais:
-- introducao (objetivo: fisgar)
-- desenvolvimento (objetivo: aprofundar/explicar mecanismo)
-- conclusao (objetivo: aterrissar e gerar identificação)
-- cta (objetivo: ação clara, UMA SÓ)
+Converta o contexto em um arco narrativo de 4 blocos funcionais (introducao, desenvolvimento, conclusao, cta).
+Cada bloco precisa de um id estável (b1, b2, b3, b4).
 
 Devolva JSON:
 {
   "blocks": [
     {
+      "id": "b1",
       "role": "introducao|desenvolvimento|conclusao|cta",
       "target_seconds": number,
       "emotional_goal": "string",
@@ -40,19 +110,18 @@ Devolva JSON:
     }
   ],
   "total_target_seconds": number,
-  "reasoning": "1-2 frases sobre por que essa estrutura"
+  "reasoning": "1-2 frases"
 }`;
 
     case "topic-writer":
       return `${ctxBlock}\n\nSEU PAPEL: topic-writer.
-A partir dos blocos da estrutura (em payload.blocks), gere TÓPICOS DE GRAVAÇÃO enxutos — não roteiro, não falas longas. Apenas o que a pessoa precisa para gravar com naturalidade.
-Cada tópico deve ser FUNCIONAL: objetivo + ideia central + 1 micro-hook + 1 frase forte + nota de gravação.
-NÃO escreva parágrafos. Use frases curtas e diretas.
+A partir dos blocos da estrutura (payload.blocks), gere TÓPICOS DE GRAVAÇÃO enxutos. Cada tópico com id estável (t1, t2, ...).
 
 Devolva JSON:
 {
   "topics": [
     {
+      "id": "t1",
       "role": "string",
       "target_seconds": number,
       "emotional_goal": "string",
@@ -68,40 +137,29 @@ Devolva JSON:
 
     case "script-writer":
       return `${ctxBlock}\n\nSEU PAPEL: script-writer.
-Escreva o ROTEIRO FINAL como uma fala natural, autoral, em primeira pessoa. Use os tópicos do payload (payload.topics) como espinha dorsal.
-Estrutura cinematográfica:
-- hook (≤10s): pergunta/afirmação/cena que para o scroll
-- escalada (15-25s): aumenta tensão e curiosidade
-- mecanismo (20-30s): explica o porquê com clareza
-- quebra (5-10s): vira a expectativa ou aprofunda
-- aterrissagem_cta (10-15s): conclusão emocional + UMA ação
-
-NUNCA use clichês de coach. NUNCA comece com "você sabia que". Use as approved_assets do contexto sempre que fizer sentido.
+Escreva o ROTEIRO FINAL em primeira pessoa, fala natural. Use os tópicos do payload (payload.topics).
+Estrutura: hook (≤10s), escalada (15-25s), mecanismo (20-30s), quebra (5-10s), aterrissagem_cta (10-15s).
+Cada parágrafo com id estável (p1, p2, ...).
 
 Devolva JSON:
 {
   "paragraphs": [
-    { "role": "hook|escalada|mecanismo|quebra|aterrissagem_cta", "text": "...", "target_seconds": number }
+    { "id": "p1", "role": "hook|escalada|mecanismo|quebra|aterrissagem_cta", "text": "...", "target_seconds": number }
   ],
-  "tone_check": "string curta sobre como ficou o tom",
+  "tone_check": "string curta",
   "reasoning": "1-2 frases"
 }`;
 
     case "script-critic":
       return `${ctxBlock}\n\nSEU PAPEL: script-critic.
-Analise o roteiro em payload.paragraphs como um editor estratégico. Procure: hook fraco, repetição, baixa emoção, perda de retenção, CTA fraco, excesso de explicação, quebra de ritmo.
-Para cada problema, devolva localização, motivo e sugestão APLICÁVEL (não vaga).
-Inclua alternativas: 3 hooks novos, 3 CTAs novos.
+Analise o roteiro em payload.paragraphs. Para cada problema, devolva localização e sugestão APLICÁVEL.
 
 Devolva JSON:
 {
   "diagnostics": [
     { "type": "weak_hook|repetition|low_emotion|weak_cta|overexplained|rhythm_break", "severity": "low|medium|high", "paragraph_role": "string", "reason": "string", "suggestion": "string" }
   ],
-  "alternatives": {
-    "hooks": ["...", "...", "..."],
-    "ctas": ["...", "...", "..."]
-  },
+  "alternatives": { "hooks": ["...", "...", "..."], "ctas": ["...", "...", "..."] },
   "overall_score": number,
   "retention_estimate": "baixa|moderada|alta",
   "reasoning": "1-2 frases"
@@ -119,15 +177,21 @@ Deno.serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY ausente");
 
     const body = await req.json();
-    const { agent, context, payload } = body ?? {};
-    if (!agent || !context) {
-      return new Response(JSON.stringify({ error: "agent e context obrigatórios" }), {
+    const { agent, mode = "generate", context, payload } = body ?? {};
+    if (!context) {
+      return new Response(JSON.stringify({ error: "context obrigatório" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (mode === "generate" && !agent) {
+      return new Response(JSON.stringify({ error: "agent obrigatório no modo generate" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const prompt = buildPrompt(agent, context, payload ?? {});
+    const prompt = buildPrompt(mode, agent ?? "", context, payload ?? {});
 
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
