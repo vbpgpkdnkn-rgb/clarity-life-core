@@ -92,6 +92,69 @@ async function appendEvolution(projectId: string, entry: Record<string, any>) {
     .eq("id", projectId);
 }
 
+async function patchProjectContextRaw(id: string, patch: Partial<ContentProjectContext>, current_stage?: number) {
+  const { data: current, error: e1 } = await (supabase as any)
+    .from("content_projects")
+    .select("context")
+    .eq("id", id)
+    .single();
+  if (e1) throw e1;
+  const merged = { ...(current?.context ?? {}), ...patch };
+  const upd: any = { context: merged };
+  if (current_stage) upd.current_stage = current_stage;
+  const { error } = await (supabase as any).from("content_projects").update(upd).eq("id", id);
+  if (error) throw error;
+}
+
+async function saveStageOutputRaw(input: {
+  project_id: string;
+  stage: number;
+  output: any;
+  ai_reasoning?: string;
+  label?: string;
+  mark_done?: boolean;
+}) {
+  const { data: existing } = await (supabase as any)
+    .from("content_project_stages")
+    .select("id, output")
+    .eq("project_id", input.project_id)
+    .eq("stage", input.stage)
+    .maybeSingle();
+
+  const mergedOutput = existing?.id ? { ...(existing.output ?? {}), ...(input.output ?? {}) } : input.output;
+  if (existing?.id) {
+    const { error } = await (supabase as any)
+      .from("content_project_stages")
+      .update({ output: mergedOutput, ai_reasoning: input.ai_reasoning ?? null, status: input.mark_done ? "done" : "active" })
+      .eq("id", existing.id);
+    if (error) throw error;
+  } else {
+    const { error } = await (supabase as any).from("content_project_stages").insert({
+      project_id: input.project_id,
+      stage: input.stage,
+      status: input.mark_done ? "done" : "active",
+      output: input.output,
+      ai_reasoning: input.ai_reasoning ?? null,
+    });
+    if (error) throw error;
+  }
+
+  await (supabase as any).from("content_project_versions").insert({
+    project_id: input.project_id,
+    stage: input.stage,
+    payload: mergedOutput,
+    diff_from_previous: { type: "stage_snapshot", stage: input.stage },
+    label: input.label ?? null,
+  });
+
+  if (input.mark_done) {
+    await (supabase as any)
+      .from("content_projects")
+      .update({ current_stage: Math.max(input.stage + 1, 1) })
+      .eq("id", input.project_id);
+  }
+}
+
 export const useContentProjects = () =>
   useQuery({
     queryKey: ["content_projects"],
