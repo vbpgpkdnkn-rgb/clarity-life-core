@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { enqueueAction } from "@/lib/contentProjectQueue";
 
 export const STAGE_LABELS = [
   "Ideia",
@@ -74,6 +75,21 @@ export interface ContentProjectVersion {
   diff_from_previous: any;
   label: string | null;
   created_at: string;
+}
+
+async function appendEvolution(projectId: string, entry: Record<string, any>) {
+  const { data: proj } = await (supabase as any)
+    .from("content_projects")
+    .select("context")
+    .eq("id", projectId)
+    .single();
+  const ctx = proj?.context ?? {};
+  const evolution = Array.isArray(ctx.evolution) ? ctx.evolution : [];
+  evolution.unshift({ ...entry, at: new Date().toISOString() });
+  await (supabase as any)
+    .from("content_projects")
+    .update({ context: { ...ctx, evolution: evolution.slice(0, 80) } })
+    .eq("id", projectId);
 }
 
 export const useContentProjects = () =>
