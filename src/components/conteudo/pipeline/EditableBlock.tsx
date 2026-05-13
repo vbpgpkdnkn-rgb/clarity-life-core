@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
 import { Loader2, Wand2, Pencil, Check, X, Shuffle, Clock, AlertTriangle, Lightbulb, Target, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";

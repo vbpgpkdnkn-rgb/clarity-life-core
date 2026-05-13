@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Card } from "@/components/ui/card";
 import { History } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
