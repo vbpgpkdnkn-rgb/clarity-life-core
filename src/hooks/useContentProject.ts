@@ -246,19 +246,7 @@ export const useUpdateProjectContext = () => {
       return enqueueAction({
         projectId: input.id,
         operation: "patch narrative/context",
-        run: async () => {
-          const { data: current, error: e1 } = await (supabase as any)
-            .from("content_projects")
-            .select("context")
-            .eq("id", input.id)
-            .single();
-          if (e1) throw e1;
-          const merged = { ...(current?.context ?? {}), ...input.patch };
-          const upd: any = { context: merged };
-          if (input.current_stage) upd.current_stage = input.current_stage;
-          const { error } = await (supabase as any).from("content_projects").update(upd).eq("id", input.id);
-          if (error) throw error;
-        },
+        run: () => patchProjectContextRaw(input.id, input.patch, input.current_stage),
       });
     },
     onSuccess: (_d, vars) => {
@@ -282,51 +270,7 @@ export const useSaveStageOutput = () => {
       return enqueueAction({
         projectId: input.project_id,
         operation: `save stage ${input.stage}`,
-        run: async () => {
-          const { data: existing } = await (supabase as any)
-            .from("content_project_stages")
-            .select("id, output")
-            .eq("project_id", input.project_id)
-            .eq("stage", input.stage)
-            .maybeSingle();
-
-          if (existing?.id) {
-            const mergedOutput = { ...(existing.output ?? {}), ...(input.output ?? {}) };
-            const { error } = await (supabase as any)
-              .from("content_project_stages")
-              .update({
-                output: mergedOutput,
-                ai_reasoning: input.ai_reasoning ?? null,
-                status: input.mark_done ? "done" : "active",
-              })
-              .eq("id", existing.id);
-            if (error) throw error;
-          } else {
-            const { error } = await (supabase as any).from("content_project_stages").insert({
-              project_id: input.project_id,
-              stage: input.stage,
-              status: input.mark_done ? "done" : "active",
-              output: input.output,
-              ai_reasoning: input.ai_reasoning ?? null,
-            });
-            if (error) throw error;
-          }
-
-          await (supabase as any).from("content_project_versions").insert({
-            project_id: input.project_id,
-            stage: input.stage,
-            payload: input.output,
-            diff_from_previous: { type: "stage_snapshot", stage: input.stage },
-            label: input.label ?? null,
-          });
-
-          if (input.mark_done) {
-            await (supabase as any)
-              .from("content_projects")
-              .update({ current_stage: Math.max(input.stage + 1, 1) })
-              .eq("id", input.project_id);
-          }
-        },
+        run: () => saveStageOutputRaw(input),
       });
     },
     onSuccess: (_d, vars) => {
