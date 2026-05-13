@@ -146,6 +146,9 @@ export function ContentPipelineTab() {
     );
   }
 
+  // Garante que componentes filhos nunca recebam um project sem context
+  const safeProject = { ...project, context: (project.context as any) ?? {} } as typeof project;
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
