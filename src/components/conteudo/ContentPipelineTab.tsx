@@ -11,6 +11,9 @@ import { StageTimeline } from "./StageTimeline";
 import { NarrativeCorePanel } from "./pipeline/NarrativeCorePanel";
 import { EditableBlock } from "./pipeline/EditableBlock";
 import { EvolutionLog } from "./pipeline/EvolutionLog";
+import { ExportControls } from "./pipeline/ExportControls";
+import { useContentProjectQueue } from "@/hooks/useContentProjectQueue";
+import { useInlineCritique } from "@/hooks/usePipelineEditor";
 import {
   useContentProjects,
   useContentProject,
@@ -36,9 +39,13 @@ export function ContentPipelineTab() {
   const { data: project } = useContentProject(activeId);
   const { data: stages = [] } = useProjectStages(activeId);
   const runAgent = useRunStageAgent();
+  const queue = useContentProjectQueue(activeId);
+  const inlineCritique = useInlineCritique();
 
   const [newTitle, setNewTitle] = useState("");
   const [newIntent, setNewIntent] = useState("");
+  const [inlineAnnotations, setInlineAnnotations] = useState<any[]>([]);
+  const [teleprompterOpen, setTeleprompterOpen] = useState(false);
 
   const doneStages = useMemo(() => stages.filter((s) => s.status === "done").map((s) => s.stage), [stages]);
   const stageOutput = (n: number) => stages.find((s) => s.stage === n)?.output ?? null;
@@ -142,6 +149,13 @@ export function ContentPipelineTab() {
         <Badge variant="outline">Estágio atual: {project.current_stage} · {STAGE_LABELS[project.current_stage - 1]}</Badge>
       </div>
 
+      {queue.isBusy && (
+        <Card className="p-2 border-primary/30 bg-primary/5 text-xs flex items-center justify-between gap-2">
+          <span className="flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" /> Operação serializada: {queue.activeOperation ?? "na fila"}{queue.pendingCount ? ` · ${queue.pendingCount} pendente(s)` : ""}</span>
+          <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={queue.cancelPendingActions}>Cancelar fila</Button>
+        </Card>
+      )}
+
       <NarrativeCorePanel project={project} />
 
       <Card className="p-2">
@@ -166,10 +180,10 @@ export function ContentPipelineTab() {
                   <Button
                     size="sm"
                     onClick={() => runAgent.mutate({ project, agent: "structurer", stage: 4 })}
-                    disabled={runAgent.isPending}
+                    disabled={runAgent.isPending || queue.isBusy}
                   >
                     {runAgent.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Wand2 className="h-3 w-3 mr-1" />}
-                    {structureBlocks.length ? "Regerar tudo" : "Gerar"}
+                    {structureBlocks.length ? "Refinar etapa" : "Gerar"}
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -200,13 +214,13 @@ export function ContentPipelineTab() {
                   <CardTitle className="text-base">Tópicos de gravação</CardTitle>
                   <Button
                     size="sm"
-                    disabled={!structureBlocks.length || runAgent.isPending}
+                    disabled={!structureBlocks.length || runAgent.isPending || queue.isBusy}
                     onClick={() =>
                       runAgent.mutate({ project, agent: "topic-writer", stage: 5, payload: { blocks: structureBlocks } })
                     }
                   >
                     {runAgent.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Wand2 className="h-3 w-3 mr-1" />}
-                    {topicsList.length ? "Regerar tudo" : "Gerar"}
+                    {topicsList.length ? "Refinar etapa" : "Gerar"}
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -233,13 +247,13 @@ export function ContentPipelineTab() {
                   <CardTitle className="text-base">Roteiro final</CardTitle>
                   <Button
                     size="sm"
-                    disabled={!topicsList.length || runAgent.isPending}
+                    disabled={!topicsList.length || runAgent.isPending || queue.isBusy}
                     onClick={() =>
                       runAgent.mutate({ project, agent: "script-writer", stage: 6, payload: { topics: topicsList } })
                     }
                   >
                     {runAgent.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Wand2 className="h-3 w-3 mr-1" />}
-                    {scriptParagraphs.length ? "Regerar tudo" : "Gerar"}
+                    {scriptParagraphs.length ? "Refinar roteiro" : "Gerar"}
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-2">
