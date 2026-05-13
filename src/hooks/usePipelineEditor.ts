@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { ContentProject } from "./useContentProject";
+import { enqueueAction } from "@/lib/contentProjectQueue";
 
 interface RefineInput {
   project: ContentProject;
@@ -28,10 +29,14 @@ async function callAgent(body: any) {
 export const useRefineBlock = () =>
   useMutation({
     mutationFn: async (input: RefineInput) =>
-      callAgent({
-        mode: "refine",
-        context: input.project.context,
-        payload: { target_block: input.target_block, instruction: input.instruction },
+      enqueueAction({
+        projectId: input.project.id,
+        operation: `refine block ${input.target_block.id ?? ""}`,
+        run: () => callAgent({
+          mode: "refine",
+          context: input.project.context,
+          payload: { target_block: input.target_block, instruction: input.instruction },
+        }),
       }),
     onError: (e: any) => toast.error(e.message ?? "Erro ao refinar"),
   });
@@ -39,10 +44,14 @@ export const useRefineBlock = () =>
 export const useAlternatives = () =>
   useMutation({
     mutationFn: async (input: AlternativesInput) =>
-      callAgent({
-        mode: "alternatives",
-        context: input.project.context,
-        payload: { target_block: input.target_block },
+      enqueueAction({
+        projectId: input.project.id,
+        operation: `generate alternatives ${input.target_block.id ?? ""}`,
+        run: () => callAgent({
+          mode: "alternatives",
+          context: input.project.context,
+          payload: { target_block: input.target_block },
+        }),
       }),
     onError: (e: any) => toast.error(e.message ?? "Erro ao gerar alternativas"),
   });
@@ -50,10 +59,14 @@ export const useAlternatives = () =>
 export const useInlineCritique = () =>
   useMutation({
     mutationFn: async (input: CritiqueInput) =>
-      callAgent({
-        mode: "critique-inline",
-        context: input.project.context,
-        payload: { blocks: input.blocks },
+      enqueueAction({
+        projectId: input.project.id,
+        operation: "critique inline",
+        run: () => callAgent({
+          mode: "critique-inline",
+          context: input.project.context,
+          payload: { blocks: input.blocks },
+        }),
       }),
     onError: (e: any) => toast.error(e.message ?? "Erro ao analisar"),
   });
