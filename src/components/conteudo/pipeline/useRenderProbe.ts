@@ -10,7 +10,9 @@ export function useRenderProbe(name: string) {
 
   useEffect(() => {
     mounted.add(name);
-    return () => mounted.delete(name);
+    return () => {
+      mounted.delete(name);
+    };
   }, [name]);
 
   return renderCount.current;
