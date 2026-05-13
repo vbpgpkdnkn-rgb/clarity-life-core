@@ -380,25 +380,12 @@ export function ContentPipelineTab() {
         </div>
       </div>
 
-      {teleprompterOpen && (
-        <div className="fixed inset-0 z-50 bg-background text-foreground p-6 overflow-auto">
-          <div className="sticky top-0 bg-background/95 backdrop-blur border-b pb-3 mb-6 flex items-center justify-between gap-2">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Modo gravação</p>
-              <h3 className="text-lg font-semibold">{project.title}</h3>
-            </div>
-            <Button variant="outline" onClick={() => setTeleprompterOpen(false)}>Fechar</Button>
-          </div>
-          <div className="max-w-3xl mx-auto space-y-8 text-3xl leading-relaxed">
-            {scriptParagraphs.map((p: any) => (
-              <section key={p.id} className="space-y-2">
-                <Badge variant="outline" className="text-xs">{p.role}</Badge>
-                <p className="whitespace-pre-wrap">{p.text}</p>
-              </section>
-            ))}
-          </div>
-        </div>
-      )}
+      <TeleprompterMode
+        open={teleprompterOpen}
+        onClose={() => setTeleprompterOpen(false)}
+        title={project.title}
+        paragraphs={scriptParagraphs as any}
+      />
     </div>
   );
 }
