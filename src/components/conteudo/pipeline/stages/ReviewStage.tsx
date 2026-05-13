@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { memo, useMemo } from "react";
-import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
+import { AlertTriangle, Loader2, RefreshCw, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useInlineCritique } from "@/hooks/usePipelineEditor";
+import { useInlineCritique, useFinalizeProject } from "@/hooks/usePipelineEditor";
 import { useRunStageAgent } from "@/hooks/useContentProject";
 import { getPipelineCollections, type PipelineStageProps } from "../pipelineUtils";
 import { useRenderProbe } from "../useRenderProbe";
@@ -13,6 +13,7 @@ export const ReviewStage = memo(function ReviewStage({ project, stages, queueBus
   useRenderProbe("ReviewStage");
   const runAgent = useRunStageAgent();
   const inlineCritique = useInlineCritique();
+  const finalize = useFinalizeProject();
   const { scriptParagraphs, critic } = useMemo(() => getPipelineCollections(stages), [stages]);
 
   return (
@@ -80,6 +81,20 @@ export const ReviewStage = memo(function ReviewStage({ project, stages, queueBus
               </div>
             )}
           </>
+        )}
+
+        {scriptParagraphs.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-border/60 flex flex-col items-start gap-2">
+            <p className="text-xs text-muted-foreground">Quando estiver satisfeito, envie o conteúdo para o pipeline de produção.</p>
+            <Button
+              size="sm"
+              disabled={finalize.isPending || queueBusy || project.status === "concluido"}
+              onClick={() => finalize.mutate({ project, paragraphs: scriptParagraphs })}
+            >
+              {finalize.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Send className="h-3 w-3 mr-1" />}
+              {project.status === "concluido" ? "Já enviado" : "Enviar para pipeline"}
+            </Button>
+          </div>
         )}
       </CardContent>
     </Card>
