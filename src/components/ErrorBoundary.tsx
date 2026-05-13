@@ -7,6 +7,8 @@ interface Props {
   children: ReactNode;
   /** Nome amigável do módulo, exibido no fallback */
   scope?: string;
+  /** Reinicia automaticamente o boundary quando a rota/estágio muda */
+  resetKey?: string | number | null;
   /** Render alternativo de fallback */
   fallback?: (error: Error, reset: () => void) => ReactNode;
 }
@@ -25,6 +27,12 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: ErrorInfo) {
     // Log contextualizado — fica visível no console e nas ferramentas de debug
     console.error(`[ErrorBoundary${this.props.scope ? `:${this.props.scope}` : ""}]`, error, info?.componentStack);
+  }
+
+  componentDidUpdate(prevProps: Props) {
+    if (this.state.error && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ error: null });
+    }
   }
 
   reset = () => this.setState({ error: null });

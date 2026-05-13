@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from "@/integrations/supabase/client";
 
 type QueueAction<T = unknown> = {
@@ -13,16 +14,69 @@ type QueueSnapshot = {
   activeOperation: string | null;
   pendingCount: number;
   isBusy: boolean;
+  lastSuccessfulPatch: string | null;
+  failedOperations: number;
+  aiLatencyMs: number | null;
+  lastFailure: string | null;
 };
 
 const queues = new Map<string, QueueAction[]>();
 const active = new Map<string, QueueAction>();
 const listeners = new Map<string, Set<() => void>>();
+const snapshots = new Map<string, QueueSnapshot>();
+const telemetry = new Map<string, Pick<QueueSnapshot, "lastSuccessfulPatch" | "failedOperations" | "aiLatencyMs" | "lastFailure">>();
 
-const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+const IDLE_SNAPSHOT: QueueSnapshot = Object.freeze({
+  activeOperation: null,
+  pendingCount: 0,
+  isBusy: false,
+  lastSuccessfulPatch: null,
+  failedOperations: 0,
+  aiLatencyMs: null,
+  lastFailure: null,
+});
+
+const wait = (ms: number) => new Promise((resolve) => globalThis.setTimeout(resolve, ms));
 const makeId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
+function buildSnapshot(projectId: string): QueueSnapshot {
+  const current = active.get(projectId);
+  const pending = queues.get(projectId)?.length ?? 0;
+  const stats = telemetry.get(projectId) ?? IDLE_SNAPSHOT;
+  return {
+    activeOperation: current?.operation ?? null,
+    pendingCount: pending,
+    isBusy: Boolean(current) || pending > 0,
+    lastSuccessfulPatch: stats.lastSuccessfulPatch,
+    failedOperations: stats.failedOperations,
+    aiLatencyMs: stats.aiLatencyMs,
+    lastFailure: stats.lastFailure,
+  };
+}
+
+function sameSnapshot(a: QueueSnapshot, b: QueueSnapshot) {
+  return a.activeOperation === b.activeOperation
+    && a.pendingCount === b.pendingCount
+    && a.isBusy === b.isBusy
+    && a.lastSuccessfulPatch === b.lastSuccessfulPatch
+    && a.failedOperations === b.failedOperations
+    && a.aiLatencyMs === b.aiLatencyMs
+    && a.lastFailure === b.lastFailure;
+}
+
+function commitSnapshot(projectId: string) {
+  const next = buildSnapshot(projectId);
+  const stableNext = sameSnapshot(next, IDLE_SNAPSHOT) ? IDLE_SNAPSHOT : next;
+  const previous = snapshots.get(projectId) ?? IDLE_SNAPSHOT;
+  if (sameSnapshot(previous, stableNext)) return false;
+  if (stableNext === IDLE_SNAPSHOT) snapshots.delete(projectId);
+  else snapshots.set(projectId, stableNext);
+  return true;
+}
+
 function emit(projectId: string) {
+  const changed = commitSnapshot(projectId);
+  if (!changed) return;
   listeners.get(projectId)?.forEach((listener) => listener());
 }
 
@@ -37,13 +91,12 @@ export function subscribeProjectQueue(projectId: string, listener: () => void) {
 }
 
 export function getProjectQueueSnapshot(projectId: string): QueueSnapshot {
-  const current = active.get(projectId);
-  const pending = queues.get(projectId)?.length ?? 0;
-  return {
-    activeOperation: current?.operation ?? null,
-    pendingCount: pending,
-    isBusy: Boolean(current) || pending > 0,
-  };
+  const cached = snapshots.get(projectId);
+  if (cached) return cached;
+  const next = buildSnapshot(projectId);
+  if (sameSnapshot(next, IDLE_SNAPSHOT)) return IDLE_SNAPSHOT;
+  snapshots.set(projectId, next);
+  return next;
 }
 
 async function acquireContextLock(projectId: string, operation: string, actionId: string) {
@@ -116,11 +169,26 @@ export async function processNextAction(projectId: string) {
   emit(projectId);
 
   let lockOperation: string | null = null;
+  const startedAt = Date.now();
   try {
     lockOperation = await acquireContextLock(projectId, action.operation, action.id);
     const result = await action.run();
+    const previous = telemetry.get(projectId) ?? IDLE_SNAPSHOT;
+    telemetry.set(projectId, {
+      lastSuccessfulPatch: action.operation,
+      failedOperations: previous.failedOperations,
+      aiLatencyMs: Date.now() - startedAt,
+      lastFailure: null,
+    });
     action.resolve(result);
   } catch (error) {
+    const previous = telemetry.get(projectId) ?? IDLE_SNAPSHOT;
+    telemetry.set(projectId, {
+      lastSuccessfulPatch: previous.lastSuccessfulPatch,
+      failedOperations: previous.failedOperations + 1,
+      aiLatencyMs: Date.now() - startedAt,
+      lastFailure: error instanceof Error ? error.message : "Falha desconhecida",
+    });
     action.reject(error);
   } finally {
     if (lockOperation) await releaseContextLock(projectId, lockOperation);
@@ -135,4 +203,9 @@ export function cancelPendingActions(projectId: string) {
   queue.forEach((action) => action.reject(new Error("Ações pendentes canceladas")));
   queues.delete(projectId);
   emit(projectId);
+}
+
+export function getAllQueueSnapshots() {
+  const ids = new Set<string>([...queues.keys(), ...active.keys(), ...snapshots.keys(), ...telemetry.keys()]);
+  return Array.from(ids).map((projectId) => ({ projectId, ...getProjectQueueSnapshot(projectId) }));
 }
