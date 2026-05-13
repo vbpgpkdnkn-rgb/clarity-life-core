@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { enqueueAction } from "@/lib/contentProjectQueue";
 
 export const STAGE_LABELS = [
   "Ideia",
@@ -74,6 +75,84 @@ export interface ContentProjectVersion {
   diff_from_previous: any;
   label: string | null;
   created_at: string;
+}
+
+async function appendEvolution(projectId: string, entry: Record<string, any>) {
+  const { data: proj } = await (supabase as any)
+    .from("content_projects")
+    .select("context")
+    .eq("id", projectId)
+    .single();
+  const ctx = proj?.context ?? {};
+  const evolution = Array.isArray(ctx.evolution) ? ctx.evolution : [];
+  evolution.unshift({ ...entry, at: new Date().toISOString() });
+  await (supabase as any)
+    .from("content_projects")
+    .update({ context: { ...ctx, evolution: evolution.slice(0, 80) } })
+    .eq("id", projectId);
+}
+
+async function patchProjectContextRaw(id: string, patch: Partial<ContentProjectContext>, current_stage?: number) {
+  const { data: current, error: e1 } = await (supabase as any)
+    .from("content_projects")
+    .select("context")
+    .eq("id", id)
+    .single();
+  if (e1) throw e1;
+  const merged = { ...(current?.context ?? {}), ...patch };
+  const upd: any = { context: merged };
+  if (current_stage) upd.current_stage = current_stage;
+  const { error } = await (supabase as any).from("content_projects").update(upd).eq("id", id);
+  if (error) throw error;
+}
+
+async function saveStageOutputRaw(input: {
+  project_id: string;
+  stage: number;
+  output: any;
+  ai_reasoning?: string;
+  label?: string;
+  mark_done?: boolean;
+}) {
+  const { data: existing } = await (supabase as any)
+    .from("content_project_stages")
+    .select("id, output")
+    .eq("project_id", input.project_id)
+    .eq("stage", input.stage)
+    .maybeSingle();
+
+  const mergedOutput = existing?.id ? { ...(existing.output ?? {}), ...(input.output ?? {}) } : input.output;
+  if (existing?.id) {
+    const { error } = await (supabase as any)
+      .from("content_project_stages")
+      .update({ output: mergedOutput, ai_reasoning: input.ai_reasoning ?? null, status: input.mark_done ? "done" : "active" })
+      .eq("id", existing.id);
+    if (error) throw error;
+  } else {
+    const { error } = await (supabase as any).from("content_project_stages").insert({
+      project_id: input.project_id,
+      stage: input.stage,
+      status: input.mark_done ? "done" : "active",
+      output: input.output,
+      ai_reasoning: input.ai_reasoning ?? null,
+    });
+    if (error) throw error;
+  }
+
+  await (supabase as any).from("content_project_versions").insert({
+    project_id: input.project_id,
+    stage: input.stage,
+    payload: mergedOutput,
+    diff_from_previous: { type: "stage_snapshot", stage: input.stage },
+    label: input.label ?? null,
+  });
+
+  if (input.mark_done) {
+    await (supabase as any)
+      .from("content_projects")
+      .update({ current_stage: Math.max(input.stage + 1, 1) })
+      .eq("id", input.project_id);
+  }
 }
 
 export const useContentProjects = () =>
@@ -164,18 +243,11 @@ export const useUpdateProjectContext = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { id: string; patch: Partial<ContentProjectContext>; current_stage?: number }) => {
-      // Merge raso (jsonb) — buscar atual, aplicar patch
-      const { data: current, error: e1 } = await (supabase as any)
-        .from("content_projects")
-        .select("context")
-        .eq("id", input.id)
-        .single();
-      if (e1) throw e1;
-      const merged = { ...(current?.context ?? {}), ...input.patch };
-      const upd: any = { context: merged };
-      if (input.current_stage) upd.current_stage = input.current_stage;
-      const { error } = await (supabase as any).from("content_projects").update(upd).eq("id", input.id);
-      if (error) throw error;
+      return enqueueAction({
+        projectId: input.id,
+        operation: "patch narrative/context",
+        run: () => patchProjectContextRaw(input.id, input.patch, input.current_stage),
+      });
     },
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ["content_project", vars.id] });
@@ -195,49 +267,11 @@ export const useSaveStageOutput = () => {
       label?: string;
       mark_done?: boolean;
     }) => {
-      // upsert stage row
-      const { data: existing } = await (supabase as any)
-        .from("content_project_stages")
-        .select("id")
-        .eq("project_id", input.project_id)
-        .eq("stage", input.stage)
-        .maybeSingle();
-
-      if (existing?.id) {
-        const { error } = await (supabase as any)
-          .from("content_project_stages")
-          .update({
-            output: input.output,
-            ai_reasoning: input.ai_reasoning ?? null,
-            status: input.mark_done ? "done" : "active",
-          })
-          .eq("id", existing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await (supabase as any).from("content_project_stages").insert({
-          project_id: input.project_id,
-          stage: input.stage,
-          status: input.mark_done ? "done" : "active",
-          output: input.output,
-          ai_reasoning: input.ai_reasoning ?? null,
-        });
-        if (error) throw error;
-      }
-
-      // version snapshot
-      await (supabase as any).from("content_project_versions").insert({
-        project_id: input.project_id,
-        stage: input.stage,
-        payload: input.output,
-        label: input.label ?? null,
+      return enqueueAction({
+        projectId: input.project_id,
+        operation: `save stage ${input.stage}`,
+        run: () => saveStageOutputRaw(input),
       });
-
-      if (input.mark_done) {
-        await (supabase as any)
-          .from("content_projects")
-          .update({ current_stage: Math.max(input.stage + 1, 1) })
-          .eq("id", input.project_id);
-      }
     },
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ["content_project_stages", vars.project_id] });
@@ -265,9 +299,7 @@ export const useDeleteProject = () => {
 
 // ─── Orquestrador: chama agentes especializados, sempre injeta o context ───
 export const useRunStageAgent = () => {
-  const save = useSaveStageOutput();
-  const updateCtx = useUpdateProjectContext();
-
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: {
       project: ContentProject;
@@ -275,33 +307,47 @@ export const useRunStageAgent = () => {
       stage: number;
       payload?: any;
     }) => {
-      const { data, error } = await supabase.functions.invoke("content-pipeline-agent", {
-        body: {
-          agent: input.agent,
-          project_id: input.project.id,
-          context: input.project.context,
-          payload: input.payload ?? {},
+      return enqueueAction({
+        projectId: input.project.id,
+        operation: `${input.agent} stage ${input.stage}`,
+        run: async () => {
+          const { data, error } = await supabase.functions.invoke("content-pipeline-agent", {
+            body: {
+              agent: input.agent,
+              project_id: input.project.id,
+              context: input.project.context,
+              payload: input.payload ?? {},
+            },
+          });
+          if (error) throw error;
+          if ((data as any)?.error) throw new Error((data as any).error);
+
+          await saveStageOutputRaw({
+            project_id: input.project.id,
+            stage: input.stage,
+            output: data,
+            ai_reasoning: (data as any)?.reasoning ?? null,
+            mark_done: true,
+          });
+
+          if ((data as any)?.context_patch) {
+            await patchProjectContextRaw(input.project.id, (data as any).context_patch);
+          }
+          await appendEvolution(input.project.id, {
+            stage: input.stage,
+            field: input.agent,
+            why: (data as any)?.reasoning ?? "Etapa gerada e persistida",
+            impact: "A esteira avançou usando o contexto atual sem requests paralelas.",
+          });
+          return data;
         },
       });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-
-      await save.mutateAsync({
-        project_id: input.project.id,
-        stage: input.stage,
-        output: data,
-        ai_reasoning: (data as any)?.reasoning ?? null,
-        mark_done: true,
-      });
-
-      // Merge contextual hints opcionais que o agente devolva
-      if ((data as any)?.context_patch) {
-        await updateCtx.mutateAsync({
-          id: input.project.id,
-          patch: (data as any).context_patch,
-        });
-      }
-      return data;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["content_project_stages", vars.project.id] });
+      qc.invalidateQueries({ queryKey: ["content_project_versions", vars.project.id] });
+      qc.invalidateQueries({ queryKey: ["content_project", vars.project.id] });
+      qc.invalidateQueries({ queryKey: ["content_projects"] });
     },
     onError: (e: any) => toast.error(e.message ?? "Erro no agente de IA"),
   });

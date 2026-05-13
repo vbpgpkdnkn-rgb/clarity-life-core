@@ -30,9 +30,10 @@ interface Props {
   block: BlockShape;
   textField: keyof BlockShape; // qual campo é o "texto principal"
   index: number;
+  annotations?: { type?: string; severity?: string; message?: string; suggestion?: string }[];
 }
 
-export function EditableBlock({ project, stage, collectionKey, block, textField, index }: Props) {
+export function EditableBlock({ project, stage, collectionKey, block, textField, index, annotations = [] }: Props) {
   const apply = useApplyBlockEdit();
   const refine = useRefineBlock();
   const alts = useAlternatives();
@@ -131,6 +132,17 @@ export function EditableBlock({ project, stage, collectionKey, block, textField,
         <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={4} className="text-sm" />
       ) : (
         <p className="text-sm leading-relaxed whitespace-pre-wrap">{currentText}</p>
+      )}
+
+      {annotations.length > 0 && !editing && (
+        <div className="space-y-2 border-l-2 border-destructive/40 bg-destructive/5 p-2">
+          {annotations.map((a, i) => (
+            <div key={i} className="text-xs space-y-1">
+              <div className="flex items-center gap-2"><Badge variant={a.severity === "high" ? "destructive" : "secondary"} className="text-[9px]">{a.type ?? "revisão"}</Badge><span>{a.message}</span></div>
+              {a.suggestion && <div className="rounded border bg-background p-2"><p className="text-muted-foreground line-through">{currentText}</p><p className="mt-1 font-medium">{a.suggestion}</p><Button size="sm" variant="outline" className="mt-2 h-6 text-[10px]" onClick={() => save(a.suggestion!, a.type ?? "revisão inline", a.message)}>Aceitar sugestão</Button></div>}
+            </div>
+          ))}
+        </div>
       )}
 
       {/* outros campos do tópico (não-texto principal) só leitura compacta */}

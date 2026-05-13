@@ -793,6 +793,30 @@ export type Database = {
           },
         ]
       }
+      content_project_locks: {
+        Row: {
+          current_operation: string
+          expires_at: string
+          project_id: string
+          started_at: string
+          updated_at: string
+        }
+        Insert: {
+          current_operation: string
+          expires_at: string
+          project_id: string
+          started_at?: string
+          updated_at?: string
+        }
+        Update: {
+          current_operation?: string
+          expires_at?: string
+          project_id?: string
+          started_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       content_project_stages: {
         Row: {
           ai_reasoning: string | null

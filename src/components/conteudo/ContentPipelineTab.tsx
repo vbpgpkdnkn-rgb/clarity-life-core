@@ -11,6 +11,9 @@ import { StageTimeline } from "./StageTimeline";
 import { NarrativeCorePanel } from "./pipeline/NarrativeCorePanel";
 import { EditableBlock } from "./pipeline/EditableBlock";
 import { EvolutionLog } from "./pipeline/EvolutionLog";
+import { ExportControls } from "./pipeline/ExportControls";
+import { useContentProjectQueue } from "@/hooks/useContentProjectQueue";
+import { useInlineCritique } from "@/hooks/usePipelineEditor";
 import {
   useContentProjects,
   useContentProject,
@@ -36,9 +39,13 @@ export function ContentPipelineTab() {
   const { data: project } = useContentProject(activeId);
   const { data: stages = [] } = useProjectStages(activeId);
   const runAgent = useRunStageAgent();
+  const queue = useContentProjectQueue(activeId);
+  const inlineCritique = useInlineCritique();
 
   const [newTitle, setNewTitle] = useState("");
   const [newIntent, setNewIntent] = useState("");
+  const [inlineAnnotations, setInlineAnnotations] = useState<any[]>([]);
+  const [teleprompterOpen, setTeleprompterOpen] = useState(false);
 
   const doneStages = useMemo(() => stages.filter((s) => s.status === "done").map((s) => s.stage), [stages]);
   const stageOutput = (n: number) => stages.find((s) => s.stage === n)?.output ?? null;
@@ -51,6 +58,14 @@ export function ContentPipelineTab() {
   const structureBlocks = useMemo(() => ensureIds(structureRaw?.blocks, "b"), [structureRaw]);
   const topicsList = useMemo(() => ensureIds(topicsRaw?.topics, "t"), [topicsRaw]);
   const scriptParagraphs = useMemo(() => ensureIds(scriptRaw?.paragraphs, "p"), [scriptRaw]);
+  const annotationsByBlock = useMemo(() => {
+    const grouped: Record<string, any[]> = {};
+    inlineAnnotations.forEach((a) => {
+      if (!a.block_id) return;
+      grouped[a.block_id] = [...(grouped[a.block_id] ?? []), a];
+    });
+    return grouped;
+  }, [inlineAnnotations]);
 
   if (!activeId) {
     return (
@@ -142,6 +157,13 @@ export function ContentPipelineTab() {
         <Badge variant="outline">Estágio atual: {project.current_stage} · {STAGE_LABELS[project.current_stage - 1]}</Badge>
       </div>
 
+      {queue.isBusy && (
+        <Card className="p-2 border-primary/30 bg-primary/5 text-xs flex items-center justify-between gap-2">
+          <span className="flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" /> Operação serializada: {queue.activeOperation ?? "na fila"}{queue.pendingCount ? ` · ${queue.pendingCount} pendente(s)` : ""}</span>
+          <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={queue.cancelPendingActions}>Cancelar fila</Button>
+        </Card>
+      )}
+
       <NarrativeCorePanel project={project} />
 
       <Card className="p-2">
@@ -166,10 +188,10 @@ export function ContentPipelineTab() {
                   <Button
                     size="sm"
                     onClick={() => runAgent.mutate({ project, agent: "structurer", stage: 4 })}
-                    disabled={runAgent.isPending}
+                    disabled={runAgent.isPending || queue.isBusy}
                   >
                     {runAgent.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Wand2 className="h-3 w-3 mr-1" />}
-                    {structureBlocks.length ? "Regerar tudo" : "Gerar"}
+                    {structureBlocks.length ? "Refinar etapa" : "Gerar"}
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -200,13 +222,13 @@ export function ContentPipelineTab() {
                   <CardTitle className="text-base">Tópicos de gravação</CardTitle>
                   <Button
                     size="sm"
-                    disabled={!structureBlocks.length || runAgent.isPending}
+                    disabled={!structureBlocks.length || runAgent.isPending || queue.isBusy}
                     onClick={() =>
                       runAgent.mutate({ project, agent: "topic-writer", stage: 5, payload: { blocks: structureBlocks } })
                     }
                   >
                     {runAgent.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Wand2 className="h-3 w-3 mr-1" />}
-                    {topicsList.length ? "Regerar tudo" : "Gerar"}
+                    {topicsList.length ? "Refinar etapa" : "Gerar"}
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -233,13 +255,13 @@ export function ContentPipelineTab() {
                   <CardTitle className="text-base">Roteiro final</CardTitle>
                   <Button
                     size="sm"
-                    disabled={!topicsList.length || runAgent.isPending}
+                    disabled={!topicsList.length || runAgent.isPending || queue.isBusy}
                     onClick={() =>
                       runAgent.mutate({ project, agent: "script-writer", stage: 6, payload: { topics: topicsList } })
                     }
                   >
                     {runAgent.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Wand2 className="h-3 w-3 mr-1" />}
-                    {scriptParagraphs.length ? "Regerar tudo" : "Gerar"}
+                    {scriptParagraphs.length ? "Refinar roteiro" : "Gerar"}
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -256,20 +278,19 @@ export function ContentPipelineTab() {
                       block={p as any}
                       textField="text"
                       index={i}
+                      annotations={annotationsByBlock[p.id] ?? []}
                     />
                   ))}
                   {scriptParagraphs.length > 0 && (
-                    <div className="flex justify-end">
+                    <div className="flex flex-wrap justify-end gap-1">
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          const txt = scriptParagraphs.map((p: any) => p.text).join("\n\n");
-                          navigator.clipboard.writeText(txt);
-                        }}
+                        onClick={() => setTeleprompterOpen(true)}
                       >
-                        Copiar roteiro
+                        Modo gravação
                       </Button>
+                      <ExportControls paragraphs={scriptParagraphs as any} annotations={inlineAnnotations} />
                     </div>
                   )}
                 </CardContent>
@@ -283,13 +304,25 @@ export function ContentPipelineTab() {
                   <CardTitle className="text-base">Revisão crítica</CardTitle>
                   <Button
                     size="sm"
-                    disabled={!scriptParagraphs.length || runAgent.isPending}
+                    disabled={!scriptParagraphs.length || runAgent.isPending || queue.isBusy}
                     onClick={() =>
                       runAgent.mutate({ project, agent: "script-critic", stage: 7, payload: { paragraphs: scriptParagraphs } })
                     }
                   >
                     {runAgent.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
                     Analisar
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!scriptParagraphs.length || inlineCritique.isPending || queue.isBusy}
+                    onClick={() => inlineCritique.mutate(
+                      { project, blocks: scriptParagraphs.map((p: any) => ({ id: p.id, role: p.role, text: p.text ?? "" })) },
+                      { onSuccess: (data: any) => setInlineAnnotations(data?.annotations ?? []) },
+                    )}
+                  >
+                    {inlineCritique.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <AlertTriangle className="h-3 w-3 mr-1" />}
+                    Revisão inline
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -345,6 +378,26 @@ export function ContentPipelineTab() {
           <EvolutionLog project={project} />
         </div>
       </div>
+
+      {teleprompterOpen && (
+        <div className="fixed inset-0 z-50 bg-background text-foreground p-6 overflow-auto">
+          <div className="sticky top-0 bg-background/95 backdrop-blur border-b pb-3 mb-6 flex items-center justify-between gap-2">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Modo gravação</p>
+              <h3 className="text-lg font-semibold">{project.title}</h3>
+            </div>
+            <Button variant="outline" onClick={() => setTeleprompterOpen(false)}>Fechar</Button>
+          </div>
+          <div className="max-w-3xl mx-auto space-y-8 text-3xl leading-relaxed">
+            {scriptParagraphs.map((p: any) => (
+              <section key={p.id} className="space-y-2">
+                <Badge variant="outline" className="text-xs">{p.role}</Badge>
+                <p className="whitespace-pre-wrap">{p.text}</p>
+              </section>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
