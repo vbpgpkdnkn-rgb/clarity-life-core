@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Plus, Wand2, Loader2, AlertTriangle, Clock, RefreshCw } from "lucide-react";
+import { Plus, Wand2, Loader2, AlertTriangle, Clock, RefreshCw, ArrowRight, PlayCircle } from "lucide-react";
+import { TeleprompterMode } from "./pipeline/TeleprompterMode";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -282,15 +283,16 @@ export function ContentPipelineTab() {
                     />
                   ))}
                   {scriptParagraphs.length > 0 && (
-                    <div className="flex flex-wrap justify-end gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setTeleprompterOpen(true)}
-                      >
-                        Modo gravação
-                      </Button>
-                      <ExportControls paragraphs={scriptParagraphs as any} annotations={inlineAnnotations} />
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-border/60">
+                      <p className="text-[11px] text-muted-foreground italic">
+                        Pronto para gravar? Use o teleprompter premium ou exporte para outro formato.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="default" className="gap-1.5" onClick={() => setTeleprompterOpen(true)}>
+                          <PlayCircle className="h-3.5 w-3.5" /> Modo gravação
+                        </Button>
+                        <ExportControls paragraphs={scriptParagraphs as any} annotations={inlineAnnotations} />
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -379,25 +381,12 @@ export function ContentPipelineTab() {
         </div>
       </div>
 
-      {teleprompterOpen && (
-        <div className="fixed inset-0 z-50 bg-background text-foreground p-6 overflow-auto">
-          <div className="sticky top-0 bg-background/95 backdrop-blur border-b pb-3 mb-6 flex items-center justify-between gap-2">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Modo gravação</p>
-              <h3 className="text-lg font-semibold">{project.title}</h3>
-            </div>
-            <Button variant="outline" onClick={() => setTeleprompterOpen(false)}>Fechar</Button>
-          </div>
-          <div className="max-w-3xl mx-auto space-y-8 text-3xl leading-relaxed">
-            {scriptParagraphs.map((p: any) => (
-              <section key={p.id} className="space-y-2">
-                <Badge variant="outline" className="text-xs">{p.role}</Badge>
-                <p className="whitespace-pre-wrap">{p.text}</p>
-              </section>
-            ))}
-          </div>
-        </div>
-      )}
+      <TeleprompterMode
+        open={teleprompterOpen}
+        onClose={() => setTeleprompterOpen(false)}
+        title={project.title}
+        paragraphs={scriptParagraphs as any}
+      />
     </div>
   );
 }
