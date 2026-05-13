@@ -58,6 +58,14 @@ export function ContentPipelineTab() {
   const structureBlocks = useMemo(() => ensureIds(structureRaw?.blocks, "b"), [structureRaw]);
   const topicsList = useMemo(() => ensureIds(topicsRaw?.topics, "t"), [topicsRaw]);
   const scriptParagraphs = useMemo(() => ensureIds(scriptRaw?.paragraphs, "p"), [scriptRaw]);
+  const annotationsByBlock = useMemo(() => {
+    const grouped: Record<string, any[]> = {};
+    inlineAnnotations.forEach((a) => {
+      if (!a.block_id) return;
+      grouped[a.block_id] = [...(grouped[a.block_id] ?? []), a];
+    });
+    return grouped;
+  }, [inlineAnnotations]);
 
   if (!activeId) {
     return (
@@ -270,20 +278,19 @@ export function ContentPipelineTab() {
                       block={p as any}
                       textField="text"
                       index={i}
+                      annotations={annotationsByBlock[p.id] ?? []}
                     />
                   ))}
                   {scriptParagraphs.length > 0 && (
-                    <div className="flex justify-end">
+                    <div className="flex flex-wrap justify-end gap-1">
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          const txt = scriptParagraphs.map((p: any) => p.text).join("\n\n");
-                          navigator.clipboard.writeText(txt);
-                        }}
+                        onClick={() => setTeleprompterOpen(true)}
                       >
-                        Copiar roteiro
+                        Modo gravação
                       </Button>
+                      <ExportControls paragraphs={scriptParagraphs as any} annotations={inlineAnnotations} />
                     </div>
                   )}
                 </CardContent>
@@ -297,13 +304,25 @@ export function ContentPipelineTab() {
                   <CardTitle className="text-base">Revisão crítica</CardTitle>
                   <Button
                     size="sm"
-                    disabled={!scriptParagraphs.length || runAgent.isPending}
+                    disabled={!scriptParagraphs.length || runAgent.isPending || queue.isBusy}
                     onClick={() =>
                       runAgent.mutate({ project, agent: "script-critic", stage: 7, payload: { paragraphs: scriptParagraphs } })
                     }
                   >
                     {runAgent.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
                     Analisar
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!scriptParagraphs.length || inlineCritique.isPending || queue.isBusy}
+                    onClick={() => inlineCritique.mutate(
+                      { project, blocks: scriptParagraphs.map((p: any) => ({ id: p.id, role: p.role, text: p.text ?? "" })) },
+                      { onSuccess: (data: any) => setInlineAnnotations(data?.annotations ?? []) },
+                    )}
+                  >
+                    {inlineCritique.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <AlertTriangle className="h-3 w-3 mr-1" />}
+                    Revisão inline
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-2">
