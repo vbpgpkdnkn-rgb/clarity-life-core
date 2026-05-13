@@ -299,9 +299,7 @@ export const useDeleteProject = () => {
 
 // ─── Orquestrador: chama agentes especializados, sempre injeta o context ───
 export const useRunStageAgent = () => {
-  const save = useSaveStageOutput();
-  const updateCtx = useUpdateProjectContext();
-
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: {
       project: ContentProject;
@@ -309,33 +307,47 @@ export const useRunStageAgent = () => {
       stage: number;
       payload?: any;
     }) => {
-      const { data, error } = await supabase.functions.invoke("content-pipeline-agent", {
-        body: {
-          agent: input.agent,
-          project_id: input.project.id,
-          context: input.project.context,
-          payload: input.payload ?? {},
+      return enqueueAction({
+        projectId: input.project.id,
+        operation: `${input.agent} stage ${input.stage}`,
+        run: async () => {
+          const { data, error } = await supabase.functions.invoke("content-pipeline-agent", {
+            body: {
+              agent: input.agent,
+              project_id: input.project.id,
+              context: input.project.context,
+              payload: input.payload ?? {},
+            },
+          });
+          if (error) throw error;
+          if ((data as any)?.error) throw new Error((data as any).error);
+
+          await saveStageOutputRaw({
+            project_id: input.project.id,
+            stage: input.stage,
+            output: data,
+            ai_reasoning: (data as any)?.reasoning ?? null,
+            mark_done: true,
+          });
+
+          if ((data as any)?.context_patch) {
+            await patchProjectContextRaw(input.project.id, (data as any).context_patch);
+          }
+          await appendEvolution(input.project.id, {
+            stage: input.stage,
+            field: input.agent,
+            why: (data as any)?.reasoning ?? "Etapa gerada e persistida",
+            impact: "A esteira avançou usando o contexto atual sem requests paralelas.",
+          });
+          return data;
         },
       });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-
-      await save.mutateAsync({
-        project_id: input.project.id,
-        stage: input.stage,
-        output: data,
-        ai_reasoning: (data as any)?.reasoning ?? null,
-        mark_done: true,
-      });
-
-      // Merge contextual hints opcionais que o agente devolva
-      if ((data as any)?.context_patch) {
-        await updateCtx.mutateAsync({
-          id: input.project.id,
-          patch: (data as any).context_patch,
-        });
-      }
-      return data;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["content_project_stages", vars.project.id] });
+      qc.invalidateQueries({ queryKey: ["content_project_versions", vars.project.id] });
+      qc.invalidateQueries({ queryKey: ["content_project", vars.project.id] });
+      qc.invalidateQueries({ queryKey: ["content_projects"] });
     },
     onError: (e: any) => toast.error(e.message ?? "Erro no agente de IA"),
   });
