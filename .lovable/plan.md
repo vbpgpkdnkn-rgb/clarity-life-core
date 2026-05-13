@@ -1,156 +1,108 @@
-# Esteira Viva — Editor Contínuo de Conteúdo
+# Consolidação da Esteira de Conteúdo
 
-Transformar o módulo Esteira de "gerador por etapas" em **um documento vivo** onde o mesmo núcleo narrativo evolui da Ideia ao Roteiro Final, com edição inline em todas as etapas, sugestões contextuais, e revisão diretamente no texto.
+Objetivo: transformar a esteira em uma única linha narrativa contínua. Não mexer na arquitetura modular já estabilizada (StageRouter, fila, providers, error boundaries). Apenas consolidar lógica de continuidade, herança e edição.
 
----
+## 1. Bússola = Memória do Projeto (unificação)
 
-## 1. Princípios que mudam tudo
+Hoje `NarrativeCorePanel` (bússola) e `ProjectMemorySidebar` (memória) vivem separados. Vou:
 
-1. **Um único núcleo narrativo** persiste em todas as etapas (`narrative_core`): intenção, promessa, tensão, posicionamento, tom. Nenhum agente pode sobrescrever sem motivo — apenas refinar.
-2. **Edição em toda etapa**: nunca somente "gerar". Cada bloco tem `[editar] [aceitar] [substituir] [comparar] [refinar trecho]`.
-3. **Refinamento parcial > regeneração total**: novos endpoints `refine` aceitam `target` (qual campo/trecho) e `instruction` (mais emocional, mais curto, etc.).
-4. **Revisão inline**: a crítica vira anotações ancoradas em trechos do texto, não relatório separado.
-5. **Histórico evolutivo**: cada mudança grava `before/after/why/impact` em `content_project_versions`.
+- Criar um único modelo `ProjectCompass` salvo em `content_projects.context.compass` com todos os campos: `central_idea, intent, promise, emotional_tension, strategic_goal, audience, pains, desires, format, duration, density, tone, rhythm, cta, examples, references, narrative_style, writing_pattern, refinement_history`.
+- `NarrativeCorePanel` torna-se a UI canônica da bússola, exibida no topo da esteira, sempre visível e editável inline.
+- `ProjectMemorySidebar` deixa de ser uma entidade paralela e passa a ler do mesmo `compass` (apenas como visualização auxiliar / histórico de refinamentos).
+- Toda chamada à edge function `content-pipeline-agent` passa o `compass` completo no payload de contexto — não apenas `project.context` cru.
 
----
+## 2. Memória Autoral
 
-## 2. Modelo de dados (sem breaking changes)
+Criar campo `compass.author_signature` populado automaticamente a cada edição manual de bloco no `EditableBlock`:
 
-Reaproveitar tabelas existentes. Adicionar somente campos JSON dentro de `content_projects.context`:
+- Captura: tamanho médio de frase, uso de perguntas, conectores frequentes, padrões de hook, padrões de fechamento, densidade emocional.
+- Acumulado em `compass.author_signature.samples` (últimas 30 edições).
+- Enviado em todo refinamento como instrução de estilo: "imite ritmo X, hooks Y, fechamentos Z".
 
-```
-context.narrative_core = {
-  intent, promise, tension, positioning, tone,
-  emotional_goal, audience_pulse
-}
-context.evolution = [
-  { stage, field, before, after, why, impact, at }
-]
-```
+## 3. Estratégia como DNA (prompt mestre)
 
-Stages output (em `content_project_stages.output`) ganha estrutura inline-edit-friendly:
+A etapa 3 (Estratégia) passa a gerar e salvar um `compass.master_prompt` — um bloco de texto consolidado que serve de prefixo para TODAS as gerações subsequentes (estrutura, tópicos, roteiro, crítico, refinamento, alternativas).
 
-```
-{ blocks:[{id, role, text, locked, suggestions:[], comments:[]}] }
-```
+- Edge function `content-pipeline-agent` lê `master_prompt` e injeta como system message obrigatório.
+- Se ausente, a esteira avisa "Defina a estratégia antes de avançar".
 
-Sem migration nova obrigatória — tudo cabe em jsonb existentes.
+## 4. Continuidade 1:1 entre etapas
 
----
+**Estrutura → Tópicos**: o agente `topic-writer` recebe `blocks` da estrutura e DEVE retornar `topics` com mesma quantidade, mesma ordem, mesmos `id`s e mesma `role`. Ele só pode adicionar campos (`strong_phrase`, `recording_note`, `target_seconds`, `micro_hook`). Validação no servidor: se a contagem ou ordem mudar, rejeita e força regenerar preservando IDs.
 
-## 3. Backend — agentes especializados
+**Tópicos → Roteiro**: idem. `script-writer` recebe topics e retorna `paragraphs` 1:1, herdando `id` (prefixado `p:` mas com mapeamento `from_topic_id`), `role`, `target_seconds`. Só expande `text`.
 
-Refatorar `supabase/functions/content-pipeline-agent/index.ts` para suportar **modos**:
+Ajustes na edge function: prompts explícitos "NÃO renomeie blocos, NÃO altere ordem, NÃO adicione/remova; apenas expanda".
 
-- `mode: "generate"` — geração inicial (atual)
-- `mode: "refine"` — recebe `target_block_id` + `instruction`, devolve **somente** o bloco alterado + `why` + `impact`
-- `mode: "critique-inline"` — devolve `annotations:[{block_id, range, type, severity, message, suggestion}]`
-- `mode: "alternatives"` — devolve 3 variações de um trecho (mais emocional / mais curto / mais agressivo / mais curioso)
+## 5. Botões Salvar / Copiar / Salvar e avançar
 
-Novos agentes:
-- `narrative-keeper` — atualiza `narrative_core` quando o usuário edita manualmente
-- `inline-critic` — gera anotações no texto (substitui o critic monolítico)
-- `block-refiner` — refinamento localizado
+Em cada `EditableBlock` (estrutura, tópicos, roteiro), adicionar barra de ações no modo edição:
 
-**Regra inegociável** já no SHARED_SYSTEM: "Nunca regenere o que não foi pedido. Devolva apenas o `target` solicitado."
+- `[Salvar]` — persiste via `useApplyBlockEdit`
+- `[Copiar]` — copia texto pro clipboard
+- `[Salvar e avançar]` — salva e move foco pro próximo bloco / próxima etapa quando é o último
 
----
+## 6. Previsão de tempo e ritmo (roteiro)
 
-## 4. Frontend — componentes novos
+Já existe `ScriptHeader` com `totalSeconds` e `retentionRisk`. Vou expandir:
 
-```
-src/components/conteudo/pipeline/
-  LivingDocumentShell.tsx     // wrapper persistente: header com narrative_core + timeline lateral
-  NarrativeCorePanel.tsx       // mostra/edita intent, promise, tension, tom
-  StageEditor.tsx              // editor inline por etapa (substitui telas isoladas)
-  EditableBlock.tsx            // bloco com text editável + ações (refinar/alternativas/comparar)
-  InlineSuggestions.tsx        // sugestões pop-over ao lado do bloco
-  InlineAnnotations.tsx        // marcadores ⚠ ancorados em trechos com tooltip
-  VersionDiffDrawer.tsx        // antes/depois + why/impact
-  AlternativesPicker.tsx       // 3 variações lado a lado
-  ScriptFinalToolbar.tsx       // copiar / teleprompter / exportar / versão limpa
-  TeleprompterMode.tsx         // overlay full-screen scroll automático
-```
+- Por bloco: badge mostrando segundos estimados vs. alvo.
+- Cabeçalho: breakdown HOOK / DESENVOLVIMENTO / CONCLUSÃO em segundos.
+- Alertas: introdução >20% do total, bloco lento (>180 wpm equivalente), excesso de duração total.
 
-Refatorar `ContentPipelineTab.tsx` para usar `LivingDocumentShell` com:
-- header fixo: título + `NarrativeCorePanel` colapsável
-- timeline horizontal de etapas (já existe)
-- corpo central: `StageEditor` da etapa atual (sem trocar de "ferramenta")
-- sidebar direita: histórico evolutivo + comentários
+## 7. Revisão inline aplicável
 
----
+Hoje `useInlineCritique` retorna anotações mas o usuário não tem como aplicar. Vou:
 
-## 5. Hooks
+- Cada anotação ganha `suggested_text` no schema (já existe parcialmente como `suggestion`).
+- Em `EditableBlock`, quando há annotation, exibir card com: problema · motivo · impacto · sugestão e três botões: `[Aplicar]` `[Editar manualmente]` `[Comparar]`.
+- `[Aplicar]` chama `useApplyBlockEdit` substituindo apenas o trecho destacado (ou o bloco inteiro se a anotação for de bloco), registra em `evolution`.
+- Ajustar prompt do `critique-inline` para sempre retornar `{ block_id, problem, reason, impact, suggested_text }` estruturado.
 
-```
-useRefineBlock()          // chama mode:refine, atualiza só o bloco
-useInlineCritique()       // chama mode:critique-inline
-useAlternatives()         // chama mode:alternatives
-useNarrativeCore()        // CRUD do narrative_core com auto-merge
-useEvolutionLog()         // lê context.evolution
-```
+## 8. Finalização da esteira
 
-`useRunStageAgent` continua para geração inicial; novos hooks são para edição.
+Depois da etapa 7 (Revisão), adicionar bloco de finalização:
 
----
+- Botão `[Enviar para pipeline]`
+- Ação:
+  1. Marca `content_projects.status = 'concluido'`
+  2. Cria `content_pieces` ligado via `linked_piece_id` com `status='roteiro_pronto'`, hook/script/CTA preenchidos a partir da etapa 6
+  3. Atualiza `compass.refinement_history` com snapshot final
+  4. Mostra confirmação "Conteúdo enviado para o pipeline"
 
-## 6. UX da revisão (etapa 7)
+## Arquivos afetados
 
-A "Revisão" deixa de ser tela separada. Vira **camada** sobre o roteiro (etapa 6):
-- toggle "Modo revisão" no `StageEditor` do roteiro
-- IA gera `annotations` ancoradas
-- ⚠ aparece à margem; clicar abre popover com diagnóstico + botão "aplicar sugestão" (patch cirúrgico no bloco)
-- usuário aceita/rejeita uma a uma; cada aceite vira entrada em `evolution`
+**Edge function**
+- `supabase/functions/content-pipeline-agent/index.ts` — injetar `master_prompt`, validar 1:1 (estrutura→tópicos, tópicos→roteiro), reformatar critique-inline com `suggested_text`.
 
----
+**Hooks**
+- `src/hooks/usePipelineEditor.ts` — `useApplyAnnotation`, `useFinalizeProject`, captura de `author_signature` em `useApplyBlockEdit`.
+- `src/hooks/useContentProject.ts` — helpers do compass.
 
-## 7. Roteiro Final (etapa 8)
+**Componentes pipeline**
+- `NarrativeCorePanel.tsx` — vira UI completa da bússola (todos os campos).
+- `ProjectMemorySidebar.tsx` — lê do compass, vira só visualização.
+- `EditableBlock.tsx` — barra Salvar/Copiar/Salvar e avançar; card de anotação aplicável.
+- `stages/StructureStage.tsx`, `TopicsStage.tsx`, `ScriptStage.tsx` — passar `compass` ao agente; preservar IDs no merge.
+- `stages/ScriptStage.tsx` — breakdown de tempo por seção.
+- `stages/ReviewStage.tsx` — anotações com `[Aplicar]`.
+- Novo `stages/FinalizeStage.tsx` (ou bloco em ReviewStage) — "Enviar para pipeline".
 
-`ScriptFinalToolbar` com ações:
-- **Copiar** (texto puro)
-- **Modo teleprompter** (overlay, fonte grande, scroll por velocidade)
-- **Exportar** .txt / .md
-- **Versão limpa** (só falas)
-- **Versão com marcações** (inclui notas de gravação)
-- **Versão resumida** (bullets dos blocos)
-- **Versão por blocos** (separado por role)
+**Sem mudança de schema de DB** — tudo vive em `content_projects.context.compass` (jsonb existente).
 
-Tudo client-side puro (`src/lib/scriptExport.ts`).
+## Não-objetivos
 
----
+- Não mexer em StageRouter, PipelineProviders, fila, ErrorBoundary, RecoveryLayer.
+- Não adicionar páginas/módulos novos.
+- Não criar tabelas (compass cabe no jsonb existente).
+- Não tocar em UI fora da esteira.
 
-## 8. Entrega faseada
+## Ordem de implementação
 
-**Fase A (esta entrega)** — fundação do editor vivo:
-1. `narrative_core` + `evolution` no context (sem migration)
-2. Agente: modos `refine`, `critique-inline`, `alternatives`
-3. Componentes: `LivingDocumentShell`, `NarrativeCorePanel`, `EditableBlock`, `InlineSuggestions`, `AlternativesPicker`
-4. Refator `ContentPipelineTab` para shell único
-5. Hooks `useRefineBlock`, `useAlternatives`, `useNarrativeCore`
-
-**Fase B** — revisão inline + roteiro final premium:
-6. `InlineAnnotations` + modo revisão sobre o roteiro
-7. `ScriptFinalToolbar` + `TeleprompterMode` + `scriptExport.ts`
-8. `VersionDiffDrawer` consumindo `content_project_versions`
-
-**Fase C** — polish:
-9. Histórico evolutivo na sidebar com why/impact
-10. Comparação de versões lado a lado
-11. Auto-save + indicador de status
-
----
-
-## 9. O que NÃO muda
-
-- Tabelas e RLS já existentes
-- Outras abas (Ideias, Audience, Stories, Editorial, Growth) — apenas ganham botão "Enviar para Esteira"
-- Edge functions antigas (`relational-content-engine`, `audience-intelligence`) seguem funcionando para fluxos antigos
-- `useContentProject`, `useSaveStageOutput` — só ganham companhia, não somem
-
----
-
-## 10. Resultado esperado
-
-O usuário abre um projeto e vê **um único documento** que ele lapida. Cada etapa é uma camada do mesmo objeto. A IA aparece como sugestões ao lado, nunca como "outro app". Revisão acontece em cima do texto. O roteiro final sai pronto para gravar com um clique para teleprompter.
-
-Posso começar pela **Fase A** agora?
+1. Edge function: master_prompt + validação 1:1 + critique-inline estruturado
+2. Bússola unificada (NarrativeCorePanel + ProjectMemorySidebar leitura)
+3. EditableBlock: ações + anotações aplicáveis
+4. Stages: passar compass + preservar IDs
+5. Author signature
+6. ScriptStage: breakdown de tempo
+7. FinalizeStage: enviar para pipeline
