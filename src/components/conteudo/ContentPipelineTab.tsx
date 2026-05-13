@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Plus, Wand2, Loader2, AlertTriangle, Clock, RefreshCw } from "lucide-react";
+import { Plus, Wand2, Loader2, AlertTriangle, Clock, RefreshCw, ArrowRight, PlayCircle } from "lucide-react";
+import { TeleprompterMode } from "./pipeline/TeleprompterMode";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
