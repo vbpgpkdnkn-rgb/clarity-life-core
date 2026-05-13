@@ -283,15 +283,16 @@ export function ContentPipelineTab() {
                     />
                   ))}
                   {scriptParagraphs.length > 0 && (
-                    <div className="flex flex-wrap justify-end gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setTeleprompterOpen(true)}
-                      >
-                        Modo gravação
-                      </Button>
-                      <ExportControls paragraphs={scriptParagraphs as any} annotations={inlineAnnotations} />
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-border/60">
+                      <p className="text-[11px] text-muted-foreground italic">
+                        Pronto para gravar? Use o teleprompter premium ou exporte para outro formato.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="default" className="gap-1.5" onClick={() => setTeleprompterOpen(true)}>
+                          <PlayCircle className="h-3.5 w-3.5" /> Modo gravação
+                        </Button>
+                        <ExportControls paragraphs={scriptParagraphs as any} annotations={inlineAnnotations} />
+                      </div>
                     </div>
                   )}
                 </CardContent>
