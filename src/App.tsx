@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ScopeProvider } from "@/contexts/ScopeContext";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Auth from "./pages/Auth";
 import Foco from "./pages/Foco";
 import Dashboard from "./pages/Dashboard";
@@ -48,6 +49,7 @@ const App = () => (
           <TooltipProvider>
             <Toaster />
             <Sonner />
+            <ErrorBoundary scope="aplicação">
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route
@@ -90,6 +92,7 @@ const App = () => (
                 }
               />
             </Routes>
+            </ErrorBoundary>
           </TooltipProvider>
         </ScopeProvider>
       </AuthProvider>

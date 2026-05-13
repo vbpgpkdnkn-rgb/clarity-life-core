@@ -37,6 +37,7 @@ import { RelationalEngineTab, RelationalSeed } from "@/components/conteudo/Relat
 import { FloatingIdeaCapture, IdeasTab } from "@/components/conteudo/IdeasTab";
 import { AudienceIntelligenceTab } from "@/components/conteudo/AudienceIntelligenceTab";
 import { ContentPipelineTab } from "@/components/conteudo/ContentPipelineTab";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   currentWeekStart,
   dayISOFromWeekday,
@@ -169,7 +170,11 @@ export default function Conteudo() {
         <TabsContent value="audiencia"><AudienceIntelligenceTab onDevelop={sendIdeaToMotor} /></TabsContent>
         <TabsContent value="ideias"><IdeasTab onDevelop={sendIdeaToMotor} onOpenAudience={() => setTab("audiencia")} /></TabsContent>
         <TabsContent value="motor"><RelationalEngineTab seed={seed} /></TabsContent>
-        <TabsContent value="esteira"><ContentPipelineTab /></TabsContent>
+        <TabsContent value="esteira">
+          <ErrorBoundary scope="Esteira de conteúdo">
+            <ContentPipelineTab />
+          </ErrorBoundary>
+        </TabsContent>
         <TabsContent value="pipeline"><PipelineTab pieces={pieces} metrics={metrics} /></TabsContent>
         <TabsContent value="editorial"><EditorialTab pieces={pieces} ideas={ideas as any} consistency={consistency} /></TabsContent>
         <TabsContent value="crescimento"><GrowthPerformanceTab pieces={pieces} metrics={metrics} /></TabsContent>
