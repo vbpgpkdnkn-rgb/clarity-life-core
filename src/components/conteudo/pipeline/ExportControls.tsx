@@ -41,7 +41,7 @@ export function ExportControls({ paragraphs, annotations = [] }: { paragraphs: S
   const printPdf = () => {
     const win = window.open("", "_blank");
     if (!win) return;
-    win.document.write(`<!doctype html><html><head><title>${title}</title><style>body{font-family:system-ui,sans-serif;line-height:1.65;padding:40px;max-width:760px;margin:auto}h1{font-size:22px}p{white-space:pre-wrap;font-size:16px}.note{border-left:3px solid #888;padding-left:12px;color:#555;font-size:13px}</style></head><body><h1>Roteiro</h1>${paragraphs.map((p: any) => `<section><h2>${p.role ?? "Bloco"}</h2><p>${String(p.text ?? "").replaceAll("<", "&lt;")}</p>${annotations.filter((a) => a.block_id === p.id).map((a) => `<div class="note">${a.message ?? ""}<br/><strong>Sugestão:</strong> ${a.suggestion ?? ""}</div>`).join("")}</section>`).join("")}</body></html>`);
+    win.document.write(`<!doctype html><html><head><title>${title}</title><style>body{font-family:system-ui,sans-serif;line-height:1.65;padding:40px;max-width:760px;margin:auto}h1{font-size:22px}p{white-space:pre-wrap;font-size:16px}.note{border-left:3px solid #888;padding-left:12px;color:#555;font-size:13px}</style></head><body><h1>Roteiro</h1>${paragraphs.map((p: any) => `<section><h2>${p.role ?? "Bloco"}</h2><p>${String(p.text ?? "").replace(/</g, "&lt;")}</p>${annotations.filter((a) => a.block_id === p.id).map((a) => `<div class="note">${a.message ?? ""}<br/><strong>Sugestão:</strong> ${a.suggestion ?? ""}</div>`).join("")}</section>`).join("")}</body></html>`);
     win.document.close();
     win.focus();
     win.print();
