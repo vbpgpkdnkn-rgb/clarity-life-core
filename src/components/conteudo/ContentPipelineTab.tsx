@@ -146,6 +146,9 @@ export function ContentPipelineTab() {
     );
   }
 
+  // Garante que componentes filhos nunca recebam um project sem context
+  const safeProject = { ...project, context: (project.context as any) ?? {} } as typeof project;
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -165,7 +168,7 @@ export function ContentPipelineTab() {
         </Card>
       )}
 
-      <NarrativeCorePanel project={project} />
+      <NarrativeCorePanel project={safeProject} />
 
       <Card className="p-2">
         <StageTimeline currentStage={project.current_stage} doneStages={doneStages} />
@@ -204,7 +207,7 @@ export function ContentPipelineTab() {
                   {structureBlocks.map((b, i) => (
                     <EditableBlock
                       key={b.id}
-                      project={project}
+                      project={safeProject}
                       stage={4}
                       collectionKey="blocks"
                       block={b as any}
@@ -237,7 +240,7 @@ export function ContentPipelineTab() {
                   {topicsList.map((t, i) => (
                     <EditableBlock
                       key={t.id}
-                      project={project}
+                      project={safeProject}
                       stage={5}
                       collectionKey="topics"
                       block={t as any}
@@ -273,7 +276,7 @@ export function ContentPipelineTab() {
                   {scriptParagraphs.map((p, i) => (
                     <EditableBlock
                       key={p.id}
-                      project={project}
+                      project={safeProject}
                       stage={6}
                       collectionKey="paragraphs"
                       block={p as any}
@@ -376,8 +379,8 @@ export function ContentPipelineTab() {
         </div>
 
         <div className="space-y-3">
-          <ProjectMemorySidebar project={project} />
-          <EvolutionLog project={project} />
+          <ProjectMemorySidebar project={safeProject} />
+          <EvolutionLog project={safeProject} />
         </div>
       </div>
 

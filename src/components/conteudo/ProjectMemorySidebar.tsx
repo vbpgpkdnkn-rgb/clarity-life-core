@@ -40,9 +40,21 @@ function ChipList({
   );
 }
 
+const EMPTY_CTX: any = {
+  intent: "",
+  angle: "",
+  tone: "",
+  positioning: "",
+  audience: { pains: [], desires: [], objections: [], emotional_patterns: [] },
+  approved_assets: { hooks: [], metaphors: [], examples: [], phrases: [] },
+  rejected: { hooks: [], directions: [] },
+  narrative: { arc: "", tension_points: [], cta_type: "" },
+  timing: { target_seconds: 60, density: "medio" },
+};
+
 export function ProjectMemorySidebar({ project }: Props) {
   const update = useUpdateProjectContext();
-  const ctx = project.context;
+  const ctx: any = { ...EMPTY_CTX, ...((project?.context as any) ?? {}) };
   const [open, setOpen] = useState(true);
 
   const patch = (p: Partial<ContentProjectContext>) =>
