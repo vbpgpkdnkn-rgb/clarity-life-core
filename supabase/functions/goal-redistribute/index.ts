@@ -96,10 +96,6 @@ serve(async (req) => {
   try {
     const body = await req.json();
     const { goal, pending_tasks = [], today, load_by_day = {} } = body;
-
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada");
-
     const userPrompt = `META: ${goal.name}
 Prazo atual: ${goal.deadline || "sem prazo"}
 Hoje: ${today}

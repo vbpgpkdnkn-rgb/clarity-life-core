@@ -126,10 +126,6 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada");
-
     const userPrompt = `META A PLANEJAR:
 - Nome: ${goal.name}
 - Tipo: ${goal.kind ?? "tarefas"}
