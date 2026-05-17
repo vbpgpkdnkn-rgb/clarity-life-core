@@ -1,4 +1,5 @@
 // Habit Gap Analyzer — detecta hábitos com baixa execução e sugere ajustes inteligentes
+import { aiFetch } from "../_shared/anthropic.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -91,8 +92,6 @@ Deno.serve(async (req) => {
 
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurado");
 
     const body = await req.json();
     const habits = body.habits ?? [];
@@ -134,10 +133,7 @@ Tom: direto, sem rodeios, foco em ação. Português brasileiro.`;
       })),
     };
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const aiResp = await aiFetch({
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
@@ -145,8 +141,7 @@ Tom: direto, sem rodeios, foco em ação. Português brasileiro.`;
         ],
         tools: [TOOL],
         tool_choice: { type: "function", function: { name: "analyze_habit_gaps" } },
-      }),
-    });
+      });
 
     if (!aiResp.ok) {
       const t = await aiResp.text();

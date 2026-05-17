@@ -1,4 +1,5 @@
 // Content Insights: analisa performance e identifica padrões
+import { aiFetch } from "../_shared/anthropic.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -99,8 +100,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurado");
 
     const body = await req.json();
     const pieces = body.pieces ?? [];
@@ -118,10 +117,7 @@ Português brasileiro. Se não houver dados suficientes, diga isso na summary.`;
 
     const ctx = { posts: pieces, metricas: metrics };
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const aiResp = await aiFetch({
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
@@ -129,8 +125,7 @@ Português brasileiro. Se não houver dados suficientes, diga isso na summary.`;
         ],
         tools: [TOOL],
         tool_choice: { type: "function", function: { name: "set_insights" } },
-      }),
-    });
+      });
 
     if (!aiResp.ok) {
       const t = await aiResp.text();

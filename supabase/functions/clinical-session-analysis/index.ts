@@ -2,6 +2,7 @@
 // Recebe { mode: "single" | "comparative", depth: "rapido"|"estrategico"|"profundo", transcript: string, patient_name?: string }
 // Retorna { result: { sections: [{ key, title, bullets: string[] }] } }
 
+import { aiFetch } from "../_shared/anthropic.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -142,8 +143,6 @@ Deno.serve(async (req) => {
 
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurado");
 
     const body = await req.json();
     const mode: "single" | "comparative" = body.mode === "comparative" ? "comparative" : "single";
@@ -171,14 +170,7 @@ Deno.serve(async (req) => {
       tool_choice: { type: "function", function: { name: "deliver_clinical_analysis" } },
     };
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    const aiRes = await aiFetch(payload);
 
     if (!aiRes.ok) {
       const text = await aiRes.text();
