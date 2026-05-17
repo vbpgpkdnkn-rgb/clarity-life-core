@@ -161,11 +161,8 @@ export async function aiFetch(body: OAIBody): Promise<Response> {
 
   if (!resp.ok) {
     const txt = await resp.text();
-    // Mapeia erros conhecidos para os mesmos status que o código já trata.
-    let status = resp.status;
-    if (status === 429) status = 429;
-    else if (status === 401 || status === 403) status = 402;
-    return new Response(txt, { status, headers: { "Content-Type": "application/json" } });
+    console.error("Anthropic API error", resp.status, txt);
+    return new Response(txt, { status: resp.status, headers: { "Content-Type": "application/json" } });
   }
 
   const data = await resp.json();
