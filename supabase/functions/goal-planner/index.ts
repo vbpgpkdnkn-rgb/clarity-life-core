@@ -1,7 +1,6 @@
 // Goal Planner — IA Executiva de Performance
 // Recebe: meta + carga atual (tarefas/eventos por dia) + escopo
 // Devolve: prazo sugerido + micro-objetivos + tarefas com due_date distribuídas
-import { aiFetch } from "../_shared/anthropic.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -126,6 +125,10 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada");
+
     const userPrompt = `META A PLANEJAR:
 - Nome: ${goal.name}
 - Tipo: ${goal.kind ?? "tarefas"}
@@ -143,7 +146,13 @@ CONTEXTO ATUAL DO USUÁRIO:
 
 GERE O PLANO COMPLETO conforme schema. Distribua as tarefas APENAS em dias com carga atual <= 3 tarefas. Evite finais de semana se carga semanal já estiver cheia em dias úteis.`;
 
-    const aiResponse = await aiFetch({
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: SYSTEM },
@@ -160,7 +169,8 @@ GERE O PLANO COMPLETO conforme schema. Distribua as tarefas APENAS em dias com c
           },
         ],
         tool_choice: { type: "function", function: { name: "submit_execution_plan" } },
-      });
+      }),
+    });
 
     if (!aiResponse.ok) {
       const t = await aiResponse.text();

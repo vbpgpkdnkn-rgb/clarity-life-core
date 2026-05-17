@@ -2,7 +2,6 @@
 // Voz clínica autoral · IBCT + Gottman · zero clichê
 // Modos: 'topics' (tema+guia), 'single' (roteiro autoral livre), 'variations' (3 ângulos), 'series' (5 conteúdos conectados)
 
-import { aiFetch } from "../_shared/anthropic.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -287,6 +286,8 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurado");
 
     const body = await req.json().catch(() => ({}));
     const mode: "topics" | "single" | "variations" | "series" | "regen_paragraph" = body.mode ?? "topics";
@@ -426,7 +427,13 @@ Cada post abre o próximo. Não são variações — é uma conversa que se dese
       });
     }
 
-    const aiResp = await aiFetch({
+    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
         model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: systemPrompt },
@@ -434,7 +441,8 @@ Cada post abre o próximo. Não são variações — é uma conversa que se dese
         ],
         tools: [tool],
         tool_choice: { type: "function", function: { name: toolName } },
-      });
+      }),
+    });
 
     if (!aiResp.ok) {
       const t = await aiResp.text();

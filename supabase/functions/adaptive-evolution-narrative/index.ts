@@ -1,6 +1,5 @@
 // adaptive-evolution-narrative: lê comparativos já calculados no cliente
 // e devolve 1-2 frases no tom "chefe de execução" + persiste em ai_insights.
-import { aiFetch } from "../_shared/anthropic.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -66,8 +65,11 @@ Deno.serve(async (req) => {
 
 
   try {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY ausente");
+
     const supa = createClient(SUPABASE_URL, SERVICE_ROLE);
     const { scope = "todos", summary } = await req.json();
 
@@ -112,7 +114,13 @@ ${(summary.deltas ?? []).map((d: any) => `- ${d.label}: ${d.previous}% → ${d.c
 
 Gere a narrativa.`;
 
-    const aiResp = await aiFetch({
+    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
@@ -120,7 +128,8 @@ Gere a narrativa.`;
         ],
         tools: [TOOL],
         tool_choice: { type: "function", function: { name: "set_evolution_narrative" } },
-      });
+      }),
+    });
 
     if (!aiResp.ok) {
       const t = await aiResp.text();

@@ -1,7 +1,6 @@
 // Strategic Content Generator
 // Camada estratégica: Intent → Trigger emocional → Conflito → Hook → Insight → Roteiro → CTA invisível
 // + Filtro de Decisão (gera dor? gera identificação? cria urgência?)
-import { aiFetch } from "../_shared/anthropic.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -156,6 +155,8 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurado");
 
     const body = await req.json().catch(() => ({}));
     const briefing: string = body.briefing ?? "";
@@ -196,7 +197,13 @@ ${formatHint ? `\nFORMAT preferido: ${formatHint}\n` : ""}
 ${avoid.length ? `\nEVITAR repetir estes ângulos/hooks: ${avoid.join(" | ")}\n` : ""}
 ${refineFrom ? `\nVERSÃO ANTERIOR REPROVADA (refaça mais afiada, atacando os pontos fracos):\n${JSON.stringify(refineFrom)}\n` : ""}`;
 
-    const aiResp = await aiFetch({
+    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
         model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: systemPrompt },
@@ -208,7 +215,8 @@ ${refineFrom ? `\nVERSÃO ANTERIOR REPROVADA (refaça mais afiada, atacando os p
         ],
         tools: [TOOL],
         tool_choice: { type: "function", function: { name: "build_strategic_content" } },
-      });
+      }),
+    });
 
     if (!aiResp.ok) {
       const t = await aiResp.text();

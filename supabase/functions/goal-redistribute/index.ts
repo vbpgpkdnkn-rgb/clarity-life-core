@@ -1,7 +1,6 @@
 // Goal Redistribute — Ajuste automático
 // Recebe: meta + tarefas pendentes vinculadas + carga atual
 // Devolve: novas due_dates para tarefas pendentes, ajuste de prazo, sugestão de redução de escopo
-import { aiFetch } from "../_shared/anthropic.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -96,6 +95,10 @@ serve(async (req) => {
   try {
     const body = await req.json();
     const { goal, pending_tasks = [], today, load_by_day = {} } = body;
+
+    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada");
+
     const userPrompt = `META: ${goal.name}
 Prazo atual: ${goal.deadline || "sem prazo"}
 Hoje: ${today}
@@ -110,7 +113,10 @@ ${JSON.stringify(load_by_day)}
 
 Reanalise. Diagnóstico + plano de ajuste.`;
 
-    const aiResponse = await aiFetch({
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: SYSTEM },
@@ -126,7 +132,8 @@ Reanalise. Diagnóstico + plano de ajuste.`;
           },
         ],
         tool_choice: { type: "function", function: { name: "submit_redistribution" } },
-      });
+      }),
+    });
 
     if (!aiResponse.ok) {
       const t = await aiResponse.text();

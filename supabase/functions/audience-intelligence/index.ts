@@ -1,4 +1,3 @@
-import { aiFetch } from "../_shared/anthropic.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -100,6 +99,9 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Cole transcrição e comentários (mín. 20 caracteres cada)." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurado");
+
     const userMsg = `AUTOR/PERFIL DA REFERÊNCIA: ${body.author || "não informado"}
 DIREÇÃO ESCOLHIDA: ${ANGLE_INSTRUCTIONS[angle] ?? ANGLE_INSTRUCTIONS.aprofundar}
 
@@ -114,7 +116,10 @@ ${myPerspective || "(não informada — gere ideias mesmo assim, mas marque que 
 
 Cruze os três blocos. As ideias precisam soar como ELA — não como uma descrição neutra do tema. Gere entre 10 e 15 ideias.`;
 
-    const aiResp = await aiFetch({
+    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
         model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
@@ -122,7 +127,8 @@ Cruze os três blocos. As ideias precisam soar como ELA — não como uma descri
         ],
         tools: [TOOL],
         tool_choice: { type: "function", function: { name: "build_audience_ideas" } },
-      });
+      }),
+    });
 
     if (!aiResp.ok) {
       if (aiResp.status === 429) return new Response(JSON.stringify({ error: "Limite de uso atingido. Tente novamente em alguns minutos." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });

@@ -1,5 +1,4 @@
 // Content Ideator: sugere temas e formatos de conteúdo para o nicho do usuário
-import { aiFetch } from "../_shared/anthropic.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -72,6 +71,8 @@ Deno.serve(async (req) => {
 
 
   try {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurado");
 
     const body = await req.json();
     const area = body.area ?? "psicologia clínica e comportamento";
@@ -91,7 +92,10 @@ Sugira 5 a 8 ideias de conteúdo que:
 - Conectem com a oferta principal sem soar comercial
 Português brasileiro. Evite repetir temas já trabalhados: ${existing.join(", ") || "(nenhum)"}.`;
 
-    const aiResp = await aiFetch({
+    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
@@ -99,7 +103,8 @@ Português brasileiro. Evite repetir temas já trabalhados: ${existing.join(", "
         ],
         tools: [TOOL],
         tool_choice: { type: "function", function: { name: "suggest_content" } },
-      });
+      }),
+    });
 
     if (!aiResp.ok) {
       const t = await aiResp.text();

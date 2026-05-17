@@ -1,6 +1,5 @@
 // quick-decision: chamada rápida do botão "O que devo fazer agora?".
 // Versão enriquecida: prioridade, sequência, pontos cegos, decisão crítica.
-import { aiFetch } from "../_shared/anthropic.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -75,6 +74,8 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY ausente");
     const body = await req.json();
 
     const ctx = {
@@ -99,7 +100,11 @@ Deno.serve(async (req) => {
     const timeoutId = setTimeout(() => ac.abort(), 25000);
     let aiResp: Response;
     try {
-      aiResp = await aiFetch({
+      aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        signal: ac.signal,
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
           model: "google/gemini-2.5-flash",
           messages: [
             {
@@ -126,7 +131,8 @@ Use TODO o contexto (tarefas, metas, saldo) para decidir. NUNCA dê resposta vag
           ],
           tools: [QUICK_TOOL],
           tool_choice: { type: "function", function: { name: "set_quick_decision" } },
-        });
+        }),
+      });
     } finally {
       clearTimeout(timeoutId);
     }

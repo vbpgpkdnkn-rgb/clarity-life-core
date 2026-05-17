@@ -1,5 +1,4 @@
 // Content Weekly Plan: gera plano editorial semanal e ação do dia
-import { aiFetch } from "../_shared/anthropic.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -82,6 +81,8 @@ Deno.serve(async (req) => {
 
 
   try {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurado");
 
     const body = await req.json();
     const scope = body.scope ?? "profissional";
@@ -112,7 +113,10 @@ Português brasileiro.`;
       ideias: ideas,
     };
 
-    const aiResp = await aiFetch({
+    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
@@ -120,7 +124,8 @@ Português brasileiro.`;
         ],
         tools: [TOOL],
         tool_choice: { type: "function", function: { name: "set_weekly_plan" } },
-      });
+      }),
+    });
 
     if (!aiResp.ok) {
       const t = await aiResp.text();
