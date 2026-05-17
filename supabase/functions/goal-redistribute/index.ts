@@ -96,8 +96,8 @@ serve(async (req) => {
     const body = await req.json();
     const { goal, pending_tasks = [], today, load_by_day = {} } = body;
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada");
+    const apiKey = Deno.env.get("GEMINI_API_KEY");
+    if (!apiKey) throw new Error("GEMINI_API_KEY não configurada");
 
     const userPrompt = `META: ${goal.name}
 Prazo atual: ${goal.deadline || "sem prazo"}
@@ -113,11 +113,11 @@ ${JSON.stringify(load_by_day)}
 
 Reanalise. Diagnóstico + plano de ajuste.`;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gemini-2.5-flash",
         messages: [
           { role: "system", content: SYSTEM },
           { role: "user", content: userPrompt },

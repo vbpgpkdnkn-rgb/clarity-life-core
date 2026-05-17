@@ -77,14 +77,14 @@ ${sourceContent ? `\nCONTEÚDO DE ORIGEM (para continuar a conversa, NÃO resumi
 
 Cada story deve ter razão de existir. O último termina em interação real.`;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurado");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY não configurado");
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResp = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "gemini-2.5-pro",
         messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: userMsg }],
         tools: [TOOL],
         tool_choice: { type: "function", function: { name: "build_story_sequence" } },

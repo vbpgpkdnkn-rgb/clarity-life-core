@@ -126,8 +126,8 @@ serve(async (req) => {
       });
     }
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada");
+    const apiKey = Deno.env.get("GEMINI_API_KEY");
+    if (!apiKey) throw new Error("GEMINI_API_KEY não configurada");
 
     const userPrompt = `META A PLANEJAR:
 - Nome: ${goal.name}
@@ -146,14 +146,14 @@ CONTEXTO ATUAL DO USUÁRIO:
 
 GERE O PLANO COMPLETO conforme schema. Distribua as tarefas APENAS em dias com carga atual <= 3 tarefas. Evite finais de semana se carga semanal já estiver cheia em dias úteis.`;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gemini-2.5-flash",
         messages: [
           { role: "system", content: SYSTEM },
           { role: "user", content: userPrompt },

@@ -99,8 +99,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Cole transcrição e comentários (mín. 20 caracteres cada)." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurado");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY não configurado");
 
     const userMsg = `AUTOR/PERFIL DA REFERÊNCIA: ${body.author || "não informado"}
 DIREÇÃO ESCOLHIDA: ${ANGLE_INSTRUCTIONS[angle] ?? ANGLE_INSTRUCTIONS.aprofundar}
@@ -116,11 +116,11 @@ ${myPerspective || "(não informada — gere ideias mesmo assim, mas marque que 
 
 Cruze os três blocos. As ideias precisam soar como ELA — não como uma descrição neutra do tema. Gere entre 10 e 15 ideias.`;
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResp = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "gemini-2.5-pro",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userMsg },
