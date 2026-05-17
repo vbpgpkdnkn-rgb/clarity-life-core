@@ -50,8 +50,8 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurada");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY não configurada");
 
     const knownNames = Array.isArray(patient_names) ? patient_names.filter(Boolean) : [];
 
@@ -72,7 +72,7 @@ Pacientes já cadastrados no sistema (use para padronizar o nome quando reconhec
 Quando reconhecer um paciente da lista acima, retorne o nome EXATAMENTE como está na lista, no campo "matched_name". Caso não encontre correspondência clara, deixe matched_name como null e mantenha o nome original em "raw_name".`;
 
     const body = {
-      model: "google/gemini-2.5-flash",
+      model: "gemini-2.5-flash",
       messages: [
         { role: "system", content: systemPrompt },
         {
@@ -120,10 +120,10 @@ Quando reconhecer um paciente da lista acima, retorne o nome EXATAMENTE como est
       tool_choice: { type: "function", function: { name: "return_agenda" } },
     };
 
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const resp = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${GEMINI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),

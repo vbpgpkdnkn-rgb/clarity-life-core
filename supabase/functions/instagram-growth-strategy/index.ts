@@ -80,8 +80,8 @@ Deno.serve(async (req) => {
       metrics: Metric[];
     };
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurada");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY não configurada");
 
     // Pré-cálculos determinísticos (entrega contexto rico para a IA)
     const sorted = [...snapshots].sort((a, b) => a.week_start.localeCompare(b.week_start));
@@ -172,14 +172,14 @@ ${JSON.stringify(ctaStats, null, 0)}
 
 Devolva JSON via tool call. Seja específica: cite TEMAS reais que aparecem nos dados, não genéricos.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${GEMINI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "gemini-2.5-pro",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

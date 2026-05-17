@@ -1,6 +1,6 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
 const SHARED_SYSTEM = `Você é parte de uma esteira VIVA de produção de conteúdo, com MEMÓRIA CONTEXTUAL persistente.
 Regras inegociáveis:
@@ -194,7 +194,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY ausente");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY ausente");
 
     const body = await req.json();
     const { agent, mode = "generate", context, payload } = body ?? {};
@@ -213,14 +213,14 @@ Deno.serve(async (req) => {
 
     const prompt = buildPrompt(mode, agent ?? "", context, payload ?? {});
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiRes = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${GEMINI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gemini-2.5-flash",
         messages: [
           { role: "system", content: SHARED_SYSTEM },
           { role: "user", content: prompt },
