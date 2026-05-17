@@ -1,3 +1,4 @@
+import { aiFetch } from "../_shared/anthropic.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
@@ -79,9 +80,6 @@ Deno.serve(async (req) => {
       pieces: Piece[];
       metrics: Metric[];
     };
-
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurada");
 
     // Pré-cálculos determinísticos (entrega contexto rico para a IA)
     const sorted = [...snapshots].sort((a, b) => a.week_start.localeCompare(b.week_start));
@@ -172,13 +170,7 @@ ${JSON.stringify(ctaStats, null, 0)}
 
 Devolva JSON via tool call. Seja específica: cite TEMAS reais que aparecem nos dados, não genéricos.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const response = await aiFetch({
         model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: systemPrompt },
@@ -263,8 +255,7 @@ Devolva JSON via tool call. Seja específica: cite TEMAS reais que aparecem nos 
           },
         ],
         tool_choice: { type: "function", function: { name: "growth_strategy" } },
-      }),
-    });
+      });
 
     if (response.status === 429) {
       return new Response(JSON.stringify({ error: "Limite de uso da IA atingido. Tente novamente em alguns minutos." }), {

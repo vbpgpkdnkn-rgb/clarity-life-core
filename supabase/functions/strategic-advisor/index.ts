@@ -2,6 +2,7 @@
 // Recebe TODO o contexto (tarefas, metas, transações, hábitos, agenda, históricos)
 // e retorna em UMA chamada: cortes, alertas críticos, diagnóstico de metas,
 // padrão financeiro e diagnóstico de consistência. Persiste em ai_insights.
+import { aiFetch } from "../_shared/anthropic.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -214,13 +215,7 @@ REGRAS DURAS:
 
     const userMsg = `Data: ${date}. Escopo: ${scope}.\n\n${JSON.stringify(ctx, null, 2)}`;
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const aiResp = await aiFetch({
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
@@ -228,8 +223,7 @@ REGRAS DURAS:
         ],
         tools: [ADVISOR_TOOL],
         tool_choice: { type: "function", function: { name: "set_strategic_advice" } },
-      }),
-    });
+      });
 
     if (!aiResp.ok) {
       const t = await aiResp.text();

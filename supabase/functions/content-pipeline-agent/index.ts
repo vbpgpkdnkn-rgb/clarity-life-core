@@ -1,3 +1,4 @@
+import { aiFetch } from "../_shared/anthropic.ts";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -213,21 +214,14 @@ Deno.serve(async (req) => {
 
     const prompt = buildPrompt(mode, agent ?? "", context, payload ?? {});
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const aiRes = await aiFetch({
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: SHARED_SYSTEM },
           { role: "user", content: prompt },
         ],
         response_format: { type: "json_object" },
-      }),
-    });
+      });
 
     if (!aiRes.ok) {
       const t = await aiRes.text();

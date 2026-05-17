@@ -1,5 +1,6 @@
 // Sequência de stories — 4 a 7 stories conectados, narrativa autoral.
 
+import { aiFetch } from "../_shared/anthropic.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -77,19 +78,12 @@ ${sourceContent ? `\nCONTEÚDO DE ORIGEM (para continuar a conversa, NÃO resumi
 
 Cada story deve ter razão de existir. O último termina em interação real.`;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurado");
-
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const aiResp = await aiFetch({
         model: "google/gemini-2.5-pro",
         messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: userMsg }],
         tools: [TOOL],
         tool_choice: { type: "function", function: { name: "build_story_sequence" } },
-      }),
-    });
+      });
 
     if (!aiResp.ok) {
       if (aiResp.status === 429) return new Response(JSON.stringify({ error: "Limite atingido" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });

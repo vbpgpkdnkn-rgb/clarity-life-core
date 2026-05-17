@@ -1,5 +1,6 @@
 // adaptive-evolution-narrative: lê comparativos já calculados no cliente
 // e devolve 1-2 frases no tom "chefe de execução" + persiste em ai_insights.
+import { aiFetch } from "../_shared/anthropic.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -114,13 +115,7 @@ ${(summary.deltas ?? []).map((d: any) => `- ${d.label}: ${d.previous}% → ${d.c
 
 Gere a narrativa.`;
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const aiResp = await aiFetch({
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
@@ -128,8 +123,7 @@ Gere a narrativa.`;
         ],
         tools: [TOOL],
         tool_choice: { type: "function", function: { name: "set_evolution_narrative" } },
-      }),
-    });
+      });
 
     if (!aiResp.ok) {
       const t = await aiResp.text();

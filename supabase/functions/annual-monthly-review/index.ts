@@ -1,5 +1,6 @@
 // annual-monthly-review: gera resumo, principal acerto, principal erro
 // e recomendação para o próximo mês. Persiste em ai_insights (kind='monthly_review').
+import { aiFetch } from "../_shared/anthropic.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -126,13 +127,7 @@ ${(alerts ?? []).map((a: any) => `- [${a.level}] ${a.title}`).join("\n") || "- n
 
 Gere a revisão.`;
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const aiResp = await aiFetch({
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
@@ -140,8 +135,7 @@ Gere a revisão.`;
         ],
         tools: [TOOL],
         tool_choice: { type: "function", function: { name: "set_monthly_review" } },
-      }),
-    });
+      });
 
     if (!aiResp.ok) {
       const t = await aiResp.text();
