@@ -434,7 +434,7 @@ Cada post abre o próximo. Não são variações — é uma conversa que se dese
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gemini-2.5-pro",
+        model: "gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userMsg },
