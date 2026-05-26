@@ -32,6 +32,10 @@ import { useUpsertPiece } from "@/hooks/useContent";
 import { useScope } from "@/contexts/ScopeContext";
 import { formatDateBR } from "@/lib/format";
 
+import { ENERGIA_META, type Energia } from "@/lib/energia";
+import { useDistribuicaoSemana } from "@/hooks/useDistribuicaoSemana";
+import { EnergiaSelector } from "@/components/conteudo/EnergiaUI";
+
 export type RelationalSeed = {
   theme: string;
   hook?: string;
@@ -41,10 +45,12 @@ export type RelationalSeed = {
   audienceContext?: string;
   myPerspective?: string;
   ideaId?: string;
+  energia?: Energia;
   sourceLabel?: string;
   sourceOrigin?: string;
   onScriptReady?: (pieceId?: string) => void;
 };
+
 
 const OBJECTIVE_LABEL: Record<string, string> = {
   atrair_paciente: "Atrair paciente",
