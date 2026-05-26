@@ -64,6 +64,12 @@ import {
 import { useScope, filterByScope } from "@/contexts/ScopeContext";
 import { todayISO, formatDateBR, addDaysISO } from "@/lib/format";
 import { toast } from "sonner";
+import { useDistribuicaoSemana } from "@/hooks/useDistribuicaoSemana";
+import { StatusEstrategicoCard, EnergiaBadge } from "@/components/conteudo/EnergiaUI";
+import { ENERGIA_META, type Energia } from "@/lib/energia";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+
 
 const FORMATS: ContentFormat[] = ["reels", "carrossel", "texto", "stories", "video", "podcast", "newsletter"];
 type PipelineStage = "roteiro_pronto" | "gravando" | "editando" | "pronto_postar" | "agendado" | "publicado";
