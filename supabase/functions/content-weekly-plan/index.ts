@@ -113,7 +113,7 @@ Português brasileiro.`;
       ideias: ideas,
     };
 
-    const aiResp = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+    const callAI = () => fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -126,6 +126,20 @@ Português brasileiro.`;
         tool_choice: { type: "function", function: { name: "set_weekly_plan" } },
       }),
     });
+
+    let aiResp = await callAI();
+    // Retry on transient 503 (model overloaded) up to 2 times
+    for (let attempt = 0; attempt < 2 && aiResp.status === 503; attempt++) {
+      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+      aiResp = await callAI();
+    }
+
+    if (aiResp.status === 503) {
+      return new Response(
+        JSON.stringify({ error: "Modelo de IA temporariamente sobrecarregado. Tente novamente em instantes." }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!aiResp.ok) {
       const t = await aiResp.text();
