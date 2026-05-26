@@ -210,15 +210,27 @@ export default function Conteudo() {
 
 function PipelineTab({ pieces, metrics }: { pieces: ContentPiece[]; metrics: any[] }) {
   const [editPiece, setEditPiece] = useState<ContentPiece | null>(null);
+  const [publishTarget, setPublishTarget] = useState<ContentPiece | null>(null);
   const upsert = useUpsertPiece();
   const today = todayISO();
   const weekPublished = pieces.filter((p) => p.published_at && p.published_at >= addDaysISO(today, -7)).length;
+  const distrib = useDistribuicaoSemana();
 
   const advance = (p: ContentPiece) => {
     const current = ((p as any).pipeline_stage ?? (p.status === "publicado" ? "publicado" : p.status === "pronto" ? "pronto_postar" : "roteiro_pronto")) as PipelineStage;
     const idx = PIPELINE.findIndex((x) => x.key === current);
     const next = PIPELINE[Math.min(idx + 1, PIPELINE.length - 1)];
-    upsert.mutate({ id: p.id, title: p.title, pipeline_stage: next.key, status: next.status, published_at: next.key === "publicado" ? todayISO() : p.published_at } as any);
+    // Se for publicar, abre checklist primeiro
+    if (next.key === "publicado") {
+      setPublishTarget(p);
+      return;
+    }
+    upsert.mutate({ id: p.id, title: p.title, pipeline_stage: next.key, status: next.status } as any);
+  };
+
+  const confirmPublish = (p: ContentPiece) => {
+    upsert.mutate({ id: p.id, title: p.title, pipeline_stage: "publicado", status: "publicado", published_at: todayISO() } as any);
+    setPublishTarget(null);
   };
 
   return (
@@ -229,6 +241,26 @@ function PipelineTab({ pieces, metrics }: { pieces: ContentPiece[]; metrics: any
         <MiniStat label="Publicadas esta semana" value={weekPublished} />
         <MiniStat label="Consistência do mês" value={`${Math.min(100, Math.round((weekPublished / 3) * 100))}%`} />
       </div>
+
+      <Card className="p-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Distribuição estratégica desta semana</div>
+          <div className="flex items-center gap-3 text-xs">
+            {(["topo", "meio", "fundo"] as Energia[]).map((e) => {
+              const meta = ENERGIA_META[e];
+              const c = distrib.contagem[e];
+              const a = distrib.alvo[e];
+              return (
+                <span key={e} className="flex items-center gap-1.5">
+                  <span className={`h-2 w-2 rounded-full ${meta.dot}`} />
+                  <span className="uppercase tracking-wider text-[10px] text-muted-foreground">{e}</span>
+                  <span className={c >= a ? "font-semibold" : ""}>{c}/{a}</span>
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         {PIPELINE.map((col) => {
@@ -245,6 +277,7 @@ function PipelineTab({ pieces, metrics }: { pieces: ContentPiece[]; metrics: any
                     <button onClick={() => setEditPiece(p)} className="w-full text-left">
                       <div className="text-sm font-medium leading-snug">{p.title}</div>
                       <div className="flex flex-wrap gap-1 mt-2">
+                        <EnergiaBadge energia={p.energia} />
                         <Badge variant="outline" className="text-[9px]">{p.format}</Badge>
                         {p.clinical_anchor && <Badge variant="outline" className="text-[9px]">{p.clinical_anchor}</Badge>}
                         {p.planned_date && <Badge variant="secondary" className="text-[9px]">{formatDateBR(p.planned_date)}</Badge>}
@@ -270,9 +303,61 @@ function PipelineTab({ pieces, metrics }: { pieces: ContentPiece[]; metrics: any
         })}
       </div>
       {editPiece && <PieceDrawer piece={editPiece} open={!!editPiece} onClose={() => setEditPiece(null)} />}
+      {publishTarget && <PublishChecklistDialog piece={publishTarget} onCancel={() => setPublishTarget(null)} onConfirm={() => confirmPublish(publishTarget)} />}
     </div>
   );
 }
+
+function PublishChecklistDialog({ piece, onCancel, onConfirm }: { piece: ContentPiece; onCancel: () => void; onConfirm: () => void }) {
+  const energia = (piece as any).energia as Energia | null;
+  const meta = energia ? ENERGIA_META[energia] : null;
+  const items = meta?.checklist ?? [
+    "Roteiro revisado",
+    "Gancho funciona nos 3 primeiros segundos",
+    "CTA ou direção clara",
+    "Sem jargão exposto",
+  ];
+  const [checked, setChecked] = useState<boolean[]>(() => items.map(() => false));
+  const allDone = checked.every(Boolean);
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onCancel()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Antes de publicar</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          {meta ? (
+            <p className="text-xs text-muted-foreground">
+              Conteúdo de <strong className="text-foreground">{meta.curto}</strong>. Verifique se ele cumpre seu papel estratégico:
+            </p>
+          ) : (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              Esta peça não tem energia estratégica definida. Considere classificá-la antes de publicar.
+            </p>
+          )}
+          <div className="space-y-2">
+            {items.map((it, i) => (
+              <label key={i} className="flex items-start gap-2 text-sm cursor-pointer">
+                <Checkbox
+                  checked={checked[i]}
+                  onCheckedChange={(v) => setChecked((arr) => arr.map((c, idx) => idx === i ? !!v : c))}
+                  className="mt-0.5"
+                />
+                <span>{it}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onCancel}>Cancelar</Button>
+          <Button onClick={onConfirm} disabled={!allDone}>Confirmar publicação</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function EditorialTab({ pieces, ideas, consistency }: { pieces: ContentPiece[]; ideas: any[]; consistency: ReturnType<typeof useContentConsistency> }) {
   const weeklyPlan = useContentWeeklyPlan();
