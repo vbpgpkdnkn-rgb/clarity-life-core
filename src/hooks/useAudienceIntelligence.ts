@@ -13,9 +13,11 @@ export interface AudienceIdea {
   format: "reel" | "carrossel" | "legenda";
   format_rationale: string;
   audience_evidence: string;
+  energia?: "topo" | "meio" | "fundo";
   // estado local de pipeline (anexado via banco)
   dev_status?: "nao_desenvolvida" | "em_desenvolvimento" | "desenvolvida";
 }
+
 
 export interface AudienceAnalysisResult {
   patterns: string[];
