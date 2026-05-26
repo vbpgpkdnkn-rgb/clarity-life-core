@@ -316,8 +316,23 @@ Direção: [não uma frase pronta — o que ela quer que a pessoa sinta ou faça
         </Card>
       )}
 
+      <div className="rounded-lg border border-border bg-card/50 p-3 space-y-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <Label className="text-xs uppercase tracking-widest text-muted-foreground">
+            Energia estratégica
+          </Label>
+          {distrib.proxima && !energia && (
+            <span className="text-[11px] text-muted-foreground">
+              ✦ Esta semana falta <strong className="text-foreground">{ENERGIA_META[distrib.proxima].curto}</strong>
+            </span>
+          )}
+        </div>
+        <EnergiaSelector value={energia} onChange={setEnergia} sugerida={distrib.proxima} />
+      </div>
+
       <div>
         <Label>Tema ou ideia</Label>
+
         <Input value={theme} onChange={(e) => setTheme(e.target.value)} className="mt-2" placeholder="Ex: o casal que parou de brigar" />
       </div>
 
