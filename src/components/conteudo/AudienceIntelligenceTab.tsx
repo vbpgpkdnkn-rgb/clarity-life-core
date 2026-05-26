@@ -23,6 +23,9 @@ import { RelationalSeed } from "@/components/conteudo/RelationalEngineTab";
 import { IdeaRefinementChatDrawer } from "@/components/conteudo/IdeaRefinementChatDrawer";
 import type { RefinedIdea } from "@/hooks/useIdeaRefinementChat";
 import { formatDateBR } from "@/lib/format";
+import { useDistribuicaoSemana } from "@/hooks/useDistribuicaoSemana";
+import { EnergiaBadge } from "@/components/conteudo/EnergiaUI";
+
 
 const ANGLE_OPTIONS: { value: AudienceAngle; label: string }[] = [
   { value: "aprofundar", label: "Aprofundar com minha visão clínica" },
@@ -104,6 +107,7 @@ export function AudienceIntelligenceTab({ onDevelop }: Props) {
       hook: refinedOverride?.hook || idea.hook,
       anchor: idea.clinical_anchor,
       format: idea.format,
+      energia: idea.energia,
       audienceContext: filterCommentsForIdea(analysis.comments, idea, refinedOverride),
       myPerspective: refinedOverride?.raw_synthesis
         ? `${analysis.my_perspective}\n\n— Síntese do refinamento —\n${refinedOverride.raw_synthesis}`
@@ -114,6 +118,7 @@ export function AudienceIntelligenceTab({ onDevelop }: Props) {
     onDevelop(seed);
     setChatTarget(null);
   }
+
 
   return (
     <div className="space-y-4">
@@ -248,6 +253,8 @@ function SessionResults({
     const n = new Set(s); if (n.has(i)) n.delete(i); else n.add(i); return n;
   });
   const updateStatus = useUpdateAudienceIdeaStatus();
+  const distrib = useDistribuicaoSemana();
+
 
   return (
     <Card className={`p-4 space-y-3 ${highlight ? "border-accent/40" : ""}`}>
@@ -281,8 +288,10 @@ function SessionResults({
             >
               <div className="cursor-pointer" onClick={() => toggle(i)}>
                 <div className="flex gap-1.5 flex-wrap mb-1">
+                  <EnergiaBadge energia={idea.energia} prioritaria={!!idea.energia && distrib.proxima === idea.energia} />
                   <Badge variant="secondary" className="text-[10px]">{idea.format}</Badge>
                   <Badge variant="outline" className="text-[10px]">{idea.clinical_anchor}</Badge>
+
                   {idea.dev_status === "em_desenvolvimento" && <Badge className="text-[10px]">em dev.</Badge>}
                   {idea.dev_status === "desenvolvida" && <Badge className="text-[10px] bg-accent">pronta</Badge>}
                 </div>

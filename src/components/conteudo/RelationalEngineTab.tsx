@@ -32,6 +32,10 @@ import { useUpsertPiece } from "@/hooks/useContent";
 import { useScope } from "@/contexts/ScopeContext";
 import { formatDateBR } from "@/lib/format";
 
+import { ENERGIA_META, type Energia } from "@/lib/energia";
+import { useDistribuicaoSemana } from "@/hooks/useDistribuicaoSemana";
+import { EnergiaSelector } from "@/components/conteudo/EnergiaUI";
+
 export type RelationalSeed = {
   theme: string;
   hook?: string;
@@ -41,10 +45,12 @@ export type RelationalSeed = {
   audienceContext?: string;
   myPerspective?: string;
   ideaId?: string;
+  energia?: Energia;
   sourceLabel?: string;
   sourceOrigin?: string;
   onScriptReady?: (pieceId?: string) => void;
 };
+
 
 const OBJECTIVE_LABEL: Record<string, string> = {
   atrair_paciente: "Atrair paciente",
@@ -161,6 +167,8 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
   const [voiceCalibration, setVoiceCalibration] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [result, setResult] = useState<RelationalTopicsResult | null>(null);
+  const [energia, setEnergia] = useState<Energia | null>(null);
+  const distrib = useDistribuicaoSemana();
   const gen = useGenerateRelational();
   const upsertPiece = useUpsertPiece();
   const { scope } = useScope();
@@ -173,7 +181,9 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
     setAnchor(seed.anchor ?? "A IA decide");
     setObjective(seedObjectiveToText(seed.objective));
     setAudienceContext(seed.audienceContext ?? "");
+    if (seed.energia) setEnergia(seed.energia);
   }, [seed]);
+
 
   async function handleGenerate() {
     if (!theme.trim()) { toast.error("Informe o tema"); return; }
@@ -181,7 +191,12 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
       toast.error("Este campo é o coração do conteúdo. Escreva o que você realmente pensa sobre esse tema antes de gerar.");
       return;
     }
+    const energiaBloco = energia
+      ? `\n${ENERGIA_META[energia].promptDirective}\n`
+      : "";
     const promptParaAPI = `
+${energiaBloco}
+
 Você é uma IA de criação de conteúdo para uma psicóloga clínica especializada em relacionamentos e terapia de casal (IBCT + Gottman).
 
 TEMA OU IDEIA:
@@ -287,20 +302,37 @@ Direção: [não uma frase pronta — o que ela quer que a pessoa sinta ou faça
       script: formatted,
       notes: formatted,
       idea_id: seed?.ideaId ?? null,
+      energia: energia ?? null,
       scope: (scope === "todos" ? "profissional" : scope) as any,
     } as any, { onSuccess: (piece) => { seed?.onScriptReady?.((piece as any)?.id); toast.success("Enviado ao Pipeline"); } });
   }
 
   return (
     <div className="space-y-4">
+
       {seed?.sourceLabel && (
         <Card className="p-3 border-accent/30 bg-accent/5">
           <p className="text-sm"><span className="font-medium">Desenvolvendo:</span> {seed.sourceLabel}</p>
         </Card>
       )}
 
+      <div className="rounded-lg border border-border bg-card/50 p-3 space-y-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <Label className="text-xs uppercase tracking-widest text-muted-foreground">
+            Energia estratégica
+          </Label>
+          {distrib.proxima && !energia && (
+            <span className="text-[11px] text-muted-foreground">
+              ✦ Esta semana falta <strong className="text-foreground">{ENERGIA_META[distrib.proxima].curto}</strong>
+            </span>
+          )}
+        </div>
+        <EnergiaSelector value={energia} onChange={setEnergia} sugerida={distrib.proxima} />
+      </div>
+
       <div>
         <Label>Tema ou ideia</Label>
+
         <Input value={theme} onChange={(e) => setTheme(e.target.value)} className="mt-2" placeholder="Ex: o casal que parou de brigar" />
       </div>
 

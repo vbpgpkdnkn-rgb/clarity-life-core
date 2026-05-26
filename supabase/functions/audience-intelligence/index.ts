@@ -16,10 +16,16 @@ Para cada uma das 10 a 15 ideias, traga:
 - ANCORAGEM clínica (IBCT/Gottman/IBCT+Gottman)
 - FORMATO (reel/carrossel/legenda) com justificativa de 1 linha
 - AUDIENCE EVIDENCE: comentário/padrão/dor real que originou a ideia
+- ENERGIA estratégica do conteúdo (topo/meio/fundo):
+  * TOPO (Identificação): faz a pessoa se reconhecer. Cena cotidiana, sem solução. Abre percepção.
+  * MEIO (Confiança Clínica): traduz um conceito (IBCT/Gottman) em comportamento. Constrói autoridade.
+  * FUNDO (Reduzir Resistência): trata medos/objeções sobre buscar terapia. Tem CTA suave.
+  Distribua bem entre as três energias — pelo menos 40% TOPO, alguma MEIO, e 1-2 FUNDO.
 
 REGRA CRÍTICA: se a psicóloga discordou de algo na perspectiva dela, ao menos 3 ideias devem partir dessa discordância. Se ela trouxe uma observação clínica específica, transforme isso em pelo menos 2 ideias. Nunca produza ideias neutras descritivas — sempre carregue o ponto de vista dela.
 
 Tom: especialista clínica, direta, humana. Público: mulheres 25–45 em relacionamentos.`;
+
 
 const TOOL = {
   type: "function",
@@ -49,8 +55,10 @@ const TOOL = {
               format: { type: "string", enum: ["reel", "carrossel", "legenda"] },
               format_rationale: { type: "string" },
               audience_evidence: { type: "string" },
+              energia: { type: "string", enum: ["topo", "meio", "fundo"], description: "Energia estratégica: topo=identificação, meio=confiança clínica, fundo=reduzir resistência." },
             },
-            required: ["title", "angle_adopted", "why_angle", "hook", "clinical_anchor", "format", "format_rationale", "audience_evidence"],
+            required: ["title", "angle_adopted", "why_angle", "hook", "clinical_anchor", "format", "format_rationale", "audience_evidence", "energia"],
+
             additionalProperties: false,
           },
         },
