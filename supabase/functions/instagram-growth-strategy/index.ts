@@ -179,7 +179,7 @@ Devolva JSON via tool call. Seja específica: cite TEMAS reais que aparecem nos 
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gemini-2.5-pro",
+        model: "gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

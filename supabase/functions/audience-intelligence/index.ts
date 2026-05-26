@@ -128,7 +128,7 @@ Cruze os três blocos. As ideias precisam soar como ELA — não como uma descri
       method: "POST",
       headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "gemini-2.5-pro",
+        model: "gemini-2.5-flash",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userMsg },

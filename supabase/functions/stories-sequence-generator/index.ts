@@ -84,7 +84,7 @@ Cada story deve ter razão de existir. O último termina em interação real.`;
       method: "POST",
       headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "gemini-2.5-pro",
+        model: "gemini-2.5-flash",
         messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: userMsg }],
         tools: [TOOL],
         tool_choice: { type: "function", function: { name: "build_story_sequence" } },
