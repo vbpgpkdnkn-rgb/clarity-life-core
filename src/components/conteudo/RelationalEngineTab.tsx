@@ -191,7 +191,12 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
       toast.error("Este campo é o coração do conteúdo. Escreva o que você realmente pensa sobre esse tema antes de gerar.");
       return;
     }
+    const energiaBloco = energia
+      ? `\n${ENERGIA_META[energia].promptDirective}\n`
+      : "";
     const promptParaAPI = `
+${energiaBloco}
+
 Você é uma IA de criação de conteúdo para uma psicóloga clínica especializada em relacionamentos e terapia de casal (IBCT + Gottman).
 
 TEMA OU IDEIA:
@@ -297,12 +302,14 @@ Direção: [não uma frase pronta — o que ela quer que a pessoa sinta ou faça
       script: formatted,
       notes: formatted,
       idea_id: seed?.ideaId ?? null,
+      energia: energia ?? null,
       scope: (scope === "todos" ? "profissional" : scope) as any,
     } as any, { onSuccess: (piece) => { seed?.onScriptReady?.((piece as any)?.id); toast.success("Enviado ao Pipeline"); } });
   }
 
   return (
     <div className="space-y-4">
+
       {seed?.sourceLabel && (
         <Card className="p-3 border-accent/30 bg-accent/5">
           <p className="text-sm"><span className="font-medium">Desenvolvendo:</span> {seed.sourceLabel}</p>
