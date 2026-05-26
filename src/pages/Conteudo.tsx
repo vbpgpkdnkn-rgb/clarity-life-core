@@ -140,8 +140,24 @@ export default function Conteudo() {
     toast.success("Ideia enviada para o Motor Relacional");
   };
 
+  const distrib = useDistribuicaoSemana();
+
+  const criarComEnergia = (energia: Energia) => {
+    setSeed({ theme: "", energia });
+    setTab("motor");
+    toast.success(`Vamos criar um conteúdo de ${ENERGIA_META[energia].curto}`);
+  };
+
   return (
     <AppLayout title="Conteúdo" subtitle="Sistema editorial clínico para relacionamento e terapia de casal">
+      <div className="mb-4">
+        <StatusEstrategicoCard
+          distrib={distrib}
+          onCriar={criarComEnergia}
+          onVerEditorial={() => setTab("editorial")}
+        />
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <Card className="p-4">
           <div className="text-xs text-muted-foreground mb-1">Consistência semanal</div>
