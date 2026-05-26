@@ -23,6 +23,9 @@ import { RelationalSeed } from "@/components/conteudo/RelationalEngineTab";
 import { IdeaRefinementChatDrawer } from "@/components/conteudo/IdeaRefinementChatDrawer";
 import type { RefinedIdea } from "@/hooks/useIdeaRefinementChat";
 import { formatDateBR } from "@/lib/format";
+import { useDistribuicaoSemana } from "@/hooks/useDistribuicaoSemana";
+import { EnergiaBadge } from "@/components/conteudo/EnergiaUI";
+
 
 const ANGLE_OPTIONS: { value: AudienceAngle; label: string }[] = [
   { value: "aprofundar", label: "Aprofundar com minha visão clínica" },
@@ -104,6 +107,7 @@ export function AudienceIntelligenceTab({ onDevelop }: Props) {
       hook: refinedOverride?.hook || idea.hook,
       anchor: idea.clinical_anchor,
       format: idea.format,
+      energia: idea.energia,
       audienceContext: filterCommentsForIdea(analysis.comments, idea, refinedOverride),
       myPerspective: refinedOverride?.raw_synthesis
         ? `${analysis.my_perspective}\n\n— Síntese do refinamento —\n${refinedOverride.raw_synthesis}`
@@ -114,6 +118,7 @@ export function AudienceIntelligenceTab({ onDevelop }: Props) {
     onDevelop(seed);
     setChatTarget(null);
   }
+
 
   return (
     <div className="space-y-4">
