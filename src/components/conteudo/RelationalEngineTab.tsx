@@ -167,6 +167,8 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
   const [voiceCalibration, setVoiceCalibration] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [result, setResult] = useState<RelationalTopicsResult | null>(null);
+  const [energia, setEnergia] = useState<Energia | null>(null);
+  const distrib = useDistribuicaoSemana();
   const gen = useGenerateRelational();
   const upsertPiece = useUpsertPiece();
   const { scope } = useScope();
@@ -179,7 +181,9 @@ function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
     setAnchor(seed.anchor ?? "A IA decide");
     setObjective(seedObjectiveToText(seed.objective));
     setAudienceContext(seed.audienceContext ?? "");
+    if (seed.energia) setEnergia(seed.energia);
   }, [seed]);
+
 
   async function handleGenerate() {
     if (!theme.trim()) { toast.error("Informe o tema"); return; }
