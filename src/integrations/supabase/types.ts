@@ -577,6 +577,7 @@ export type Database = {
           clinical_anchor: string | null
           context: string | null
           created_at: string
+          energia: string | null
           id: string
           idea_status: string
           notes: string | null
@@ -594,6 +595,7 @@ export type Database = {
           clinical_anchor?: string | null
           context?: string | null
           created_at?: string
+          energia?: string | null
           id?: string
           idea_status?: string
           notes?: string | null
@@ -613,6 +615,7 @@ export type Database = {
           clinical_anchor?: string | null
           context?: string | null
           created_at?: string
+          energia?: string | null
           id?: string
           idea_status?: string
           notes?: string | null
@@ -692,6 +695,7 @@ export type Database = {
           created_at: string
           cta: string | null
           cta_type: string | null
+          energia: string | null
           format: Database["public"]["Enums"]["content_format"]
           generated_dms: number
           goal_id: string | null
@@ -723,6 +727,7 @@ export type Database = {
           created_at?: string
           cta?: string | null
           cta_type?: string | null
+          energia?: string | null
           format?: Database["public"]["Enums"]["content_format"]
           generated_dms?: number
           goal_id?: string | null
@@ -754,6 +759,7 @@ export type Database = {
           created_at?: string
           cta?: string | null
           cta_type?: string | null
+          energia?: string | null
           format?: Database["public"]["Enums"]["content_format"]
           generated_dms?: number
           goal_id?: string | null

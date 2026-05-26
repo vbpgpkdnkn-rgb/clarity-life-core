@@ -1,108 +1,84 @@
-# Consolidação da Esteira de Conteúdo
+# Framework de Energia — integração aditiva no módulo Conteúdo
 
-Objetivo: transformar a esteira em uma única linha narrativa contínua. Não mexer na arquitetura modular já estabilizada (StageRouter, fila, providers, error boundaries). Apenas consolidar lógica de continuidade, herança e edição.
+Vou adicionar o conceito **TOPO / MEIO / FUNDO** em todas as superfícies do módulo, sem remover nada do que já existe. Tudo aditivo.
 
-## 1. Bússola = Memória do Projeto (unificação)
+## 1. Base compartilhada
 
-Hoje `NarrativeCorePanel` (bússola) e `ProjectMemorySidebar` (memória) vivem separados. Vou:
+**Novo arquivo `src/lib/energia.ts`**
+- Tipo `Energia = 'topo' | 'meio' | 'fundo'`
+- Metadados (label, descrição, classes Tailwind para badge, instruções de prompt para a IA, checklist de publicação)
+- Distribuição alvo: `{ topo: 3, meio: 1, fundo: 1 }`
 
-- Criar um único modelo `ProjectCompass` salvo em `content_projects.context.compass` com todos os campos: `central_idea, intent, promise, emotional_tension, strategic_goal, audience, pains, desires, format, duration, density, tone, rhythm, cta, examples, references, narrative_style, writing_pattern, refinement_history`.
-- `NarrativeCorePanel` torna-se a UI canônica da bússola, exibida no topo da esteira, sempre visível e editável inline.
-- `ProjectMemorySidebar` deixa de ser uma entidade paralela e passa a ler do mesmo `compass` (apenas como visualização auxiliar / histórico de refinamentos).
-- Toda chamada à edge function `content-pipeline-agent` passa o `compass` completo no payload de contexto — não apenas `project.context` cru.
+**Novo hook `src/hooks/useDistribuicaoSemana.ts`**
+- Lê `content_pieces` da semana atual (segunda→domingo) usando `planned_date` ou `published_at`
+- Retorna `{ topo, meio, fundo, proxima, semanaCompleta, weekStart }`
+- Usado em 4 lugares: Motor, Editorial, Pipeline, página principal
 
-## 2. Memória Autoral
+## 2. Banco de dados
 
-Criar campo `compass.author_signature` populado automaticamente a cada edição manual de bloco no `EditableBlock`:
+Migração adicionando coluna opcional `energia text` em `public.content_pieces` (com check constraint `topo|meio|fundo` ou null). Sem default, totalmente backward-compatible.
 
-- Captura: tamanho médio de frase, uso de perguntas, conectores frequentes, padrões de hook, padrões de fechamento, densidade emocional.
-- Acumulado em `compass.author_signature.samples` (últimas 30 edições).
-- Enviado em todo refinamento como instrução de estilo: "imite ritmo X, hooks Y, fechamentos Z".
+Também adicionar `energia` no payload aceito por `useUpsertPiece` (o hook já é genérico — basta passar pelo type).
 
-## 3. Estratégia como DNA (prompt mestre)
+## 3. Motor Relacional (`RelationalEngineTab.tsx`)
 
-A etapa 3 (Estratégia) passa a gerar e salvar um `compass.master_prompt` — um bloco de texto consolidado que serve de prefixo para TODAS as gerações subsequentes (estrutura, tópicos, roteiro, crítico, refinamento, alternativas).
+Antes do botão "Gerar tópicos":
+- Banner de sugestão lendo `useDistribuicaoSemana` ("faltam 2 topos esta semana")
+- 3 cards clicáveis (Topo/Meio/Fundo) com card selecionado em borda accent
+- Linha de contexto abaixo descrevendo o tom da energia escolhida
+- Suporte a seed inicial via `seed.energia` (para pré-seleção vinda da home)
 
-- Edge function `content-pipeline-agent` lê `master_prompt` e injeta como system message obrigatório.
-- Se ausente, a esteira avisa "Defina a estratégia antes de avançar".
+No `promptParaAPI` injetar `instrucaoEnergia[energia]` no topo.
 
-## 4. Continuidade 1:1 entre etapas
+Em `sendToProduction`, passar `energia` no upsert da peça.
 
-**Estrutura → Tópicos**: o agente `topic-writer` recebe `blocks` da estrutura e DEVE retornar `topics` com mesma quantidade, mesma ordem, mesmos `id`s e mesma `role`. Ele só pode adicionar campos (`strong_phrase`, `recording_note`, `target_seconds`, `micro_hook`). Validação no servidor: se a contagem ou ordem mudar, rejeita e força regenerar preservando IDs.
+## 4. Editorial (`Conteudo.tsx > EditorialTab`)
 
-**Tópicos → Roteiro**: idem. `script-writer` recebe topics e retorna `paragraphs` 1:1, herdando `id` (prefixado `p:` mas com mapeamento `from_topic_id`), `role`, `target_seconds`. Só expande `text`.
+No topo da aba:
+- Painel visual com 3 linhas (TOPO/MEIO/FUNDO) mostrando bolinhas preenchidas/vazias e contagem
+- Indicação da próxima energia necessária
 
-Ajustes na edge function: prompts explícitos "NÃO renomeie blocos, NÃO altere ordem, NÃO adicione/remova; apenas expanda".
+Substituir prompt do botão "Gerar plano semanal com IA" para usar o template do framework (com distribuição alvo e regras de não-repetição de Fundo). Renderizar cards do plano com badge de energia.
 
-## 5. Botões Salvar / Copiar / Salvar e avançar
+## 5. Pipeline (`Conteudo.tsx > PipelineTab`)
 
-Em cada `EditableBlock` (estrutura, tópicos, roteiro), adicionar barra de ações no modo edição:
+- Resumo clicável no topo: "Esta semana: TOPO 1/3 · MEIO 0/1 · FUNDO 1/1" → ao clicar troca para aba Editorial
+- Badge de energia em cada card (cores: topo=âmbar, meio=azul, fundo=verde — via classes semânticas)
+- No botão "Avançar etapa", quando a próxima etapa for `publicado`: abrir `Dialog` com checklist específico da energia. Botão "Confirmar publicação" só fica ativo com tudo marcado. Se card sem energia: checklist genérico + aviso.
 
-- `[Salvar]` — persiste via `useApplyBlockEdit`
-- `[Copiar]` — copia texto pro clipboard
-- `[Salvar e avançar]` — salva e move foco pro próximo bloco / próxima etapa quando é o último
+## 6. Inteligência de Audiência (`AudienceIntelligenceTab`)
 
-## 6. Previsão de tempo e ritmo (roteiro)
+- Adicionar `energia` ao prompt das ideias geradas pela edge function correspondente (atualizar prompt no backend `audience-intelligence`)
+- Renderizar badge de energia em cada ideia
+- Marcar "✦ Prioritária" quando a energia da ideia é a que está faltando na semana
 
-Já existe `ScriptHeader` com `totalSeconds` e `retentionRisk`. Vou expandir:
+## 7. Página principal (`Conteudo.tsx`)
 
-- Por bloco: badge mostrando segundos estimados vs. alvo.
-- Cabeçalho: breakdown HOOK / DESENVOLVIMENTO / CONCLUSÃO em segundos.
-- Alertas: introdução >20% do total, bloco lento (>180 wpm equivalente), excesso de duração total.
+Substituir o 4º card de métricas (ou adicionar logo abaixo dos 4) por um **card de status estratégico**:
+- Mostra distribuição da semana (TOPO/MEIO/FUNDO com bolinhas)
+- Próxima energia necessária + botão "Criar agora" → seta `seed` com `energia` pré-selecionada e abre aba Motor
+- Botão "Ver editorial" → troca para aba editorial
+- Estado completo: "✓ Semana estratégica completa"
 
-## 7. Revisão inline aplicável
+## Detalhes técnicos
 
-Hoje `useInlineCritique` retorna anotações mas o usuário não tem como aplicar. Vou:
+- Energia é **persistida** em `content_pieces.energia` (migração).
+- Badges usam classes via mapa de variantes — sem hardcode de cor crua nos componentes.
+- O `RelationalSeed` type ganha campo opcional `energia?: Energia`.
+- Nada é removido: campos antigos (`pillar`, `objective`, `clinical_anchor`) continuam funcionando lado a lado.
+- Edge function `audience-intelligence` precisa de pequeno ajuste no prompt + schema da tool para incluir `energia`.
 
-- Cada anotação ganha `suggested_text` no schema (já existe parcialmente como `suggestion`).
-- Em `EditableBlock`, quando há annotation, exibir card com: problema · motivo · impacto · sugestão e três botões: `[Aplicar]` `[Editar manualmente]` `[Comparar]`.
-- `[Aplicar]` chama `useApplyBlockEdit` substituindo apenas o trecho destacado (ou o bloco inteiro se a anotação for de bloco), registra em `evolution`.
-- Ajustar prompt do `critique-inline` para sempre retornar `{ block_id, problem, reason, impact, suggested_text }` estruturado.
+## Arquivos tocados
 
-## 8. Finalização da esteira
+Novos:
+- `src/lib/energia.ts`
+- `src/hooks/useDistribuicaoSemana.ts`
+- `supabase/migrations/<timestamp>_add_energia_to_content_pieces.sql`
 
-Depois da etapa 7 (Revisão), adicionar bloco de finalização:
+Editados:
+- `src/pages/Conteudo.tsx` (card de status, EditorialTab, PipelineTab)
+- `src/components/conteudo/RelationalEngineTab.tsx` (seletor + injeção no prompt + persistência)
+- `src/components/conteudo/AudienceIntelligenceTab.tsx` (badge + prioritária)
+- `supabase/functions/audience-intelligence/index.ts` (campo energia na saída)
 
-- Botão `[Enviar para pipeline]`
-- Ação:
-  1. Marca `content_projects.status = 'concluido'`
-  2. Cria `content_pieces` ligado via `linked_piece_id` com `status='roteiro_pronto'`, hook/script/CTA preenchidos a partir da etapa 6
-  3. Atualiza `compass.refinement_history` com snapshot final
-  4. Mostra confirmação "Conteúdo enviado para o pipeline"
-
-## Arquivos afetados
-
-**Edge function**
-- `supabase/functions/content-pipeline-agent/index.ts` — injetar `master_prompt`, validar 1:1 (estrutura→tópicos, tópicos→roteiro), reformatar critique-inline com `suggested_text`.
-
-**Hooks**
-- `src/hooks/usePipelineEditor.ts` — `useApplyAnnotation`, `useFinalizeProject`, captura de `author_signature` em `useApplyBlockEdit`.
-- `src/hooks/useContentProject.ts` — helpers do compass.
-
-**Componentes pipeline**
-- `NarrativeCorePanel.tsx` — vira UI completa da bússola (todos os campos).
-- `ProjectMemorySidebar.tsx` — lê do compass, vira só visualização.
-- `EditableBlock.tsx` — barra Salvar/Copiar/Salvar e avançar; card de anotação aplicável.
-- `stages/StructureStage.tsx`, `TopicsStage.tsx`, `ScriptStage.tsx` — passar `compass` ao agente; preservar IDs no merge.
-- `stages/ScriptStage.tsx` — breakdown de tempo por seção.
-- `stages/ReviewStage.tsx` — anotações com `[Aplicar]`.
-- Novo `stages/FinalizeStage.tsx` (ou bloco em ReviewStage) — "Enviar para pipeline".
-
-**Sem mudança de schema de DB** — tudo vive em `content_projects.context.compass` (jsonb existente).
-
-## Não-objetivos
-
-- Não mexer em StageRouter, PipelineProviders, fila, ErrorBoundary, RecoveryLayer.
-- Não adicionar páginas/módulos novos.
-- Não criar tabelas (compass cabe no jsonb existente).
-- Não tocar em UI fora da esteira.
-
-## Ordem de implementação
-
-1. Edge function: master_prompt + validação 1:1 + critique-inline estruturado
-2. Bússola unificada (NarrativeCorePanel + ProjectMemorySidebar leitura)
-3. EditableBlock: ações + anotações aplicáveis
-4. Stages: passar compass + preservar IDs
-5. Author signature
-6. ScriptStage: breakdown de tempo
-7. FinalizeStage: enviar para pipeline
+Posso prosseguir?
