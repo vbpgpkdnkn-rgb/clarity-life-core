@@ -543,7 +543,143 @@ function EditorialTab({ pieces, ideas, consistency, onDevelop }: { pieces: Conte
         })}
       </div>
       {editPiece && <PieceDrawer piece={editPiece} open={!!editPiece} onClose={() => setEditPiece(null)} />}
+      {editorialDraft && (
+        <EditorialDraftSheet
+          draft={editorialDraft}
+          onClose={() => setEditorialDraft(null)}
+          onSendToMotor={({ tema, vozPsicologa, energia, day }) => {
+            // Cria ideia para rastreabilidade e envia para o Motor com tudo pré-preenchido
+            const formatMotor = day.format === "carrossel" ? "carrossel" : day.format === "legenda" ? "legenda" : "reel";
+            upsertIdea.mutate({
+              title: tema,
+              theme: PILLAR_LABEL[day.pillar] ?? day.pillar,
+              suggested_format: FORMAT_MAP[day.format] ?? "reels",
+              notes: vozPsicologa,
+              energia,
+              planned_date: editorialDraft.date,
+              idea_status: "em_desenvolvimento",
+              scope: "profissional",
+            } as any);
+            setEditorialDraft(null);
+            onDevelop?.({
+              theme: tema,
+              sourceLabel: tema,
+              sourceOrigin: "editorial",
+              myPerspective: vozPsicologa,
+              energia: energia ?? undefined,
+              audienceContext: `${PILLAR_LABEL[day.pillar] ?? day.pillar} · ${EDITORIAL_OBJECTIVE_LABEL[day.objective] ?? day.objective}`,
+              format: formatMotor as any,
+            });
+          }}
+          onSaveAsWaiting={({ tema, vozPsicologa, energia, day }) => {
+            upsertIdea.mutate({
+              title: tema,
+              theme: PILLAR_LABEL[day.pillar] ?? day.pillar,
+              suggested_format: FORMAT_MAP[day.format] ?? "reels",
+              notes: vozPsicologa,
+              energia,
+              planned_date: editorialDraft.date,
+              idea_status: "nova",
+              scope: "profissional",
+            } as any);
+            setEditorialDraft(null);
+            toast.success("Salvo em Ideias — abra depois para desenvolver");
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function EditorialDraftSheet({
+  draft,
+  onClose,
+  onSendToMotor,
+  onSaveAsWaiting,
+}: {
+  draft: { day: EditorialDay; date: string };
+  onClose: () => void;
+  onSendToMotor: (seed: { day: EditorialDay; date: string; tema: string; vozPsicologa: string; energia: Energia | null }) => void;
+  onSaveAsWaiting: (seed: { day: EditorialDay; date: string; tema: string; vozPsicologa: string; energia: Energia | null }) => void;
+}) {
+  const [tema, setTema] = useState(draft.day.suggestion);
+  const [vozPsicologa, setVozPsicologa] = useState("");
+  const [energia, setEnergia] = useState<Energia | null>(
+    ((draft.day as any).energia as Energia | undefined) ?? PILLAR_META[draft.day.pillar]?.energia_natural ?? null,
+  );
+
+  return (
+    <Sheet open onOpenChange={(o) => !o && onClose()}>
+      <SheetContent className="overflow-y-auto w-full sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle className="font-display">{WEEKDAY_LABEL[draft.day.weekday]} · Desenvolver conteúdo</SheetTitle>
+          <p className="text-xs text-muted-foreground">A IA gerou esta sugestão. Edite, adicione sua voz e escolha o próximo passo.</p>
+        </SheetHeader>
+
+        <div className="space-y-4 mt-6">
+          <div>
+            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Sugestão da IA (edite se quiser)</Label>
+            <Textarea value={tema} onChange={(e) => setTema(e.target.value)} rows={3} className="mt-1" />
+          </div>
+
+          <div>
+            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Energia estratégica</Label>
+            <div className="grid grid-cols-3 gap-2 mt-1">
+              {(["topo", "meio", "fundo"] as Energia[]).map((e) => {
+                const meta = ENERGIA_META[e];
+                const sel = energia === e;
+                return (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => setEnergia(e)}
+                    className={`text-left rounded-lg border p-2.5 transition-all text-xs ${sel ? `${meta.border} ${meta.bg} ring-1` : "border-border bg-card hover:border-foreground/20"}`}
+                  >
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+                      <span className="font-semibold uppercase tracking-wider text-[10px]">{e}</span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground leading-snug">{meta.curto}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              O que você pensa sobre esse tema? <span className="text-accent">coração do conteúdo</span>
+            </Label>
+            <Textarea
+              value={vozPsicologa}
+              onChange={(e) => setVozPsicologa(e.target.value)}
+              placeholder="Escreva como falaria para uma paciente. Sua observação clínica, sua discordância, o que você acha que a audiência não percebe ainda."
+              rows={5}
+              className="mt-1"
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">Quanto mais você der, mais autêntico o resultado.</p>
+          </div>
+
+          <div className="rounded bg-muted/30 p-3 text-xs space-y-1">
+            <div><span className="text-muted-foreground">Pilar sugerido: </span><span>{PILLAR_LABEL[draft.day.pillar] ?? draft.day.pillar}</span></div>
+            <div><span className="text-muted-foreground">Formato sugerido: </span><span>{draft.day.format}</span></div>
+            <div><span className="text-muted-foreground">Data alvo: </span><span>{formatDateBR(draft.date)}</span></div>
+          </div>
+
+          <div className="space-y-2 pt-2 border-t border-border">
+            <Button className="w-full" onClick={() => onSendToMotor({ ...draft, tema, vozPsicologa, energia })} disabled={!tema.trim()}>
+              <Sparkles className="h-4 w-4 mr-2" />
+              Criar roteiro agora com IA →
+            </Button>
+            <p className="text-[10px] text-center text-muted-foreground">Vai para o Motor Relacional com tudo pré-preenchido</p>
+            <Button variant="outline" className="w-full" onClick={() => onSaveAsWaiting({ ...draft, tema, vozPsicologa, energia })}>
+              Salvar como aguardando
+            </Button>
+            <p className="text-[10px] text-center text-muted-foreground">Fica em Ideias para desenvolver depois</p>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
