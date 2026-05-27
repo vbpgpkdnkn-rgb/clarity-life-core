@@ -207,7 +207,7 @@ export default function Conteudo() {
           </ErrorBoundary>
         </TabsContent>
         <TabsContent value="pipeline"><PipelineTab pieces={pieces} metrics={metrics} /></TabsContent>
-        <TabsContent value="editorial"><EditorialTab pieces={pieces} ideas={ideas as any} consistency={consistency} /></TabsContent>
+        <TabsContent value="editorial"><EditorialTab pieces={pieces} ideas={ideas as any} consistency={consistency} onDevelop={sendIdeaToMotor} /></TabsContent>
         <TabsContent value="crescimento"><GrowthPerformanceTab pieces={pieces} metrics={metrics} /></TabsContent>
       </Tabs>
       <FloatingIdeaCapture />
