@@ -368,9 +368,10 @@ function PublishChecklistDialog({ piece, onCancel, onConfirm }: { piece: Content
 }
 
 
-function EditorialTab({ pieces, ideas, consistency }: { pieces: ContentPiece[]; ideas: any[]; consistency: ReturnType<typeof useContentConsistency> }) {
+function EditorialTab({ pieces, ideas, consistency, onDevelop }: { pieces: ContentPiece[]; ideas: any[]; consistency: ReturnType<typeof useContentConsistency>; onDevelop?: (seed: RelationalSeed) => void }) {
   const weeklyPlan = useContentWeeklyPlan();
   const upsert = useUpsertPiece();
+  const upsertIdea = useUpsertIdea();
   const [editPiece, setEditPiece] = useState<ContentPiece | null>(null);
   const [focus, setFocus] = useState("");
   const today = todayISO();
@@ -379,6 +380,8 @@ function EditorialTab({ pieces, ideas, consistency }: { pieces: ContentPiece[]; 
   const generateLine = useGenerateEditorialLine();
   const days = Array.from({ length: 14 }, (_, i) => addDaysISO(today, i - 3));
   const schedulable = pieces.filter((p: any) => p.status !== "publicado" && p.status !== "arquivado" && !p.planned_date);
+  const [editorialDraft, setEditorialDraft] = useState<{ day: EditorialDay; date: string } | null>(null);
+  const [selectedIdeaIds, setSelectedIdeaIds] = useState<string[]>([]);
 
   const schedule = (id: string, date: string) => {
     const p = pieces.find((x) => x.id === id);
