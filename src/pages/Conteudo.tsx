@@ -386,6 +386,7 @@ function EditorialTab({ pieces, ideas, consistency }: { pieces: ContentPiece[]; 
     upsert.mutate({ id, title: p.title, planned_date: date, pipeline_stage: "agendado", status: "pronto" } as any);
   };
 
+  // Mantido por compatibilidade — não mais chamado pelo botão (substituído por drawer de cocriação)
   const createFromEditorialDay = (day: EditorialDay) => {
     const plannedDate = dayISOFromWeekday(weekStart, day.weekday);
     upsert.mutate({
@@ -400,6 +401,7 @@ function EditorialTab({ pieces, ideas, consistency }: { pieces: ContentPiece[]; 
       scope: "profissional",
     } as any);
   };
+  void createFromEditorialDay;
 
   return (
     <div className="space-y-4">
