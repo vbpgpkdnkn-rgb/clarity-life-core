@@ -31,6 +31,7 @@ import {
 import { useUpsertPiece } from "@/hooks/useContent";
 import { useScope } from "@/contexts/ScopeContext";
 import { formatDateBR } from "@/lib/format";
+import { supabase } from "@/integrations/supabase/client";
 
 import { ENERGIA_META, type Energia } from "@/lib/energia";
 import { useDistribuicaoSemana } from "@/hooks/useDistribuicaoSemana";
@@ -157,7 +158,7 @@ function formatScriptAsText(r: RelationalScriptResult): string {
 // ═══════════════════════════════════════════════════════════
 // TÓPICOS PARA GRAVAÇÃO — tema + parágrafo guia (não pergunta)
 // ═══════════════════════════════════════════════════════════
-function TopicsSubTab({ seed }: { seed?: RelationalSeed | null }) {
+function TopicsSubTab({ seed, onSendToPipeline }: { seed?: RelationalSeed | null; onSendToPipeline?: (projectId: string) => void }) {
   const [theme, setTheme] = useState("");
   const [myPerspective, setMyPerspective] = useState("");
   const [format, setFormat] = useState("Reel");
@@ -305,6 +306,48 @@ Direção: [não uma frase pronta — o que ela quer que a pessoa sinta ou faça
       energia: energia ?? null,
       scope: (scope === "todos" ? "profissional" : scope) as any,
     } as any, { onSuccess: (piece) => { seed?.onScriptReady?.((piece as any)?.id); toast.success("Enviado ao Pipeline"); } });
+  }
+
+  async function sendToEsteira() {
+    if (!result) return;
+    if (!myPerspective.trim()) {
+      toast.error("Preencha 'O que você pensa' antes — é a voz da psicóloga que vai alimentar a esteira.");
+      return;
+    }
+    const toneByEnergia = energia === "topo"
+      ? "identificação emocional sofisticada"
+      : energia === "meio"
+        ? "confiança clínica — profundidade sem academicismo"
+        : energia === "fundo"
+          ? "íntimo, direto, sem venda"
+          : "";
+    const payload: any = {
+      title: `${result.theme} — ${result.hook.theme}`.slice(0, 160),
+      intent: myPerspective.trim(),
+      scope: (scope === "todos" ? "profissional" : scope),
+      context: {
+        intent: myPerspective.trim(),
+        angle: "",
+        tone: toneByEnergia,
+        positioning: "",
+        energia: energia ?? null,
+        audience_context: audienceContext || null,
+        format: format,
+        anchor: anchor === "A IA decide" ? null : anchor,
+        initial_topics: result.topics,
+        initial_hook: result.hook,
+        initial_closing: result.closing,
+        audience: { pains: [], desires: [], objections: [], emotional_patterns: [] },
+        approved_assets: { hooks: [result.hook.guidance].filter(Boolean), metaphors: [], examples: [], phrases: [] },
+        rejected: { hooks: [], directions: [] },
+        narrative: { arc: result.narrative_arc ?? "", tension_points: [], cta_type: "" },
+        timing: { target_seconds: 60, density: "medio" },
+      },
+    };
+    const { data, error } = await (supabase as any).from("content_projects").insert(payload).select().single();
+    if (error) { toast.error(error.message ?? "Erro ao criar projeto"); return; }
+    toast.success("Projeto criado na Esteira com a bússola pré-preenchida");
+    if (onSendToPipeline && data?.id) onSendToPipeline(data.id);
   }
 
   return (
