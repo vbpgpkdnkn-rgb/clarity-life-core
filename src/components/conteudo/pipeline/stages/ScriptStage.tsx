@@ -23,6 +23,8 @@ export const ScriptStage = memo(function ScriptStage({ project, stages, queueBus
     return grouped;
   }, [annotations]);
 
+  const ctx = (project.context as any) ?? {};
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -30,7 +32,12 @@ export const ScriptStage = memo(function ScriptStage({ project, stages, queueBus
         <Button
           size="sm"
           disabled={!topicsList.length || runAgent.isPending || queueBusy}
-          onClick={() => runAgent.mutate({ project, agent: "script-writer", stage: 6, payload: { topics: topicsList } })}
+          onClick={() => runAgent.mutate({ project, agent: "script-writer", stage: 6, payload: {
+            topics: topicsList,
+            energia: ctx.energia ?? null,
+            voz_psicologa: ctx.intent ?? project.intent ?? "",
+            audiencia: ctx.audience_context ?? "",
+          } })}
         >
           {runAgent.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Wand2 className="h-3 w-3 mr-1" />}
           {scriptParagraphs.length ? "Refinar roteiro" : "Gerar"}
