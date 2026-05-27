@@ -451,7 +451,7 @@ function EditorialTab({ pieces, ideas, consistency, onDevelop }: { pieces: Conte
                     <Badge variant="secondary" className="text-[9px] px-1 py-0">{day.format}</Badge>
                   </div>
                   {!filled && day.format !== "descanso" && (
-                    <Button size="sm" variant="ghost" className="h-7 w-full text-[11px]" onClick={() => createFromEditorialDay(day)}>Criar slot</Button>
+                    <Button size="sm" variant="ghost" className="h-7 w-full text-[11px]" onClick={() => setEditorialDraft({ day, date: dayISOFromWeekday(weekStart, day.weekday) })}>Desenvolver →</Button>
                   )}
                 </Card>
               );
@@ -459,6 +459,67 @@ function EditorialTab({ pieces, ideas, consistency, onDevelop }: { pieces: Conte
           </div>
         )}
         {weeklyPlan.data && <div className="mt-4 space-y-2 border-t border-border pt-3">{weeklyPlan.data.plan.schedule.map((s, i) => <div key={i} className="text-sm border border-border rounded-md p-2"><strong>{s.day}: {s.title}</strong><p className="text-xs text-muted-foreground">{s.reason}</p></div>)}</div>}
+      </Card>
+
+      {/* Distribuir ideias salvas */}
+      <Card className="p-4 space-y-3">
+        <div>
+          <h3 className="font-display font-semibold">Distribuir ideias na semana</h3>
+          <p className="text-xs text-muted-foreground">Selecione ideias do banco e a IA distribui nos melhores dias conforme o framework de energia (3 topo · 1 meio · 1 fundo).</p>
+        </div>
+        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+          {ideas.filter((i) => !i.used && i.idea_status !== "arquivada").slice(0, 20).map((idea) => (
+            <label key={idea.id} className="flex items-start gap-2 p-2 rounded border border-border hover:bg-muted/30 cursor-pointer">
+              <Checkbox
+                checked={selectedIdeaIds.includes(idea.id)}
+                onCheckedChange={(checked) => setSelectedIdeaIds((prev) => checked ? [...prev, idea.id] : prev.filter((id) => id !== idea.id))}
+                className="mt-0.5"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium line-clamp-1">{idea.title}</div>
+                {idea.theme && <div className="text-[10px] text-muted-foreground">{idea.theme}</div>}
+                {idea.energia && <EnergiaBadge energia={idea.energia} className="mt-0.5" />}
+              </div>
+            </label>
+          ))}
+          {ideas.filter((i) => !i.used).length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-4">Nenhuma ideia no banco. Capture ideias na aba Ideias.</p>
+          )}
+        </div>
+        {selectedIdeaIds.length > 0 && (
+          <Button size="sm" className="w-full" onClick={() => {
+            const selecionadas = ideas.filter((i) => selectedIdeaIds.includes(i.id));
+            const alvo: Energia[] = ["topo", "topo", "topo", "meio", "fundo"];
+            // dias ocupados
+            const ocupados = new Set(pieces.filter((p) => p.planned_date && p.planned_date >= weekStart && p.planned_date <= addDaysISO(weekStart, 6)).map((p) => p.planned_date as string));
+            const slotsLivres: string[] = [];
+            for (let i = 0; i < 7; i++) { const d = addDaysISO(weekStart, i); if (!ocupados.has(d)) slotsLivres.push(d); }
+            // ordenar selecionadas: as que já têm energia priorizam slots desse tipo
+            let i = 0;
+            for (const ideia of selecionadas) {
+              if (i >= slotsLivres.length) break;
+              const energia: Energia = ideia.energia ?? alvo[i % alvo.length];
+              const date = slotsLivres[i++];
+              upsert.mutate({
+                title: ideia.title,
+                theme: ideia.theme,
+                format: ideia.suggested_format ?? "reels",
+                status: "em_producao",
+                pipeline_stage: "roteiro_pronto",
+                planned_date: date,
+                energia,
+                notes: ideia.notes,
+                scope: "profissional",
+              } as any);
+              upsertIdea.mutate({ id: ideia.id, title: ideia.title, used: true } as any);
+            }
+            setSelectedIdeaIds([]);
+            toast.success(`${Math.min(selecionadas.length, slotsLivres.length)} ideia(s) distribuída(s) na semana`);
+          }}>
+            <CalendarCheck className="h-3.5 w-3.5 mr-1" />
+            Distribuir {selectedIdeaIds.length} ideia(s) na semana
+          </Button>
+        )}
       </Card>
 
       {schedulable.length > 0 && (
