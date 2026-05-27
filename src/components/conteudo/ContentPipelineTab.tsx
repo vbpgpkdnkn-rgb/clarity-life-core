@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Loader2, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,16 +48,23 @@ function clampPipelineStage(stage?: number | null) {
   return Math.min(8, Math.max(1, stage));
 }
 
-export function ContentPipelineTab() {
+export function ContentPipelineTab({ initialProjectId }: { initialProjectId?: string | null } = {}) {
   const { data: projects = [] } = useContentProjects();
   const create = useCreateProject();
   const del = useDeleteProject();
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(initialProjectId ?? null);
   const [activeStage, setActiveStage] = useState(4);
   const [newTitle, setNewTitle] = useState("");
   const [newIntent, setNewIntent] = useState("");
   const [inlineAnnotations, setInlineAnnotations] = useState<PipelineAnnotation[]>([]);
   const [teleprompterOpen, setTeleprompterOpen] = useState(false);
+
+  // Sincroniza quando o pai pede um novo projeto seed (Motor → Esteira)
+  const lastSeedRef = useRef<string | null>(null);
+  if (initialProjectId && initialProjectId !== lastSeedRef.current && initialProjectId !== activeId) {
+    lastSeedRef.current = initialProjectId;
+    setActiveId(initialProjectId);
+  }
 
   const { data: project, isLoading: projectLoading } = useContentProject(activeId);
   const { data: stages = [] } = useProjectStages(activeId);

@@ -12,12 +12,18 @@ export const StructureStage = memo(function StructureStage({ project, stages, qu
   useRenderProbe("StructureStage");
   const runAgent = useRunStageAgent();
   const { structureBlocks } = useMemo(() => getPipelineCollections(stages), [stages]);
+  const ctx = (project.context as any) ?? {};
+  const energyPayload = {
+    energia: ctx.energia ?? null,
+    voz_psicologa: ctx.intent ?? project.intent ?? "",
+    audiencia: ctx.audience_context ?? "",
+  };
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base">Arco narrativo</CardTitle>
-        <Button size="sm" onClick={() => runAgent.mutate({ project, agent: "structurer", stage: 4 })} disabled={runAgent.isPending || queueBusy}>
+        <Button size="sm" onClick={() => runAgent.mutate({ project, agent: "structurer", stage: 4, payload: energyPayload })} disabled={runAgent.isPending || queueBusy}>
           {runAgent.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Wand2 className="h-3 w-3 mr-1" />}
           {structureBlocks.length ? "Refinar etapa" : "Gerar"}
         </Button>

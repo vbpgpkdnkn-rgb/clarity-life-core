@@ -24,8 +24,34 @@ function compassBlock(context: any) {
   return block;
 }
 
+const ENERGIA_DIRECTIVE: Record<string, string> = {
+  topo: `ENERGIA: TOPO — identificação emocional sofisticada. Público funcional, cansado, em padrão silencioso. Micro desconforto reconhecível. NUNCA drama, motivacional, "5 sinais de". O conteúdo faz a pessoa pensar "ela me entendeu" — não ensina, não vende. Gancho: parte de automatismo relacional ou desgaste silencioso. Tópicos: levam à identificação, não explicam conceitos. Fechamento: reconhecimento silencioso, sem CTA explícito.`,
+  meio: `ENERGIA: MEIO — confiança clínica. Nomeia dinâmica invisível. IBCT ou Gottman traduzido em comportamento cotidiano, NUNCA jargão solto. O conteúdo faz a pessoa pensar "ela sabe do que está falando". Gancho: tensão emocional + quebra da percepção óbvia. Tópicos: cada um avança o raciocínio — não são pontos isolados. Sustentam nuance e ambivalência. Fechamento sofisticado que não simplifica.`,
+  fundo: `ENERGIA: FUNDO — redução de resistência ao agendamento. Processo terapêutico com opinião e vivência real. Tom íntimo, direto. O conteúdo faz a pessoa pensar "talvez eu precise conversar com ela". NUNCA "me chama no direct", linguagem de venda. CTA elegante que abre continuidade emocional: "alguns padrões só ficam claros quando deixam de ser vividos no automático."`,
+};
+
+function energiaBlock(payload: any, context: any) {
+  const energia = payload?.energia ?? (context as any)?.energia ?? null;
+  const voz = payload?.voz_psicologa ?? (context as any)?.intent ?? "";
+  const aud = payload?.audiencia ?? (context as any)?.audience_context ?? "";
+  let block = "";
+  if (energia && ENERGIA_DIRECTIVE[energia]) {
+    block += `\n\n═══ ${ENERGIA_DIRECTIVE[energia]} ═══`;
+  }
+  if (voz) {
+    block += `\n\nVOZ DA PSICÓLOGA (matéria-prima — use diretamente, não substitua por conceitos genéricos):\n${voz}`;
+  }
+  if (aud) {
+    block += `\n\nCONTEXTO DA AUDIÊNCIA:\n${aud}`;
+  }
+  if (payload?.instruction) {
+    block += `\n\nINSTRUÇÃO ESPECÍFICA DESTA ETAPA:\n${payload.instruction}`;
+  }
+  return block;
+}
+
 function buildPrompt(mode: string, agent: string, context: any, payload: any) {
-  const ctxBlock = `CONTEXTO DO PROJETO:\n${JSON.stringify(context, null, 2)}${compassBlock(context)}\n\nPAYLOAD ATUAL:\n${JSON.stringify(payload, null, 2)}`;
+  const ctxBlock = `CONTEXTO DO PROJETO:\n${JSON.stringify(context, null, 2)}${compassBlock(context)}${energiaBlock(payload, context)}\n\nPAYLOAD ATUAL:\n${JSON.stringify(payload, null, 2)}`;
 
   if (mode === "refine") {
     return `${ctxBlock}\n\nMODO: refine.

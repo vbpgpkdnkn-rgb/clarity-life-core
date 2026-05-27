@@ -116,6 +116,7 @@ export default function Conteudo() {
   const { data: metricsAll = [] } = useContentMetrics();
   const [tab, setTab] = useState("audiencia");
   const [seed, setSeed] = useState<RelationalSeed | null>(null);
+  const [pipelineSeedId, setPipelineSeedId] = useState<string | null>(null);
   const upsertIdea = useUpsertIdea();
 
   const ideas = useMemo(() => filterByScope(ideasAll as any, scope), [ideasAll, scope]);
@@ -191,10 +192,15 @@ export default function Conteudo() {
 
         <TabsContent value="audiencia"><AudienceIntelligenceTab onDevelop={sendIdeaToMotor} /></TabsContent>
         <TabsContent value="ideias"><IdeasTab onDevelop={sendIdeaToMotor} onOpenAudience={() => setTab("audiencia")} /></TabsContent>
-        <TabsContent value="motor"><RelationalEngineTab seed={seed} /></TabsContent>
+        <TabsContent value="motor">
+          <RelationalEngineTab
+            seed={seed}
+            onSendToPipeline={(projectId) => { setPipelineSeedId(projectId); setTab("esteira"); }}
+          />
+        </TabsContent>
         <TabsContent value="esteira">
           <ErrorBoundary scope="Esteira de conteúdo">
-            <ContentPipelineTab />
+            <ContentPipelineTab initialProjectId={pipelineSeedId} />
           </ErrorBoundary>
         </TabsContent>
         <TabsContent value="pipeline"><PipelineTab pieces={pieces} metrics={metrics} /></TabsContent>

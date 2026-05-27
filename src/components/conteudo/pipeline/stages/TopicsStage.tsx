@@ -12,6 +12,7 @@ export const TopicsStage = memo(function TopicsStage({ project, stages, queueBus
   useRenderProbe("TopicsStage");
   const runAgent = useRunStageAgent();
   const { structureBlocks, topicsList } = useMemo(() => getPipelineCollections(stages), [stages]);
+  const ctx = (project.context as any) ?? {};
 
   return (
     <Card>
@@ -20,7 +21,13 @@ export const TopicsStage = memo(function TopicsStage({ project, stages, queueBus
         <Button
           size="sm"
           disabled={!structureBlocks.length || runAgent.isPending || queueBusy}
-          onClick={() => runAgent.mutate({ project, agent: "topic-writer", stage: 5, payload: { blocks: structureBlocks } })}
+          onClick={() => runAgent.mutate({ project, agent: "topic-writer", stage: 5, payload: {
+            blocks: structureBlocks,
+            energia: ctx.energia ?? null,
+            voz_psicologa: ctx.intent ?? project.intent ?? "",
+            audiencia: ctx.audience_context ?? "",
+            instruction: "Cada tópico é uma PERGUNTA específica ao raciocínio da psicóloga (não ao tema genérico) que ela responde na câmera com história/observação clínica/exemplo concreto.",
+          } })}
         >
           {runAgent.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Wand2 className="h-3 w-3 mr-1" />}
           {topicsList.length ? "Refinar etapa" : "Gerar"}
