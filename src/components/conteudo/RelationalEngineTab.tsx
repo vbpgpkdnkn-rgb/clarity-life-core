@@ -436,6 +436,9 @@ Direção: [não uma frase pronta — o que ela quer que a pessoa sinta ou faça
               <Button size="sm" variant="ghost" onClick={() => copyToClipboard(formatTopicsAsScript(result))}>
                 <Copy className="h-3.5 w-3.5 mr-1" />Copiar
               </Button>
+              <Button size="sm" variant="outline" onClick={sendToEsteira}>
+                <Sparkles className="h-3.5 w-3.5 mr-1" />Esteira (refinar)
+              </Button>
               <Button size="sm" onClick={sendToProduction} disabled={upsertPiece.isPending}>
                 <Mic2 className="h-3.5 w-3.5 mr-1" />Enviar ao Pipeline
               </Button>
@@ -1031,7 +1034,7 @@ function BankSubTab() {
 // ═══════════════════════════════════════════════════════════
 // EXPORT
 // ═══════════════════════════════════════════════════════════
-export function RelationalEngineTab({ seed }: { seed?: RelationalSeed | null }) {
+export function RelationalEngineTab({ seed, onSendToPipeline }: { seed?: RelationalSeed | null; onSendToPipeline?: (projectId: string) => void }) {
   return (
     <div className="space-y-4">
       <Card className="p-4 border-accent/30 bg-accent/5">
@@ -1055,7 +1058,7 @@ export function RelationalEngineTab({ seed }: { seed?: RelationalSeed | null }) 
           <TabsTrigger value="banco"><Library className="h-3.5 w-3.5 mr-1" />Banco</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="topicos" className="mt-4"><TopicsSubTab seed={seed} /></TabsContent>
+        <TabsContent value="topicos" className="mt-4"><TopicsSubTab seed={seed} onSendToPipeline={onSendToPipeline} /></TabsContent>
         <TabsContent value="roteiro" className="mt-4"><AuthoredScriptSubTab seed={seed} /></TabsContent>
         <TabsContent value="angulos" className="mt-4"><VariationsSubTab seed={seed} /></TabsContent>
         <TabsContent value="serie" className="mt-4"><SeriesSubTab /></TabsContent>
