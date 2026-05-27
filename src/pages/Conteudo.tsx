@@ -86,13 +86,15 @@ const PIPELINE: { key: PipelineStage; label: string; status: ContentStatus }[] =
 
 const STAGE_LABEL = Object.fromEntries(PIPELINE.map((p) => [p.key, p.label])) as Record<PipelineStage, string>;
 const FORMAT_MAP: Record<string, ContentFormat> = { reel: "reels", carrossel: "carrossel", legenda: "texto" };
-const PILLAR_LABEL: Record<string, string> = {
-  padrao_relacional: "Padrão relacional",
-  funcao_emocional: "Função emocional",
-  transformacao: "Transformação",
-  qualidade_relacional: "Qualidade relacional",
-  descanso: "Descanso",
+const PILLAR_META: Record<string, { label: string; energia_natural: Energia; objetivo: string; descricao: string }> = {
+  padrao_relacional: { label: "Padrão relacional", energia_natural: "topo", objetivo: "Identificação", descricao: "Ciclos invisíveis que o casal cria junto sem perceber" },
+  funcao_emocional: { label: "Função emocional", energia_natural: "topo", objetivo: "Conectar", descricao: "O que os comportamentos estão servindo emocionalmente" },
+  transformacao: { label: "Transformação estruturada", energia_natural: "meio", objetivo: "Ensinar", descricao: "Como a mudança relacional acontece — com direção" },
+  qualidade_relacional: { label: "Qualidade relacional", energia_natural: "meio", objetivo: "Autoridade", descricao: "O que um relacionamento próspero realmente parece" },
+  processo_terapeutico: { label: "Processo terapêutico", energia_natural: "fundo", objetivo: "Atrair paciente", descricao: "Como é trabalhar isso em sessão — sua vivência clínica" },
+  descanso: { label: "Descanso", energia_natural: "topo", objetivo: "Conexão leve", descricao: "Bastidor, leveza, humanização" },
 };
+const PILLAR_LABEL: Record<string, string> = Object.fromEntries(Object.entries(PILLAR_META).map(([k, v]) => [k, v.label]));
 const EDITORIAL_OBJECTIVE_LABEL: Record<string, string> = {
   identificacao: "Identificação",
   autoridade: "Autoridade",
