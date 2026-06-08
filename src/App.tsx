@@ -38,6 +38,7 @@ import ProjetoDetalhe from "./pages/ProjetoDetalhe";
 import Psicoterapia from "./pages/Psicoterapia";
 import Instalar from "./pages/Instalar";
 import QuickAdd from "./pages/QuickAdd";
+import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -88,6 +89,7 @@ const App = () => (
                       <Route path="/vida/desafios" element={<VidaDesafios />} />
                       <Route path="/instalar" element={<Instalar />} />
                       <Route path="/quick-add" element={<QuickAdd />} />
+                      <Route path="/configuracoes" element={<Configuracoes />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </ProtectedRoute>
