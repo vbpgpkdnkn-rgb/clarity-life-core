@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCategories, useGoals, useUpsertTask, useDeleteTask, useMilestones } from "@/hooks/useData";
 import { usePatients } from "@/hooks/usePsicoterapia";
 import { todayISO } from "@/lib/format";
-import { Trash2, Target, Brain, Zap, CalendarDays, Clock, CornerDownLeft } from "lucide-react";
+import { Trash2, Target, Brain, Zap, BookMarked, Clock, CornerDownLeft, ChevronDown } from "lucide-react";
 import { MicButton } from "@/components/MicButton";
 import { cn } from "@/lib/utils";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const QUADRANT_OPTIONS: { value: Eisenhower; label: string; icon: any; activeClass: string }[] = [
   { value: "urgente_importante", label: "Fazer agora", icon: Zap, activeClass: "bg-destructive/15 border-destructive text-destructive" },
