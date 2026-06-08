@@ -55,6 +55,7 @@ export default function Hoje() {
   const [focusTasks, setFocusTasks] = useState<FocusTask[]>([]);
   const [focusFullTasks, setFocusFullTasks] = useState<any[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerTask, setDrawerTask] = useState<any>(null);
 
   const tasks = useMemo(() => filterByScope(tasksAll, scope), [tasksAll, scope]);
 
