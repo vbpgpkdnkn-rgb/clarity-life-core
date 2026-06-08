@@ -318,17 +318,47 @@ export default function Hoje() {
             <Button onClick={captureIdea} className="h-11 px-4">
               Capturar
             </Button>
+            <Button
+              variant="outline"
+              className="h-11 px-3"
+              onClick={() => {
+                const title = quick.trim();
+                setDrawerTask(title ? { title, due_date: today } : null);
+                setQuick("");
+                setDrawerOpen(true);
+              }}
+              title="Classificar antes de salvar"
+            >
+              <LayoutGrid className="h-4 w-4 mr-1" />
+              Classificar
+            </Button>
           </div>
         </Card>
       </div>
 
+      <Button
+        onClick={() => {
+          setDrawerTask(null);
+          setDrawerOpen(true);
+        }}
+        className="fixed bottom-6 right-6 rounded-full h-12 w-12 shadow-lg z-50 p-0"
+        aria-label="Nova tarefa"
+      >
+        <Plus className="h-5 w-5" />
+      </Button>
+
+      <TaskFormDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        task={drawerTask}
+        defaultDate={today}
+      />
       <FocusSessionDialog
         open={sessionOpen}
         onOpenChange={setSessionOpen}
         tasks={focusTasks}
         fullTasks={focusFullTasks}
       />
-      <TaskFormDrawer open={drawerOpen} onOpenChange={setDrawerOpen} defaultDate={today} />
     </AppLayout>
   );
 }
