@@ -143,6 +143,7 @@ export default function Hoje() {
       due_date: today,
       status: "pendente",
       priority: "alta",
+      eisenhower: "urgente_importante",
       scope: defaultScope(scope),
     });
     setQuick("");
