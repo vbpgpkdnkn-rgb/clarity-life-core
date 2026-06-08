@@ -118,6 +118,37 @@ export function TaskFormDrawer({
         </SheetHeader>
         <div className="space-y-4 mt-6">
           <div>
+            <Label className="mb-2 block">Quadrante</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {QUADRANT_OPTIONS.map((opt) => {
+                const Icon = opt.icon;
+                const active = form.eisenhower === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        eisenhower: opt.value,
+                        priority: QUADRANT_TO_PRIORITY[opt.value],
+                      })
+                    }
+                    className={cn(
+                      "flex items-center gap-2 rounded-md border px-3 py-2.5 text-sm transition-colors text-left",
+                      active
+                        ? opt.activeClass
+                        : "border-border bg-card hover:bg-muted/50 text-foreground",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="font-medium">{opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div>
             <Label>Título</Label>
             <InputWithMic
               value={form.title || ""}
