@@ -22,7 +22,7 @@ import { useTasks, useUpsertTask, useDeleteTask } from "@/hooks/useData";
 import { useTherapySessions, usePatients } from "@/hooks/usePsicoterapia";
 import { useScope, filterByScope, defaultScope } from "@/contexts/ScopeContext";
 import { todayISO, formatDateLong, addDaysISO } from "@/lib/format";
-import { Play, Trash2, Zap, CalendarDays, Clock, CornerDownLeft, ChevronDown, Plus } from "lucide-react";
+import { Play, Trash2, Zap, CalendarDays, Clock, CornerDownLeft, ChevronDown, Plus, LayoutGrid } from "lucide-react";
 import { toast } from "sonner";
 
 type Quadrant =
