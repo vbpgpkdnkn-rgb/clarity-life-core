@@ -9,6 +9,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Auth from "./pages/Auth";
 import Foco from "./pages/Foco";
+import Hoje from "./pages/Hoje";
 import Dashboard from "./pages/Dashboard";
 import Tarefas from "./pages/Tarefas";
 import PlannerDiario from "./pages/PlannerDiario";
@@ -57,7 +58,8 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <Routes>
-                      <Route path="/" element={<PlannerDiario />} />
+                      <Route path="/" element={<Hoje />} />
+                      <Route path="/foco" element={<Foco />} />
                       <Route path="/visao-geral" element={<Dashboard />} />
                       <Route path="/planner" element={<PlannerDiario />} />
                       <Route path="/planner/semanal" element={<PlannerSemanal />} />

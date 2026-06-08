@@ -19,7 +19,9 @@ import {
 } from "@/components/ui/sidebar";
 
 const items = [
-  { title: "Planner", url: "/", icon: CalendarDays, end: true },
+  { title: "Hoje", url: "/", icon: CalendarDays, end: true },
+  { title: "Foco", url: "/foco", icon: Target },
+  { title: "Planner", url: "/planner", icon: CalendarDays },
   { title: "Visão geral", url: "/visao-geral", icon: LayoutDashboard },
   { title: "Tarefas", url: "/tarefas", icon: ListTodo },
   { title: "Projetos", url: "/projetos", icon: FolderKanban },
