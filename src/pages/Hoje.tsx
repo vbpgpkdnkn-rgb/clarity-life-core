@@ -1,34 +1,45 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { FocusSessionDialog, type FocusTask } from "@/components/foco/FocusSessionDialog";
-import { supabase } from "@/integrations/supabase/client";
-import { useTasks, useUpsertTask } from "@/hooks/useData";
+import { TaskFormDrawer } from "@/components/forms/TaskFormDrawer";
+import { useTasks, useUpsertTask, useDeleteTask } from "@/hooks/useData";
 import { useTherapySessions, usePatients } from "@/hooks/usePsicoterapia";
-import { useContentProjects } from "@/hooks/useContentProject";
 import { useScope, filterByScope, defaultScope } from "@/contexts/ScopeContext";
-import { todayISO, formatDateLong } from "@/lib/format";
-import { Play, Sparkles } from "lucide-react";
+import { todayISO, formatDateLong, addDaysISO } from "@/lib/format";
+import { Play, Trash2, Zap, CalendarDays, Clock, CornerDownLeft, ChevronDown, Plus } from "lucide-react";
 import { toast } from "sonner";
 
-interface FocusItem {
-  task_id: string;
-  title: string;
-  reason?: string;
-}
-interface FocusPlan {
-  main_priority: { task_id?: string | null; title: string; why: string };
-  top_three: FocusItem[];
-  do_not_do: FocusItem[];
-  load: { level: string; advice: string };
-}
+type Quadrant =
+  | "urgente_importante"
+  | "importante_nao_urgente"
+  | "urgente_nao_importante"
+  | "nao_urgente_nao_importante";
 
-const CONTENT_HINT = /(conte[uú]do|post|reel|carross?el|story|stories|roteiro|grava[cç][aã]o)/i;
+function inferQuadrant(t: any, today: string): Quadrant {
+  if (t.eisenhower) return t.eisenhower as Quadrant;
+  const urgent = !!t.due_date && t.due_date <= today;
+  const important = t.priority === "alta";
+  if (urgent && important) return "urgente_importante";
+  if (!urgent && important) return "importante_nao_urgente";
+  if (urgent && !important) return "urgente_nao_importante";
+  return "nao_urgente_nao_importante";
+}
 
 export default function Hoje() {
   const today = todayISO();
@@ -36,54 +47,62 @@ export default function Hoje() {
   const { data: tasksAll = [] } = useTasks();
   const { data: sessions = [] } = useTherapySessions({ from: today, to: today });
   const { data: patients = [] } = usePatients();
-  const { data: projects = [] } = useContentProjects();
   const upsertTask = useUpsertTask();
+  const deleteTask = useDeleteTask();
 
   const [quick, setQuick] = useState("");
   const [sessionOpen, setSessionOpen] = useState(false);
   const [focusTasks, setFocusTasks] = useState<FocusTask[]>([]);
   const [focusFullTasks, setFocusFullTasks] = useState<any[]>([]);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const tasks = useMemo(() => filterByScope(tasksAll, scope), [tasksAll, scope]);
 
-  const candidateTasks = useMemo(
+  // Tarefas relevantes para hoje: due_date <= today (inclui atrasadas) OU prioridade alta sem data
+  const todayTasks = useMemo(
     () =>
       tasks.filter(
-        (t: any) => t.status !== "concluida" && (t.due_date == null || t.due_date <= today),
+        (t: any) =>
+          t.status !== "concluida" &&
+          ((t.due_date && t.due_date <= today) ||
+            (!t.due_date && t.priority === "alta")),
       ),
     [tasks, today],
   );
 
-  const focusQuery = useQuery({
-    queryKey: ["daily-focus", today, scope, candidateTasks.length],
-    enabled: candidateTasks.length > 0,
-    staleTime: 1000 * 60 * 30,
-    refetchOnWindowFocus: false,
-    retry: 1,
-    queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("daily-focus", {
-        body: {
-          date: today,
-          scope,
-          tasks: candidateTasks.map((t: any) => ({
-            id: t.id,
-            title: t.title,
-            due_date: t.due_date,
-            priority: t.priority,
-            status: t.status,
-            scope: t.scope,
-            goal_id: t.goal_id,
-          })),
-          goals: [],
-          events: [],
-        },
-      });
-      if (error) throw error;
-      return data as { focus: FocusPlan };
-    },
-  });
+  const futureImportant = useMemo(
+    () =>
+      tasks.filter(
+        (t: any) =>
+          t.status !== "concluida" &&
+          t.priority === "alta" &&
+          t.due_date &&
+          t.due_date > today,
+      ),
+    [tasks, today],
+  );
 
-  const plan = focusQuery.data?.focus;
+  const quadrants = useMemo(() => {
+    const groups: Record<Quadrant, any[]> = {
+      urgente_importante: [],
+      importante_nao_urgente: [],
+      urgente_nao_importante: [],
+      nao_urgente_nao_importante: [],
+    };
+    for (const t of todayTasks) groups[inferQuadrant(t, today)].push(t);
+    for (const t of futureImportant) {
+      // pode entrar como importante_nao_urgente se eisenhower não estiver setado pra outra coisa
+      const q = inferQuadrant(t, today);
+      if (q === "importante_nao_urgente") groups[q].push(t);
+    }
+    return groups;
+  }, [todayTasks, futureImportant, today]);
+
+  const completedToday = useMemo(
+    () => tasks.filter((t: any) => t.status === "concluida" && t.due_date === today),
+    [tasks, today],
+  );
+
   const patientById = useMemo(
     () => Object.fromEntries((patients as any[]).map((p) => [p.id, p])),
     [patients],
@@ -99,47 +118,20 @@ export default function Hoje() {
     });
   };
 
-  const startTask = (taskId: string, title: string) => {
-    const full = tasks.find((x: any) => x.id === taskId);
-    if (!full) {
-      toast.error("Tarefa não encontrada");
-      return;
-    }
-    setFocusTasks([{ task_id: taskId, title }]);
-    setFocusFullTasks([full]);
+  const startTask = (t: any) => {
+    setFocusTasks([{ task_id: t.id, title: t.title }]);
+    setFocusFullTasks([t]);
     setSessionOpen(true);
   };
 
-  // Conteúdo block
-  const contentTasksToday = useMemo(
-    () =>
-      tasks.filter(
-        (t: any) =>
-          t.due_date === today &&
-          t.status !== "concluida" &&
-          t.scope === "profissional" &&
-          CONTENT_HINT.test(t.title || ""),
-      ),
-    [tasks, today],
-  );
+  const moveToToday = (t: any) => {
+    upsertTask.mutate({ ...t, due_date: today });
+    toast.success("Movido para hoje");
+  };
 
-  const oldestPipelineProject = useMemo(() => {
-    const open = (projects as any[]).filter((p) => p.status !== "concluido" && p.status !== "arquivado");
-    return open[open.length - 1] ?? null;
-  }, [projects]);
-
-  const showContent = contentTasksToday.length > 0 || !!oldestPipelineProject;
-
-  const putContentIntoDay = async () => {
-    if (!oldestPipelineProject) return;
-    await upsertTask.mutateAsync({
-      title: `Conteúdo: ${oldestPipelineProject.title}`,
-      due_date: today,
-      priority: "media",
-      status: "pendente",
-      scope: "profissional",
-    });
-    toast.success("Adicionado ao dia");
+  const snooze = (t: any) => {
+    upsertTask.mutate({ ...t, due_date: addDaysISO(today, 1) });
+    toast.success("Adiada 1 dia");
   };
 
   const captureIdea = async () => {
@@ -147,85 +139,149 @@ export default function Hoje() {
     if (!title) return;
     await upsertTask.mutateAsync({
       title,
+      due_date: today,
       status: "pendente",
-      priority: "media",
+      priority: "alta",
       scope: defaultScope(scope),
     });
     setQuick("");
     toast.success("Capturado ✓");
   };
 
+  const clearCompleted = async () => {
+    for (const t of completedToday) {
+      await deleteTask.mutateAsync(t.id);
+    }
+    toast.success("Concluídas removidas");
+  };
+
+  const totalShown =
+    quadrants.urgente_importante.length +
+    quadrants.importante_nao_urgente.length +
+    quadrants.urgente_nao_importante.length +
+    quadrants.nao_urgente_nao_importante.length;
+
+  const headerAction = completedToday.length > 0 ? (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
+          <Trash2 className="h-3.5 w-3.5 mr-1" />
+          Limpar concluídas ({completedToday.length})
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Limpar concluídas?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Remover todas as tarefas concluídas de hoje? Esta ação não pode ser desfeita.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={clearCompleted}>Remover</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  ) : null;
+
   return (
-    <AppLayout title="Hoje" subtitle={formatDateLong(today)}>
-      <div className="space-y-6 max-w-3xl mx-auto">
-        {/* BLOCO 1 — PRIORIDADE */}
-        <Card className="p-6 border-l-4 border-l-accent border-y border-r border-border/60 shadow-none rounded-md">
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-accent mb-3">
-            <Sparkles className="h-3 w-3" />
-            Prioridade do dia
-          </div>
-
-          {candidateTasks.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma tarefa para hoje. Adicione uma abaixo ↓
-            </p>
-          ) : focusQuery.isLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-7 w-3/4" />
-              <Skeleton className="h-5 w-full" />
-              <Skeleton className="h-5 w-2/3" />
-            </div>
-          ) : plan ? (
-            <>
-              <h2 className="font-display text-2xl font-semibold leading-tight mb-1">
-                {plan.main_priority.title}
-              </h2>
-              {plan.main_priority.why && (
-                <p className="text-sm text-muted-foreground mb-5">{plan.main_priority.why}</p>
+    <AppLayout title="Hoje" subtitle={formatDateLong(today)} action={headerAction}>
+      <div className="space-y-4 max-w-3xl mx-auto">
+        {totalShown === 0 ? (
+          <Card className="p-8 text-center border-border/60 shadow-none">
+            <p className="text-sm text-muted-foreground mb-4">Nenhuma tarefa para hoje.</p>
+            <Button onClick={() => setDrawerOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" /> Adicionar tarefa
+            </Button>
+          </Card>
+        ) : (
+          <>
+            <QuadrantSection
+              title="Fazer agora"
+              icon={<Zap className="h-4 w-4" />}
+              tasks={quadrants.urgente_importante}
+              bg="bg-destructive/10"
+              border="border-l-destructive"
+              onToggle={toggleTask}
+              actions={(t) => (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => startTask(t)}
+                >
+                  <Play className="h-3 w-3 mr-1" />
+                  Iniciar
+                </Button>
               )}
-
-              <ul className="space-y-2">
-                {plan.top_three.map((it) => {
-                  const full = tasks.find((t: any) => t.id === it.task_id) as any;
-                  const done = full?.status === "concluida";
-                  return (
-                    <li
-                      key={it.task_id}
-                      className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/40 group"
-                    >
-                      <Checkbox
-                        checked={done}
-                        onCheckedChange={() => toggleTask(full)}
-                        disabled={!full}
-                      />
-                      <span
-                        className={`flex-1 text-sm ${done ? "line-through text-muted-foreground" : ""}`}
-                      >
-                        {it.title}
+            />
+            <QuadrantSection
+              title="Agendar um tempo"
+              icon={<CalendarDays className="h-4 w-4" />}
+              tasks={quadrants.importante_nao_urgente}
+              bg="bg-primary/10"
+              border="border-l-primary"
+              onToggle={toggleTask}
+              actions={(t) => (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => moveToToday(t)}
+                >
+                  Mover para hoje
+                </Button>
+              )}
+            />
+            <QuadrantSection
+              title="Encaixar no dia"
+              icon={<Clock className="h-4 w-4" />}
+              tasks={quadrants.urgente_nao_importante}
+              bg="bg-warning/10"
+              border="border-l-warning"
+              onToggle={toggleTask}
+            />
+            {quadrants.nao_urgente_nao_importante.length > 0 && (
+              <Collapsible>
+                <Card className="bg-muted/40 border-l-4 border-l-muted-foreground/30 border-y border-r border-border/60 shadow-none rounded-md overflow-hidden">
+                  <CollapsibleTrigger className="w-full px-4 py-3 flex items-center justify-between text-sm hover:bg-muted/30">
+                    <span className="flex items-center gap-2 font-medium text-muted-foreground">
+                      <CornerDownLeft className="h-4 w-4" />
+                      Remanejar ou eliminar
+                      <span className="text-xs opacity-70">
+                        ({quadrants.nao_urgente_nao_importante.length})
                       </span>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => startTask(it.task_id, it.title)}
-                        disabled={!full || done}
-                      >
-                        <Play className="h-3 w-3 mr-1" />
-                        Iniciar
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Não foi possível carregar o plano agora.
-            </p>
-          )}
-        </Card>
+                    </span>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="px-4 pb-3 pt-1 space-y-1.5">
+                      {quadrants.nao_urgente_nao_importante.map((t: any) => (
+                        <TaskRow
+                          key={t.id}
+                          task={t}
+                          onToggle={toggleTask}
+                          actions={
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => snooze(t)}
+                            >
+                              Adiar 1 dia
+                            </Button>
+                          }
+                        />
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
+            )}
+          </>
+        )}
 
-        {/* BLOCO 2 — SESSÕES */}
+        {/* Sessões */}
         {sessions.length > 0 && (
           <Card className="p-5 border-border/60 shadow-none">
             <h3 className="font-display text-base font-semibold mb-3">Clínica hoje</h3>
@@ -242,39 +298,7 @@ export default function Hoje() {
           </Card>
         )}
 
-        {/* BLOCO 3 — CONTEÚDO */}
-        {showContent && (
-          <Card className="p-5 border-border/60 shadow-none">
-            <h3 className="font-display text-base font-semibold mb-3">Conteúdo</h3>
-            {contentTasksToday.length > 0 ? (
-              <ul className="space-y-1.5">
-                {contentTasksToday.map((t: any) => (
-                  <li key={t.id} className="flex items-center gap-3 text-sm">
-                    <Checkbox
-                      checked={t.status === "concluida"}
-                      onCheckedChange={() => toggleTask(t)}
-                    />
-                    <span>{t.title}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : oldestPipelineProject ? (
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">
-                    {oldestPipelineProject.title}
-                  </div>
-                  <div className="text-xs text-muted-foreground">No pipeline</div>
-                </div>
-                <Button size="sm" variant="outline" onClick={putContentIntoDay}>
-                  Colocar no meu dia
-                </Button>
-              </div>
-            ) : null}
-          </Card>
-        )}
-
-        {/* BLOCO 4 — CAPTURA */}
+        {/* Captura */}
         <Card className="p-5 border-border/60 shadow-none">
           <div className="flex gap-2">
             <Input
@@ -302,6 +326,63 @@ export default function Hoje() {
         tasks={focusTasks}
         fullTasks={focusFullTasks}
       />
+      <TaskFormDrawer open={drawerOpen} onOpenChange={setDrawerOpen} defaultDate={today} />
     </AppLayout>
+  );
+}
+
+function QuadrantSection({
+  title,
+  icon,
+  tasks,
+  bg,
+  border,
+  onToggle,
+  actions,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  tasks: any[];
+  bg: string;
+  border: string;
+  onToggle: (t: any) => void;
+  actions?: (t: any) => React.ReactNode;
+}) {
+  if (tasks.length === 0) return null;
+  return (
+    <Card className={`${bg} border-l-4 ${border} border-y border-r border-border/60 shadow-none rounded-md p-4`}>
+      <div className="flex items-center gap-2 text-sm font-medium mb-3">
+        {icon}
+        {title}
+      </div>
+      <div className="space-y-1.5">
+        {tasks.map((t) => (
+          <TaskRow key={t.id} task={t} onToggle={onToggle} actions={actions?.(t)} />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function TaskRow({
+  task,
+  onToggle,
+  actions,
+}: {
+  task: any;
+  onToggle: (t: any) => void;
+  actions?: React.ReactNode;
+}) {
+  const done = task.status === "concluida";
+  return (
+    <div className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-background/60 group">
+      <Checkbox checked={done} onCheckedChange={() => onToggle(task)} />
+      <span className={`flex-1 text-sm ${done ? "line-through text-muted-foreground" : ""}`}>
+        {task.title}
+      </span>
+      {actions && (
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity">{actions}</div>
+      )}
+    </div>
   );
 }

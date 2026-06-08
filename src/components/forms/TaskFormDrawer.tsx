@@ -9,8 +9,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCategories, useGoals, useUpsertTask, useDeleteTask, useMilestones } from "@/hooks/useData";
 import { usePatients } from "@/hooks/usePsicoterapia";
 import { todayISO } from "@/lib/format";
-import { Trash2, Target, Brain } from "lucide-react";
+import { Trash2, Target, Brain, Zap, CalendarDays, Clock, CornerDownLeft } from "lucide-react";
 import { MicButton } from "@/components/MicButton";
+import { cn } from "@/lib/utils";
+
+const QUADRANT_OPTIONS: { value: Eisenhower; label: string; icon: any; activeClass: string }[] = [
+  { value: "urgente_importante", label: "Fazer agora", icon: Zap, activeClass: "bg-destructive/15 border-destructive text-destructive" },
+  { value: "importante_nao_urgente", label: "Planejar", icon: CalendarDays, activeClass: "bg-primary/15 border-primary text-primary" },
+  { value: "urgente_nao_importante", label: "Encaixar", icon: Clock, activeClass: "bg-warning/15 border-warning text-warning" },
+  { value: "nao_urgente_nao_importante", label: "Remanejar", icon: CornerDownLeft, activeClass: "bg-muted border-muted-foreground/40 text-muted-foreground" },
+];
+
+const QUADRANT_TO_PRIORITY: Record<Eisenhower, string> = {
+  urgente_importante: "alta",
+  importante_nao_urgente: "alta",
+  urgente_nao_importante: "media",
+  nao_urgente_nao_importante: "baixa",
+};
 
 type Eisenhower =
   | "urgente_importante"
@@ -102,6 +117,37 @@ export function TaskFormDrawer({
           <SheetTitle className="font-display text-2xl">{task ? "Editar tarefa" : "Nova tarefa"}</SheetTitle>
         </SheetHeader>
         <div className="space-y-4 mt-6">
+          <div>
+            <Label className="mb-2 block">Quadrante</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {QUADRANT_OPTIONS.map((opt) => {
+                const Icon = opt.icon;
+                const active = form.eisenhower === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        eisenhower: opt.value,
+                        priority: QUADRANT_TO_PRIORITY[opt.value],
+                      })
+                    }
+                    className={cn(
+                      "flex items-center gap-2 rounded-md border px-3 py-2.5 text-sm transition-colors text-left",
+                      active
+                        ? opt.activeClass
+                        : "border-border bg-card hover:bg-muted/50 text-foreground",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="font-medium">{opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div>
             <Label>Título</Label>
             <InputWithMic
