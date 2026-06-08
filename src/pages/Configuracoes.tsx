@@ -133,7 +133,7 @@ export default function Configuracoes() {
   const runTotal = async () => {
     setTotalLoading(true);
     try {
-      await purgeTables([...OPERATIONAL_TABLES, ...TOTAL_EXTRA_TABLES]);
+      await deleteAll();
       queryClient.clear();
       toast.success("Tudo zerado. Bem-vinda ao começo.");
       setTimeout(() => {
