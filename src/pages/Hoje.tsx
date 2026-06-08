@@ -200,7 +200,7 @@ export default function Hoje() {
               title="Fazer agora"
               icon={<Zap className="h-4 w-4" />}
               tasks={quadrants.urgente_importante}
-              bg="bg-destructive/8"
+              bg="bg-destructive/10"
               border="border-l-destructive"
               onToggle={toggleTask}
               actions={(t) => (
@@ -219,7 +219,7 @@ export default function Hoje() {
               title="Agendar um tempo"
               icon={<CalendarDays className="h-4 w-4" />}
               tasks={quadrants.importante_nao_urgente}
-              bg="bg-primary/8"
+              bg="bg-primary/10"
               border="border-l-primary"
               onToggle={toggleTask}
               actions={(t) => (
@@ -237,7 +237,7 @@ export default function Hoje() {
               title="Encaixar no dia"
               icon={<Clock className="h-4 w-4" />}
               tasks={quadrants.urgente_nao_importante}
-              bg="bg-warning/8"
+              bg="bg-warning/10"
               border="border-l-warning"
               onToggle={toggleTask}
             />
