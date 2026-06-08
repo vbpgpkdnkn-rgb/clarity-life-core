@@ -22,7 +22,7 @@ import { useTasks, useUpsertTask, useDeleteTask } from "@/hooks/useData";
 import { useTherapySessions, usePatients } from "@/hooks/usePsicoterapia";
 import { useScope, filterByScope, defaultScope } from "@/contexts/ScopeContext";
 import { todayISO, formatDateLong, addDaysISO } from "@/lib/format";
-import { Play, Trash2, Zap, CalendarDays, Clock, CornerDownLeft, ChevronDown, Plus } from "lucide-react";
+import { Play, Trash2, Zap, CalendarDays, Clock, CornerDownLeft, ChevronDown, Plus, LayoutGrid } from "lucide-react";
 import { toast } from "sonner";
 
 type Quadrant =
@@ -55,6 +55,7 @@ export default function Hoje() {
   const [focusTasks, setFocusTasks] = useState<FocusTask[]>([]);
   const [focusFullTasks, setFocusFullTasks] = useState<any[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerTask, setDrawerTask] = useState<any>(null);
 
   const tasks = useMemo(() => filterByScope(tasksAll, scope), [tasksAll, scope]);
 
@@ -142,6 +143,7 @@ export default function Hoje() {
       due_date: today,
       status: "pendente",
       priority: "alta",
+      eisenhower: "urgente_importante",
       scope: defaultScope(scope),
     });
     setQuick("");
@@ -316,17 +318,47 @@ export default function Hoje() {
             <Button onClick={captureIdea} className="h-11 px-4">
               Capturar
             </Button>
+            <Button
+              variant="outline"
+              className="h-11 px-3"
+              onClick={() => {
+                const title = quick.trim();
+                setDrawerTask(title ? { title, due_date: today } : null);
+                setQuick("");
+                setDrawerOpen(true);
+              }}
+              title="Classificar antes de salvar"
+            >
+              <LayoutGrid className="h-4 w-4 mr-1" />
+              Classificar
+            </Button>
           </div>
         </Card>
       </div>
 
+      <Button
+        onClick={() => {
+          setDrawerTask(null);
+          setDrawerOpen(true);
+        }}
+        className="fixed bottom-6 right-6 rounded-full h-12 w-12 shadow-lg z-50 p-0"
+        aria-label="Nova tarefa"
+      >
+        <Plus className="h-5 w-5" />
+      </Button>
+
+      <TaskFormDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        task={drawerTask}
+        defaultDate={today}
+      />
       <FocusSessionDialog
         open={sessionOpen}
         onOpenChange={setSessionOpen}
         tasks={focusTasks}
         fullTasks={focusFullTasks}
       />
-      <TaskFormDrawer open={drawerOpen} onOpenChange={setDrawerOpen} defaultDate={today} />
     </AppLayout>
   );
 }
