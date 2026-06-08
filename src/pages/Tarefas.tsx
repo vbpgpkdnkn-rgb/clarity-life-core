@@ -6,10 +6,22 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScopeBadge } from "@/components/ScopeBadge";
 import { TaskFormDrawer } from "@/components/forms/TaskFormDrawer";
-import { useTasks, useUpsertTask } from "@/hooks/useData";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useTasks, useUpsertTask, useDeleteTask } from "@/hooks/useData";
 import { useScope, filterByScope, defaultScope } from "@/contexts/ScopeContext";
 import { todayISO, formatDateBR, addDaysISO, endOfWeekISO } from "@/lib/format";
-import { Plus, AlertCircle, Calendar, Target, GripVertical } from "lucide-react";
+import { Plus, AlertCircle, Calendar, Target, GripVertical, ChevronDown, Trash2 } from "lucide-react";
 
 const PRIORITY_DOT: Record<string, string> = {
   alta: "bg-destructive",
@@ -17,13 +29,30 @@ const PRIORITY_DOT: Record<string, string> = {
   baixa: "bg-muted-foreground/40",
 };
 
-type Status = "pendente" | "em_andamento" | "concluida";
+type Quadrant =
+  | "urgente_importante"
+  | "importante_nao_urgente"
+  | "urgente_nao_importante"
+  | "nao_urgente_nao_importante";
 
-const COLUMNS: { key: Status; title: string; tone: string }[] = [
-  { key: "pendente", title: "A fazer", tone: "border-t-muted-foreground/40" },
-  { key: "em_andamento", title: "Em andamento", tone: "border-t-warning" },
-  { key: "concluida", title: "Concluídas", tone: "border-t-success" },
-];
+const QUADRANT_META: Record<Quadrant, { label: string; className: string }> = {
+  urgente_importante: { label: "Agora", className: "bg-destructive/15 text-destructive border-destructive/30" },
+  importante_nao_urgente: { label: "Planejar", className: "bg-primary/15 text-primary border-primary/30" },
+  urgente_nao_importante: { label: "Encaixar", className: "bg-warning/15 text-warning border-warning/30" },
+  nao_urgente_nao_importante: { label: "Remanejar", className: "bg-muted text-muted-foreground border-border" },
+};
+
+function inferQuadrant(t: any, today: string): Quadrant {
+  if (t.eisenhower) return t.eisenhower as Quadrant;
+  const urgent = !!t.due_date && t.due_date <= today;
+  const important = t.priority === "alta";
+  if (urgent && important) return "urgente_importante";
+  if (!urgent && important) return "importante_nao_urgente";
+  if (urgent && !important) return "urgente_nao_importante";
+  return "nao_urgente_nao_importante";
+}
+
+type Status = "pendente" | "em_andamento" | "concluida";
 
 type DateFilter = "todas" | "atrasadas" | "hoje" | "semana" | "futuro" | "semData";
 
@@ -31,11 +60,12 @@ export default function Tarefas() {
   const { data: tasks = [] } = useTasks();
   const { scope } = useScope();
   const upsert = useUpsertTask();
+  const del = useDeleteTask();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [defaultDate, setDefaultDate] = useState<string>(todayISO());
   const [quickInput, setQuickInput] = useState("");
-  const [dateFilter, setDateFilter] = useState<DateFilter>("todas");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("hoje");
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
   const today = todayISO();
@@ -74,7 +104,6 @@ export default function Tarefas() {
       const k = (t.status as Status) || "pendente";
       if (map[k]) map[k].push(t);
     }
-    // Ordenação dentro da coluna: alta > média > baixa, depois por data
     const prioOrder: Record<string, number> = { alta: 0, media: 1, baixa: 2 };
     for (const k of Object.keys(map) as Status[]) {
       map[k].sort((a, b) => {
@@ -125,6 +154,12 @@ export default function Tarefas() {
     setDrawerOpen(true);
   };
 
+  const clearCompletedInFilter = async () => {
+    for (const t of byColumn.concluida) {
+      await del.mutateAsync(t.id);
+    }
+  };
+
   return (
     <AppLayout
       title="Tarefas"
@@ -169,34 +204,117 @@ export default function Tarefas() {
         )}
       </div>
 
-      {/* Kanban */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {COLUMNS.map((col) => (
-          <Column
-            key={col.key}
-            title={col.title}
-            tone={col.tone}
-            tasks={byColumn[col.key]}
-            isOver={draggingId !== null}
-            onDrop={(taskId) => {
-              const t = (tasks as any[]).find((x) => x.id === taskId);
-              if (t) moveToStatus(t, col.key);
-              setDraggingId(null);
-            }}
-            onAdd={col.key === "pendente" ? () => openNew(today) : undefined}
-            renderCard={(t) => (
-              <TaskCard
-                key={t.id}
-                task={t}
-                onEdit={() => openEdit(t)}
-                onDragStart={() => setDraggingId(t.id)}
-                onDragEnd={() => setDraggingId(null)}
-                onReschedule={(d) => reschedule(t, d)}
-              />
-            )}
-          />
-        ))}
+      {/* Kanban: pendente + em_andamento */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <Column
+          title="A fazer"
+          tone="border-t-muted-foreground/40"
+          tasks={byColumn.pendente}
+          isOver={draggingId !== null}
+          onDrop={(taskId) => {
+            const t = (tasks as any[]).find((x) => x.id === taskId);
+            if (t) moveToStatus(t, "pendente");
+            setDraggingId(null);
+          }}
+          onAdd={() => openNew(today)}
+          renderCard={(t) => (
+            <TaskCard
+              key={t.id}
+              task={t}
+              today={today}
+              onEdit={() => openEdit(t)}
+              onDragStart={() => setDraggingId(t.id)}
+              onDragEnd={() => setDraggingId(null)}
+              onReschedule={(d) => reschedule(t, d)}
+            />
+          )}
+        />
+        <Column
+          title="Em andamento"
+          tone="border-t-warning"
+          tasks={byColumn.em_andamento}
+          isOver={draggingId !== null}
+          onDrop={(taskId) => {
+            const t = (tasks as any[]).find((x) => x.id === taskId);
+            if (t) moveToStatus(t, "em_andamento");
+            setDraggingId(null);
+          }}
+          renderCard={(t) => (
+            <TaskCard
+              key={t.id}
+              task={t}
+              today={today}
+              onEdit={() => openEdit(t)}
+              onDragStart={() => setDraggingId(t.id)}
+              onDragEnd={() => setDraggingId(null)}
+              onReschedule={(d) => reschedule(t, d)}
+            />
+          )}
+        />
       </div>
+
+      {/* Concluídas — collapsible */}
+      <Collapsible>
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            const id = e.dataTransfer.getData("text/plain");
+            const t = (tasks as any[]).find((x) => x.id === id);
+            if (t) moveToStatus(t, "concluida");
+            setDraggingId(null);
+          }}
+          className="rounded-md border border-t-2 border-t-success bg-card/50 shadow-soft"
+        >
+          <div className="px-3 py-2 flex items-center justify-between border-b border-border/60">
+            <CollapsibleTrigger className="flex items-center gap-2 text-sm font-display font-semibold hover:text-foreground/80">
+              <ChevronDown className="h-3.5 w-3.5 transition-transform data-[state=closed]:-rotate-90" />
+              Ver concluídas
+              <Badge variant="outline" className="text-[10px] tabular-nums">{byColumn.concluida.length}</Badge>
+            </CollapsibleTrigger>
+            {byColumn.concluida.length > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground">
+                    <Trash2 className="h-3 w-3 mr-1" /> Limpar tudo
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Limpar concluídas?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Remover todas as {byColumn.concluida.length} tarefas concluídas visíveis? Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={clearCompletedInFilter}>Remover</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
+          <CollapsibleContent>
+            <div className="p-2 space-y-2">
+              {byColumn.concluida.length === 0 ? (
+                <div className="text-xs text-muted-foreground text-center py-4">Nada concluído ainda</div>
+              ) : (
+                byColumn.concluida.map((t) => (
+                  <TaskCard
+                    key={t.id}
+                    task={t}
+                    today={today}
+                    onEdit={() => openEdit(t)}
+                    onDragStart={() => setDraggingId(t.id)}
+                    onDragEnd={() => setDraggingId(null)}
+                    onReschedule={(d) => reschedule(t, d)}
+                  />
+                ))
+              )}
+            </div>
+          </CollapsibleContent>
+        </div>
+      </Collapsible>
 
       <TaskFormDrawer open={drawerOpen} onOpenChange={setDrawerOpen} task={editing} defaultDate={defaultDate} />
     </AppLayout>
@@ -278,15 +396,18 @@ function Column({
 }
 
 function TaskCard({
-  task, onEdit, onDragStart, onDragEnd, onReschedule,
+  task, today, onEdit, onDragStart, onDragEnd, onReschedule,
 }: {
   task: any;
+  today: string;
   onEdit: () => void;
   onDragStart: () => void;
   onDragEnd: () => void;
   onReschedule: (days: number) => void;
 }) {
-  const overdue = task.due_date && task.status !== "concluida" && task.due_date < todayISO();
+  const overdue = task.due_date && task.status !== "concluida" && task.due_date < today;
+  const q = inferQuadrant(task, today);
+  const qmeta = QUADRANT_META[q];
   return (
     <div
       draggable
@@ -303,9 +424,12 @@ function TaskCard({
       <div className="flex items-start gap-1.5">
         <GripVertical className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
         <div className="flex-1 min-w-0" onClick={onEdit}>
-          <div className="flex items-center gap-1.5 mb-1.5">
+          <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
             <span className={`block h-2 w-2 rounded-full ${PRIORITY_DOT[task.priority]}`} />
             <ScopeBadge scope={task.scope} />
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${qmeta.className}`}>
+              {qmeta.label}
+            </span>
             {task.goal_id && <Target className="h-3 w-3 text-accent" />}
           </div>
           <p
