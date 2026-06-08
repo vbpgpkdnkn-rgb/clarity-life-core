@@ -9,8 +9,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCategories, useGoals, useUpsertTask, useDeleteTask, useMilestones } from "@/hooks/useData";
 import { usePatients } from "@/hooks/usePsicoterapia";
 import { todayISO } from "@/lib/format";
-import { Trash2, Target, Brain } from "lucide-react";
+import { Trash2, Target, Brain, Zap, CalendarDays, Clock, CornerDownLeft } from "lucide-react";
 import { MicButton } from "@/components/MicButton";
+import { cn } from "@/lib/utils";
+
+const QUADRANT_OPTIONS: { value: Eisenhower; label: string; icon: any; activeClass: string }[] = [
+  { value: "urgente_importante", label: "Fazer agora", icon: Zap, activeClass: "bg-destructive/15 border-destructive text-destructive" },
+  { value: "importante_nao_urgente", label: "Planejar", icon: CalendarDays, activeClass: "bg-primary/15 border-primary text-primary" },
+  { value: "urgente_nao_importante", label: "Encaixar", icon: Clock, activeClass: "bg-warning/15 border-warning text-warning" },
+  { value: "nao_urgente_nao_importante", label: "Remanejar", icon: CornerDownLeft, activeClass: "bg-muted border-muted-foreground/40 text-muted-foreground" },
+];
+
+const QUADRANT_TO_PRIORITY: Record<Eisenhower, string> = {
+  urgente_importante: "alta",
+  importante_nao_urgente: "alta",
+  urgente_nao_importante: "media",
+  nao_urgente_nao_importante: "baixa",
+};
 
 type Eisenhower =
   | "urgente_importante"
