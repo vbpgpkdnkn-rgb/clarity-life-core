@@ -119,7 +119,7 @@ export function TaskFormDrawer({
         </SheetHeader>
         <div className="space-y-4 mt-6">
           <div>
-            <Label className="mb-2 block">Quadrante</Label>
+            <Label className="mb-2 block">O que é essa tarefa?</Label>
             <div className="grid grid-cols-2 gap-2">
               {QUADRANT_OPTIONS.map((opt) => {
                 const Icon = opt.icon;
@@ -136,19 +136,19 @@ export function TaskFormDrawer({
                       })
                     }
                     className={cn(
-                      "flex items-center gap-2 rounded-md border px-3 py-2.5 text-sm transition-colors text-left",
-                      active
-                        ? opt.activeClass
-                        : "border-border bg-card hover:bg-muted/50 text-foreground",
+                      "rounded-xl border-2 p-3 cursor-pointer transition-all text-left w-full",
+                      active ? opt.activeClass : "bg-muted/30 border-border text-foreground hover:bg-muted/50",
                     )}
                   >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    <span className="font-medium">{opt.label}</span>
+                    <Icon className="h-4 w-4 mb-1.5" />
+                    <div className="font-semibold text-sm leading-tight">{opt.title}</div>
+                    <div className="text-[11px] opacity-70 mt-0.5">{opt.subtitle}</div>
                   </button>
                 );
               })}
             </div>
           </div>
+
           <div>
             <Label>Título</Label>
             <InputWithMic
@@ -158,29 +158,7 @@ export function TaskFormDrawer({
               autoFocus
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Escopo</Label>
-              <Select value={form.scope} onValueChange={(v) => setForm({ ...form, scope: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pessoal">Pessoal</SelectItem>
-                  <SelectItem value="profissional">Profissional</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Prioridade</Label>
-              <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="alta">Alta</SelectItem>
-                  <SelectItem value="media">Média</SelectItem>
-                  <SelectItem value="baixa">Baixa</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Data</Label>
@@ -191,118 +169,17 @@ export function TaskFormDrawer({
               />
             </div>
             <div>
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+              <Label>Escopo</Label>
+              <Select value={form.scope} onValueChange={(v) => setForm({ ...form, scope: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pendente">Pendente</SelectItem>
-                  <SelectItem value="em_andamento">Em andamento</SelectItem>
-                  <SelectItem value="concluida">Concluída</SelectItem>
+                  <SelectItem value="pessoal">Pessoal</SelectItem>
+                  <SelectItem value="profissional">Profissional</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
-          <div>
-            <Label>Categoria <span className="text-[10px] text-muted-foreground">({form.scope})</span></Label>
-            <Select
-              value={form.category_id ?? "none"}
-              onValueChange={(v) => setForm({ ...form, category_id: v === "none" ? null : v })}
-            >
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sem categoria</SelectItem>
-                {categories
-                  .filter((c) => c.scope === form.scope)
-                  .map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <Target className="h-3 w-3" /> Vínculo com meta
-            </div>
-            <div>
-              <Label className="text-xs">Meta</Label>
-              <Select
-                value={form.goal_id ?? "none"}
-                onValueChange={(v) => {
-                  const goalId = v === "none" ? null : v;
-                  const linked = goals.find((g: any) => g.id === goalId);
-                  setForm({
-                    ...form,
-                    goal_id: goalId,
-                    milestone_id: null, // reseta marco ao trocar de meta
-                    // Sincroniza escopo automaticamente com a meta
-                    scope: linked?.scope ?? form.scope,
-                  });
-                }}
-              >
-                <SelectTrigger><SelectValue placeholder="Nenhuma" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nenhuma</SelectItem>
-                  {goals
-                    .filter((g: any) => g.kind !== "financeiro" && g.status !== "concluida")
-                    .map((g: any) => (
-                      <SelectItem key={g.id} value={g.id}>
-                        {g.name}
-                        <span className="text-[10px] text-muted-foreground ml-1">({g.scope})</span>
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {form.goal_id && milestones.length > 0 && (
-              <div>
-                <Label className="text-xs">Marco / etapa</Label>
-                <Select
-                  value={form.milestone_id ?? "none"}
-                  onValueChange={(v) => setForm({ ...form, milestone_id: v === "none" ? null : v })}
-                >
-                  <SelectTrigger><SelectValue placeholder="Sem marco" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sem marco específico</SelectItem>
-                    {milestones.map((m: any) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.name}
-                        {m.deadline && (
-                          <span className="text-[10px] text-muted-foreground ml-1">
-                            (até {new Date(m.deadline + "T00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })})
-                          </span>
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-          <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-1">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <Brain className="h-3 w-3" /> Paciente (Psicoterapia)
-            </div>
-            <Select
-              value={form.patient_id ?? "none"}
-              onValueChange={(v) =>
-                setForm({
-                  ...form,
-                  patient_id: v === "none" ? null : v,
-                  scope: v !== "none" ? "profissional" : form.scope,
-                })
-              }
-            >
-              <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nenhum</SelectItem>
-                {(patients as any[])
-                  .filter((p) => p.status !== "encerrado")
-                  .map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
+
           <div>
             <Label>Notas</Label>
             <div className="relative">
@@ -317,6 +194,91 @@ export function TaskFormDrawer({
               </div>
             </div>
           </div>
+
+          <Collapsible>
+            <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-border bg-muted/20 px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/40">
+              <span className="flex items-center gap-1.5"><Target className="h-3 w-3" /> Vínculo com meta</span>
+              <ChevronDown className="h-3.5 w-3.5" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-3 rounded-md border border-t-0 border-border bg-muted/10 p-3">
+              <div>
+                <Label className="text-xs">Meta</Label>
+                <Select
+                  value={form.goal_id ?? "none"}
+                  onValueChange={(v) => {
+                    const goalId = v === "none" ? null : v;
+                    const linked = goals.find((g: any) => g.id === goalId);
+                    setForm({
+                      ...form,
+                      goal_id: goalId,
+                      milestone_id: null,
+                      scope: linked?.scope ?? form.scope,
+                    });
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Nenhuma" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhuma</SelectItem>
+                    {goals
+                      .filter((g: any) => g.kind !== "financeiro" && g.status !== "concluida")
+                      .map((g: any) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          {g.name}
+                          <span className="text-[10px] text-muted-foreground ml-1">({g.scope})</span>
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {form.goal_id && milestones.length > 0 && (
+                <div>
+                  <Label className="text-xs">Marco / etapa</Label>
+                  <Select
+                    value={form.milestone_id ?? "none"}
+                    onValueChange={(v) => setForm({ ...form, milestone_id: v === "none" ? null : v })}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Sem marco" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem marco específico</SelectItem>
+                      {milestones.map((m: any) => (
+                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+
+          <Collapsible>
+            <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-border bg-muted/20 px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/40">
+              <span className="flex items-center gap-1.5"><Brain className="h-3 w-3" /> Paciente</span>
+              <ChevronDown className="h-3.5 w-3.5" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="rounded-md border border-t-0 border-border bg-muted/10 p-3">
+              <Select
+                value={form.patient_id ?? "none"}
+                onValueChange={(v) =>
+                  setForm({
+                    ...form,
+                    patient_id: v === "none" ? null : v,
+                    scope: v !== "none" ? "profissional" : form.scope,
+                  })
+                }
+              >
+                <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {(patients as any[])
+                    .filter((p) => p.status !== "encerrado")
+                    .map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </CollapsibleContent>
+          </Collapsible>
+
           <div className="flex gap-2 pt-4">
             <Button onClick={save} className="flex-1">Salvar</Button>
             {task && (
