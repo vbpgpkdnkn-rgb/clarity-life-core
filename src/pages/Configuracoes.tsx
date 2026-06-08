@@ -86,6 +86,28 @@ async function purgeTables(tables: readonly string[]) {
   }
 }
 
+const TOTAL_DELETE_ORDER: { table: string; key: string }[] = [
+  "focus_sessions","habit_logs","daily_checkins","daily_plans","weekly_plans","weekly_reviews",
+  "brain_dump_items","gratitude_entries","free_notes","meal_plans","cleaning_logs","challenge_logs",
+  "ai_insights","performance_adjustments","session_analyses","agenda_imports","bank_statement_entries",
+  "tasks","events","transactions","content_project_stages","content_project_versions",
+  "content_project_locks","content_projects","content_pieces","content_ideas","content_stories",
+  "content_story_sequences","content_references","content_strategy","editorial_lines",
+  "idea_refinement_chats","audience_analyses","strategic_scripts","instagram_snapshots",
+  "content_metrics","book_notes","books","wishlist_items","dreamboard_items","life_areas",
+  "challenges","cleaning_tasks","project_okrs","projects","milestones","goals","therapy_sessions",
+  "patients","recurrences","accounts",
+].map((t) => ({ table: t, key: t === "content_project_locks" ? "project_id" : "id" }));
+
+async function deleteAll() {
+  for (const { table, key } of TOTAL_DELETE_ORDER) {
+    const { error } = await supabase.from(table as any).delete().neq(key, NIL_UUID);
+    if (error) {
+      throw new Error(`${table}: ${error.message}`);
+    }
+  }
+}
+
 export default function Configuracoes() {
   const queryClient = useQueryClient();
   const [opOpen, setOpOpen] = useState(false);
