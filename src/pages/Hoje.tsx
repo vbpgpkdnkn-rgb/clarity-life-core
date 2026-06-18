@@ -107,6 +107,8 @@ export default function Hoje() {
   const deleteTask = useDeleteTask();
 
   const [quick, setQuick] = useState("");
+  const [quickTime, setQuickTime] = useState<number | null>(null);
+  const [quickQuadrant, setQuickQuadrant] = useState<string>("urgente_importante");
   const [sessionOpen, setSessionOpen] = useState(false);
   const [focusTasks, setFocusTasks] = useState<FocusTask[]>([]);
   const [focusFullTasks, setFocusFullTasks] = useState<any[]>([]);
