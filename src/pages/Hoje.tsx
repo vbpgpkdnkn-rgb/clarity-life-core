@@ -202,19 +202,28 @@ export default function Hoje() {
     toast.success("Adiada 1 dia");
   };
 
-  const captureIdea = async () => {
+  const captureWithFields = async () => {
     const title = quick.trim();
     if (!title) return;
+    const priority =
+      quickQuadrant === "urgente_importante" || quickQuadrant === "importante_nao_urgente"
+        ? "alta"
+        : quickQuadrant === "urgente_nao_importante"
+        ? "media"
+        : "baixa";
     await upsertTask.mutateAsync({
       title,
       due_date: today,
       status: "pendente",
-      priority: "alta",
-      eisenhower: "urgente_importante",
+      priority,
+      eisenhower: quickQuadrant as any,
+      estimated_minutes: quickTime ?? undefined,
       scope: defaultScope(scope),
     });
     setQuick("");
-    toast.success("Capturado ✓");
+    setQuickTime(null);
+    setQuickQuadrant("urgente_importante");
+    toast.success("Tarefa adicionada ✓");
   };
 
   const clearCompleted = async () => {
