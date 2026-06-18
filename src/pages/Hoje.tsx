@@ -369,71 +369,109 @@ export default function Hoje() {
     (() => {
       const q = inferQuadrant(currentQueueTask, today);
       const meta = QUADRANT_META[q];
+      const stripeColor =
+        q === "urgente_importante"
+          ? "bg-destructive"
+          : q === "importante_nao_urgente"
+          ? "bg-primary"
+          : q === "urgente_nao_importante"
+          ? "bg-warning"
+          : "bg-muted-foreground";
       const totalSeconds = (currentQueueTask.estimated_minutes ?? 0) * 60;
       const progressPct =
         timeLeft !== null && totalSeconds > 0
           ? ((totalSeconds - timeLeft) / totalSeconds) * 100
           : 0;
+      const ratio = totalSeconds > 0 && timeLeft !== null ? timeLeft / totalSeconds : 1;
+      const urgencyText =
+        ratio > 0.6 ? "text-foreground" : ratio > 0.3 ? "text-warning" : "text-destructive animate-pulse";
+      const barColor =
+        ratio > 0.6
+          ? "[&>div]:bg-primary"
+          : ratio > 0.3
+          ? "[&>div]:bg-warning"
+          : "[&>div]:bg-destructive";
+      const isLast = queueIndex + 1 >= queue.length;
+      const longTitle = (currentQueueTask.title ?? "").length > 60;
       return (
-        <Card className="p-6 border-2 border-primary shadow-md">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-              Fazendo agora
-            </span>
-            <Badge className={meta.bg}>
-              {meta.icon} {meta.label}
-            </Badge>
-          </div>
-          <h3 className="font-display text-xl font-semibold mb-4">{currentQueueTask.title}</h3>
+        <Card className="relative overflow-hidden border-2 border-primary/40 shadow-lg p-0">
+          <div className={`h-1.5 ${stripeColor}`} />
+          <div className="p-6">
+            <div className="flex items-center justify-between">
+              <Badge className={meta.bg}>
+                {meta.icon} {meta.label}
+              </Badge>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {queueIndex + 1} de {queue.length} tarefas
+              </span>
+            </div>
 
-          {currentQueueTask.estimated_minutes ? (
-            <div className="space-y-3 mb-4">
-              <Progress value={progressPct} className="h-2" />
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-2xl tabular-nums">
+            <h3
+              className={`font-display font-semibold leading-tight mt-3 mb-5 ${
+                longTitle ? "text-xl" : "text-2xl"
+              }`}
+            >
+              {currentQueueTask.title}
+            </h3>
+
+            {currentQueueTask.estimated_minutes ? (
+              <div className="flex flex-col items-center gap-2 mb-5">
+                <span className={`font-mono text-5xl font-bold tabular-nums ${urgencyText}`}>
                   {formatMMSS(timeLeft ?? totalSeconds)}
                 </span>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setTimerRunning((r) => !r)}
-                  >
-                    {timerRunning ? (
-                      <>
-                        <Pause className="h-3.5 w-3.5 mr-1" /> Pausar
-                      </>
-                    ) : (
-                      <>
-                        <Play className="h-3.5 w-3.5 mr-1" /> Retomar
-                      </>
-                    )}
-                  </Button>
-                  <Button size="sm" onClick={advanceQueue}>
-                    <SkipForward className="h-3.5 w-3.5 mr-1" />
-                    Concluir e avançar
-                  </Button>
-                </div>
+                <Progress value={progressPct} className={`h-3 rounded-full w-full ${barColor}`} />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => setTimerRunning((r) => !r)}
+                >
+                  {timerRunning ? (
+                    <>
+                      <Pause className="h-3.5 w-3.5 mr-1" /> Pausar
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-3.5 w-3.5 mr-1" /> Retomar
+                    </>
+                  )}
+                </Button>
               </div>
-            </div>
-          ) : (
-            <div className="flex justify-center mb-4">
-              <Button onClick={advanceQueue}>
-                <Check className="h-4 w-4 mr-1" />
-                Concluir e avançar
+            ) : (
+              <p className="text-center text-muted-foreground text-sm mb-5">
+                Sem tempo estimado — conclua quando terminar
+              </p>
+            )}
+
+            <div className="flex justify-center">
+              <Button onClick={advanceQueue} className="h-12 px-8 text-base">
+                <Check className="h-4 w-4 mr-2" />
+                {isLast ? "Concluir — fim da fila! 🎉" : "Concluir e avançar"}
               </Button>
             </div>
-          )}
 
-          <div className="flex items-center justify-between text-sm text-muted-foreground border-t border-border/60 pt-3">
-            <span>
-              {nextQueueTask
-                ? `Próxima: ${nextQueueTask.title}`
-                : "Você terminou todas as tarefas de hoje 🎉"}
-            </span>
-            <span className="tabular-nums">
-              {queueIndex + 1} de {queue.length} tarefas
-            </span>
+            <div className="bg-muted/30 rounded-b-lg -mx-6 -mb-6 px-6 py-4 mt-4 border-t border-border/40">
+              {nextQueueTask ? (
+                <>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                    A seguir
+                  </p>
+                  <p className="text-sm font-medium mt-1">
+                    {nextQueueTask.title}
+                    {nextQueueTask.estimated_minutes ? (
+                      <span className="text-muted-foreground font-normal">
+                        {" · "}
+                        {nextQueueTask.estimated_minutes}min
+                      </span>
+                    ) : null}
+                  </p>
+                </>
+              ) : (
+                <p className="text-center text-sm text-muted-foreground">
+                  🎉 Você vai terminar tudo hoje!
+                </p>
+              )}
+            </div>
           </div>
         </Card>
       );
