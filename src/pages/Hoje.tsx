@@ -610,50 +610,70 @@ export default function Hoje() {
 
         {/* Captura */}
         <Card className="p-5 border-border/60 shadow-none">
-          <div className="flex gap-2">
-            <Input
-              value={quick}
-              onChange={(e) => setQuick(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  captureIdea();
-                }
-              }}
-              placeholder="O que está na sua cabeça agora?"
-              className="h-11"
-            />
-            <Button onClick={captureIdea} className="h-11 px-4">
-              Capturar
-            </Button>
-            <Button
-              variant="outline"
-              className="h-11 px-3"
-              onClick={() => {
-                const title = quick.trim();
-                setDrawerTask(title ? { title, due_date: today } : null);
-                setQuick("");
-                setDrawerOpen(true);
-              }}
-              title="Classificar antes de salvar"
+          <p className="text-sm font-medium text-muted-foreground mb-3">Nova tarefa</p>
+          <Input
+            value={quick}
+            onChange={(e) => setQuick(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                captureWithFields();
+              }
+            }}
+            placeholder="O que precisa ser feito?"
+            className="h-10 text-sm mb-2"
+          />
+          <div className="flex gap-2 items-center">
+            <Select
+              value={quickTime ? String(quickTime) : ""}
+              onValueChange={(v) => setQuickTime(Number(v))}
             >
-              <LayoutGrid className="h-4 w-4 mr-1" />
-              Classificar
+              <SelectTrigger className="h-10 text-sm border border-border bg-background w-36">
+                {quickTime ? (
+                  <span>{TIME_OPTIONS.find((o) => o.value === quickTime)?.label}</span>
+                ) : (
+                  <span className="flex items-center gap-1 text-muted-foreground">
+                    <Clock className="h-3.5 w-3.5" /> Quanto tempo?
+                  </span>
+                )}
+              </SelectTrigger>
+              <SelectContent>
+                {TIME_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={String(o.value)}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={quickQuadrant} onValueChange={setQuickQuadrant}>
+              <SelectTrigger
+                className={`h-10 text-sm border border-border bg-background w-44 ${
+                  QUADRANT_META[quickQuadrant as Quadrant]?.color ?? ""
+                }`}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="urgente_importante">⚡ Gera retorno — fazer agora</SelectItem>
+                <SelectItem value="importante_nao_urgente">📌 Precisa de tempo — planejar</SelectItem>
+                <SelectItem value="urgente_nao_importante">⏰ Precisa ser feito — encaixar</SelectItem>
+                <SelectItem value="nao_urgente_nao_importante">↩ Pode esperar — remanejar</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button
+              onClick={captureWithFields}
+              disabled={quick.trim() === ""}
+              className="h-10 px-5 ml-auto"
+            >
+              Adicionar
             </Button>
           </div>
         </Card>
       </div>
 
-      <Button
-        onClick={() => {
-          setDrawerTask(null);
-          setDrawerOpen(true);
-        }}
-        className="fixed bottom-6 right-6 rounded-full h-12 w-12 shadow-lg z-50 p-0"
-        aria-label="Nova tarefa"
-      >
-        <Plus className="h-5 w-5" />
-      </Button>
+
 
       <TaskFormDrawer
         open={drawerOpen}
