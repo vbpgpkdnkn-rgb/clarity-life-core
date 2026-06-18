@@ -2345,6 +2345,7 @@ export type Database = {
           due_date: string | null
           eisenhower: Database["public"]["Enums"]["eisenhower_quadrant"] | null
           energy: Database["public"]["Enums"]["energy_level"] | null
+          estimated_minutes: number | null
           execution_minutes: number | null
           goal_id: string | null
           id: string
@@ -2371,6 +2372,7 @@ export type Database = {
           due_date?: string | null
           eisenhower?: Database["public"]["Enums"]["eisenhower_quadrant"] | null
           energy?: Database["public"]["Enums"]["energy_level"] | null
+          estimated_minutes?: number | null
           execution_minutes?: number | null
           goal_id?: string | null
           id?: string
@@ -2397,6 +2399,7 @@ export type Database = {
           due_date?: string | null
           eisenhower?: Database["public"]["Enums"]["eisenhower_quadrant"] | null
           energy?: Database["public"]["Enums"]["energy_level"] | null
+          estimated_minutes?: number | null
           execution_minutes?: number | null
           goal_id?: string | null
           id?: string
