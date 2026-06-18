@@ -313,3 +313,49 @@ export const useDeleteRecurrence = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["recurrences"] }),
   });
 };
+
+// ---------- Backlog (Zero Procrastinação) ----------
+export const useBacklogItems = (status = "pendente") =>
+  useQuery({
+    queryKey: ["backlog_items", status],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("backlog_items")
+        .select("*")
+        .eq("status", status)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+export const useUpsertBacklogItem = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (item: any) => {
+      const { id, ...rest } = item;
+      if (id) {
+        const { error } = await supabase
+          .from("backlog_items").update(rest).eq("id", id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("backlog_items").insert(rest);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["backlog_items"] }),
+  });
+};
+
+export const useDeleteBacklogItem = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("backlog_items").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["backlog_items"] }),
+  });
+};
