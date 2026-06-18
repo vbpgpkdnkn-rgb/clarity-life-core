@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LayoutDashboard, CalendarDays, Target, Wallet, ListTodo, CalendarRange, Clapperboard, Heart, FolderKanban, LogOut, ArrowUpDown, ChevronUp, ChevronDown, RotateCcw, Check, Brain, BookOpen, Repeat2, ClipboardCheck, Settings } from "lucide-react";
+import { LayoutDashboard, CalendarDays, Target, Wallet, ListTodo, CalendarRange, Clapperboard, Heart, FolderKanban, LogOut, ArrowUpDown, ChevronUp, ChevronDown, RotateCcw, Check, Brain, BookOpen, Repeat2, ClipboardCheck, Settings, Shuffle } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useRecentAdjustments } from "@/hooks/useAdaptive";
@@ -20,6 +20,7 @@ import {
 
 const items = [
   { title: "Hoje", url: "/", icon: CalendarDays, end: true },
+  { title: "Zero Procrastinação", url: "/zero-procrastinacao", icon: Shuffle },
   { title: "Foco", url: "/foco", icon: Target },
   { title: "Planner", url: "/planner", icon: CalendarDays },
   { title: "Visão geral", url: "/visao-geral", icon: LayoutDashboard },

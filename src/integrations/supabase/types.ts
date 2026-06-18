@@ -143,6 +143,39 @@ export type Database = {
         }
         Relationships: []
       }
+      backlog_items: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          last_drawn_at: string | null
+          notes: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          last_drawn_at?: string | null
+          notes?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          last_drawn_at?: string | null
+          notes?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bank_statement_entries: {
         Row: {
           account_id: string
