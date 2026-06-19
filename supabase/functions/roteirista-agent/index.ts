@@ -34,6 +34,10 @@ Deno.serve(async (req) => {
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY ausente");
     const { messages, formato } = await req.json();
     const systemWithFormato = SYSTEM_PROMPT + `\n\nFORMATO ATUAL: ${formato ?? "Reel"}. Adapte duração e estrutura para este formato.`;
+    const apiMessages = (Array.isArray(messages) ? messages : []).map((message) => ({
+      role: message.role === "ai" ? "assistant" : message.role,
+      content: String(message.content ?? ""),
+    })).filter((message) => ["user", "assistant", "system"].includes(message.role) && message.content.trim());
     const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: {
@@ -42,13 +46,23 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         model: "gemini-2.5-flash",
-        messages: [{ role: "system", content: systemWithFormato }, ...messages]
+        messages: [{ role: "system", content: systemWithFormato }, ...apiMessages]
       })
     });
     if (!res.ok) {
       const errBody = await res.text();
       console.error("Gemini error", res.status, errBody);
-      throw new Error(`API error: ${res.status} ${errBody}`);
+
+      let message = "Não consegui gerar agora por uma falha na conexão com a IA. Tente novamente em instantes.";
+      if (res.status === 401 || res.status === 403) {
+        message = "A chave do Gemini configurada não foi aceita. Atualize a GEMINI_API_KEY e tente novamente.";
+      } else if (res.status === 429 || /RESOURCE_EXHAUSTED|quota|rate-limits/i.test(errBody)) {
+        message = "O Gemini recusou a geração porque a cota da chave configurada foi excedida. Aguarde a liberação da cota ou use uma chave com billing ativo.";
+      }
+
+      return new Response(JSON.stringify({ content: message, error: `Gemini ${res.status}` }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
     }
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content ?? "";
