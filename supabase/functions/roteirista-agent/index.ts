@@ -51,6 +51,17 @@ Deno.serve(async (req) => {
     if (!res.ok) {
       const errBody = await res.text();
       console.error("Anthropic error", res.status, errBody);
+
+      if (/credit balance is too low/i.test(errBody)) {
+        return new Response(
+          JSON.stringify({
+            content:
+              "Não consegui gerar agora porque a conta Anthropic configurada está sem créditos. Atualize o saldo em Plans & Billing da Anthropic e tente novamente.",
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       throw new Error(`API error: ${res.status} ${errBody}`);
     }
     const data = await res.json();
