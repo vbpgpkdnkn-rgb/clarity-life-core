@@ -13,7 +13,7 @@ const FORMATOS = ["Reel", "Carrossel", "Legenda", "Série"];
 const QUICK_STARTS = [
   "Tenho uma referência que quero transformar no meu ângulo",
   "Tive uma observação clínica que pode virar conteúdo",
-  "Quero falar de relacionamentos além do conflito de casal",
+  "Tenho um tema mas preciso encontrar o ângulo que é meu",
 ];
 
 const BLOCOS = ["Gancho", "Desenvolvimento", "Virada", "Aterrissagem"];
