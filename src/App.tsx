@@ -40,6 +40,7 @@ import Instalar from "./pages/Instalar";
 import QuickAdd from "./pages/QuickAdd";
 import Configuracoes from "./pages/Configuracoes";
 import ZeroProcrastinacao from "./pages/ZeroProcrastinacao";
+import Roteirista from "./pages/Roteirista";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -92,6 +93,7 @@ const App = () => (
                       <Route path="/quick-add" element={<QuickAdd />} />
                       <Route path="/configuracoes" element={<Configuracoes />} />
                       <Route path="/zero-procrastinacao" element={<ZeroProcrastinacao />} />
+                      <Route path="/roteirista" element={<Roteirista />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </ProtectedRoute>
