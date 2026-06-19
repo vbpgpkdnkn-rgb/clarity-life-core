@@ -271,7 +271,7 @@ const SERIES_TOOL = {
   },
 };
 
-const SERIES_SYSTEM_PROMPT = `Você é IA estratégica de conteúdo clínico.
+const SERIES_SYSTEM_PROMPT = IDENTIDADE_PERMANENTE + `Você é IA estratégica de conteúdo clínico.
 
 Gera uma SÉRIE: posts que se desenvolvem como uma conversa, não posts soltos sobre o mesmo tema. Cada post abre o próximo. Cada post deixa uma pergunta ou tensão que o próximo resolve.
 
