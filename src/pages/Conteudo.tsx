@@ -48,6 +48,7 @@ import {
 } from "@/hooks/useEditorialLine";
 import {
   ContentFormat,
+  ContentIdea,
   ContentPiece,
   ContentStatus,
   CTA_TYPES,
@@ -133,7 +134,7 @@ export default function Conteudo() {
     .filter((p) => p.status === "publicado")
     .sort((a: any, b: any) => ((b.saves ?? 0) + (b.generated_dms ?? 0)) - ((a.saves ?? 0) + (a.generated_dms ?? 0)))[0];
 
-  const sendIdeaToMotor = (nextSeed: RelationalSeed) => {
+  const sendIdeaToMotor = (nextSeed: RelationalSeed, _idea?: ContentIdea) => {
     setSeed({
       ...nextSeed,
       onScriptReady: () => {
@@ -159,6 +160,9 @@ export default function Conteudo() {
           distrib={distrib}
           onCriar={criarComEnergia}
           onVerEditorial={() => setTab("editorial")}
+          roteirosFeitos={pieces.filter((p: any) => (p.created_at ?? "") >= distrib.weekStart).length}
+          metaSemanal={5}
+          onIniciarProducao={() => setTab("motor")}
         />
       </div>
 
@@ -202,7 +206,7 @@ export default function Conteudo() {
           />
         </TabsContent>
         <TabsContent value="esteira">
-          <ErrorBoundary scope="Esteira de conteúdo">
+          <ErrorBoundary scope="Esteira de conteúdo" resetKey={pipelineSeedId ?? "default"}>
             <ContentPipelineTab initialProjectId={pipelineSeedId} />
           </ErrorBoundary>
         </TabsContent>

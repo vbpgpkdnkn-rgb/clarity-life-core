@@ -167,14 +167,52 @@ export function StatusEstrategicoCard({
   distrib,
   onCriar,
   onVerEditorial,
+  roteirosFeitos = 0,
+  metaSemanal = 5,
+  onIniciarProducao,
 }: {
   distrib: DistribuicaoSemana;
   onCriar?: (e: Energia) => void;
   onVerEditorial?: () => void;
+  roteirosFeitos?: number;
+  metaSemanal?: number;
+  onIniciarProducao?: () => void;
 }) {
+  const faltam = Math.max(0, metaSemanal - roteirosFeitos);
+  const prox = distrib.proxima;
+  const meta = prox ? ENERGIA_META[prox] : null;
+
+  const ProductionLine = (
+    <div className="flex items-center justify-between gap-3 flex-wrap text-xs">
+      <div className="flex items-center gap-3 flex-wrap">
+        <span>
+          <strong className="text-foreground">{roteirosFeitos}</strong>
+          <span className="text-muted-foreground"> / {metaSemanal} roteiros esta semana</span>
+        </span>
+        {faltam > 0 ? (
+          <span className="text-muted-foreground">
+            Faltam <strong className="text-foreground">{faltam}</strong> para a meta
+          </span>
+        ) : (
+          <span className="text-emerald-700 dark:text-emerald-300">✓ Meta de roteiros batida</span>
+        )}
+        {meta && (
+          <span className="text-muted-foreground">
+            Energia faltando: <strong className="text-foreground">{meta.curto}</strong>
+          </span>
+        )}
+      </div>
+      {faltam > 0 && onIniciarProducao && (
+        <Button size="sm" onClick={onIniciarProducao}>
+          Iniciar produção
+        </Button>
+      )}
+    </div>
+  );
+
   if (distrib.completa) {
     return (
-      <Card className="p-4 border-emerald-500/40 bg-emerald-500/5">
+      <Card className="p-4 border-emerald-500/40 bg-emerald-500/5 space-y-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <div className="text-xs uppercase tracking-widest text-emerald-700 dark:text-emerald-300 mb-1">
@@ -190,15 +228,13 @@ export function StatusEstrategicoCard({
             </Button>
           )}
         </div>
+        {ProductionLine}
       </Card>
     );
   }
 
-  const prox = distrib.proxima;
-  const meta = prox ? ENERGIA_META[prox] : null;
-
   return (
-    <Card className={cn("p-4", meta?.border, meta?.bg)}>
+    <Card className={cn("p-4 space-y-3", meta?.border, meta?.bg)}>
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="space-y-2 flex-1 min-w-[200px]">
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -218,12 +254,13 @@ export function StatusEstrategicoCard({
             </Button>
           )}
           {prox && onCriar && (
-            <Button size="sm" onClick={() => onCriar(prox)}>
+            <Button size="sm" variant="outline" onClick={() => onCriar(prox)}>
               Criar {meta!.curto}
             </Button>
           )}
         </div>
       </div>
+      {ProductionLine}
     </Card>
   );
 }

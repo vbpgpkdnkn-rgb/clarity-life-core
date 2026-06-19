@@ -81,6 +81,12 @@ const ScriptHeader = memo(function ScriptHeader({ paragraphs }: { paragraphs: an
 
   return (
     <>
+      {total > 65 && (
+        <div className="flex items-start gap-2 p-2 rounded text-xs border border-destructive/50 bg-destructive/10 text-destructive font-medium">
+          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>⚠️ Roteiro com {Math.round(total)} segundos — Reel ideal entre 30s e 60s. Refine antes de avançar.</span>
+        </div>
+      )}
       <div className="flex items-center justify-between p-2 rounded bg-muted/40 text-xs">
         <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Total estimado: <strong>{formatDuration(total)}</strong></span>
       </div>
