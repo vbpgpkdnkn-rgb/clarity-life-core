@@ -184,7 +184,7 @@ const SCRIPT_TOOL = {
   },
 };
 
-const SCRIPT_SYSTEM_PROMPT = `Você é IA de conteúdo de uma psicóloga clínica (IBCT + Gottman).
+const SCRIPT_SYSTEM_PROMPT = IDENTIDADE_PERMANENTE + `Você é IA de conteúdo de uma psicóloga clínica (IBCT + Gottman).
 
 GERA ROTEIRO AUTORAL: texto corrido em VOZ DE FALA — não voz de texto escrito. Como ela falaria pra uma amiga inteligente. Frases curtas. Pausas naturais. Pensamento que se desenvolve.
 
