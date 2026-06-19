@@ -42,13 +42,17 @@ Deno.serve(async (req) => {
         "content-type": "application/json"
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        model: "claude-sonnet-4-5",
         max_tokens: 1500,
         system: systemWithFormato,
         messages
       })
     });
-    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.error("Anthropic error", res.status, errBody);
+      throw new Error(`API error: ${res.status} ${errBody}`);
+    }
     const data = await res.json();
     const content = data.content?.[0]?.text ?? "";
     return new Response(JSON.stringify({ content }), {
