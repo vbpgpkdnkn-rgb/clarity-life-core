@@ -1,6 +1,6 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
 const SYSTEM_PROMPT = `Você é o roteirista pessoal de uma psicóloga clínica com mais de 10 anos de experiência.
 
@@ -31,36 +31,36 @@ Aterrissagem
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY ausente");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY ausente");
     const { messages, formato } = await req.json();
     const systemWithFormato = SYSTEM_PROMPT + `\n\nFORMATO ATUAL: ${formato ?? "Reel"}. Adapte duração e estrutura para este formato.`;
     const apiMessages = (Array.isArray(messages) ? messages : []).map((message) => ({
       role: message.role === "ai" ? "assistant" : message.role,
       content: String(message.content ?? ""),
     })).filter((message) => ["user", "assistant", "system"].includes(message.role) && message.content.trim());
-    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${GEMINI_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "gemini-2.5-flash",
+        model: "google/gemini-2.5-flash",
         messages: [{ role: "system", content: systemWithFormato }, ...apiMessages]
       })
     });
     if (!res.ok) {
       const errBody = await res.text();
-      console.error("Gemini error", res.status, errBody);
+      console.error("Lovable AI error", res.status, errBody);
 
       let message = "Não consegui gerar agora por uma falha na conexão com a IA. Tente novamente em instantes.";
-      if (res.status === 401 || res.status === 403) {
-        message = "A chave do Gemini configurada não foi aceita. Atualize a GEMINI_API_KEY e tente novamente.";
-      } else if (res.status === 429 || /RESOURCE_EXHAUSTED|quota|rate-limits/i.test(errBody)) {
-        message = "O Gemini recusou a geração porque a cota da chave configurada foi excedida. Aguarde a liberação da cota ou use uma chave com billing ativo.";
+      if (res.status === 429) {
+        message = "Muitas requisições em sequência. Aguarde alguns segundos e tente novamente.";
+      } else if (res.status === 402) {
+        message = "Os créditos de IA do workspace acabaram. Adicione créditos em Settings → Plans & credits e tente novamente.";
       }
 
-      return new Response(JSON.stringify({ content: message, error: `Gemini ${res.status}` }), {
+      return new Response(JSON.stringify({ content: message, error: `AI ${res.status}` }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
