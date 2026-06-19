@@ -160,6 +160,9 @@ export default function Conteudo() {
           distrib={distrib}
           onCriar={criarComEnergia}
           onVerEditorial={() => setTab("editorial")}
+          roteirosFeitos={pieces.filter((p: any) => (p.created_at ?? "") >= distrib.weekStart).length}
+          metaSemanal={5}
+          onIniciarProducao={() => setTab("motor")}
         />
       </div>
 
