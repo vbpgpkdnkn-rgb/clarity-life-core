@@ -133,7 +133,7 @@ export default function Conteudo() {
     .filter((p) => p.status === "publicado")
     .sort((a: any, b: any) => ((b.saves ?? 0) + (b.generated_dms ?? 0)) - ((a.saves ?? 0) + (a.generated_dms ?? 0)))[0];
 
-  const sendIdeaToMotor = (nextSeed: RelationalSeed) => {
+  const sendIdeaToMotor = (nextSeed: RelationalSeed, _idea?: ContentIdea) => {
     setSeed({
       ...nextSeed,
       onScriptReady: () => {
