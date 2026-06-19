@@ -48,6 +48,7 @@ import {
 } from "@/hooks/useEditorialLine";
 import {
   ContentFormat,
+  ContentIdea,
   ContentPiece,
   ContentStatus,
   CTA_TYPES,
