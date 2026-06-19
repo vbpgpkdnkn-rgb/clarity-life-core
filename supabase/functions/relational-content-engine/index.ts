@@ -227,7 +227,7 @@ const VARIATIONS_TOOL = {
   },
 };
 
-const VARIATIONS_SYSTEM_PROMPT = `Você é IA estratégica de conteúdo clínico (IBCT + Gottman).
+const VARIATIONS_SYSTEM_PROMPT = IDENTIDADE_PERMANENTE + `Você é IA estratégica de conteúdo clínico (IBCT + Gottman).
 
 Gera 3 ângulos DIFERENTES de atacar o mesmo tema. Cada ângulo é uma porta de entrada distinta — não variação de palavras, variação de ESTRATÉGIA narrativa.
 
