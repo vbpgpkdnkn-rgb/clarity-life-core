@@ -203,7 +203,7 @@ export default function Conteudo() {
           />
         </TabsContent>
         <TabsContent value="esteira">
-          <ErrorBoundary scope="Esteira de conteúdo">
+          <ErrorBoundary scope="Esteira de conteúdo" resetKey={pipelineSeedId ?? "default"}>
             <ContentPipelineTab initialProjectId={pipelineSeedId} />
           </ErrorBoundary>
         </TabsContent>
