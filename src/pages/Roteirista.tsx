@@ -339,7 +339,7 @@ export default function Roteirista() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKey}
-              placeholder="escreve aqui…"
+              placeholder="Fala o tema, joga a referência ou descreve o que está pensando..."
               rows={1}
               className="resize-none max-h-32"
               disabled={isLoading}
