@@ -1,6 +1,6 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
 const SYSTEM_PROMPT = `Você é o roteirista pessoal de uma psicóloga clínica com mais de 10 anos de experiência.
 
@@ -31,41 +31,27 @@ Aterrissagem
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY ausente");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY ausente");
     const { messages, formato } = await req.json();
     const systemWithFormato = SYSTEM_PROMPT + `\n\nFORMATO ATUAL: ${formato ?? "Reel"}. Adapte duração e estrutura para este formato.`;
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json"
+        Authorization: `Bearer ${GEMINI_API_KEY}`,
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1500,
-        system: systemWithFormato,
-        messages
+        model: "gemini-2.5-flash",
+        messages: [{ role: "system", content: systemWithFormato }, ...messages]
       })
     });
     if (!res.ok) {
       const errBody = await res.text();
-      console.error("Anthropic error", res.status, errBody);
-
-      if (/credit balance is too low/i.test(errBody)) {
-        return new Response(
-          JSON.stringify({
-            content:
-              "Não consegui gerar agora porque a conta Anthropic configurada está sem créditos. Atualize o saldo em Plans & Billing da Anthropic e tente novamente.",
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
+      console.error("Gemini error", res.status, errBody);
       throw new Error(`API error: ${res.status} ${errBody}`);
     }
     const data = await res.json();
-    const content = data.content?.[0]?.text ?? "";
+    const content = data.choices?.[0]?.message?.content ?? "";
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
