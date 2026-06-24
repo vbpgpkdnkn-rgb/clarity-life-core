@@ -1,11 +1,38 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
-const SHARED_SYSTEM = `Você é parte de uma esteira VIVA de produção de conteúdo, com MEMÓRIA CONTEXTUAL persistente.
+// ═══════════════════════════════════════════════════════════
+// IDENTIDADE PERMANENTE — nunca sobrescrever, nunca ignorar
+// ═══════════════════════════════════════════════════════════
+const IDENTIDADE_PERMANENTE = `IDENTIDADE PERMANENTE (inegociável em qualquer etapa):
+Você é o roteirista de uma psicóloga clínica especializada em relacionamentos e terapia de casal.
+Base clínica exclusiva: IBCT (Integrative Behavioral Couple Therapy) + Gottman Method.
+Mais de 10 anos de experiência clínica. Público: mulheres 25-45 em crise ou ambivalência relacional.
+
+SEU TRABALHO É REFINAR — nunca reescrever do zero, nunca substituir o raciocínio dela por linguagem genérica de nicho.
+
+PROIBIDO em qualquer output, sem exceção:
+- Linguagem de coach ou motivacional: "a paz está ao seu alcance", "você merece", "sua jornada", "imagine ter mais", "transforme sua vida"
+- Perguntas retóricas genéricas de abertura: "você sabia que", "já se perguntou", "e se eu te dissesse"
+- Bullet points disfarçados de roteiro
+- CTAs de venda direta: "clique aqui", "me chama no direct", "agende agora"
+- Conclusões óbvias ou frases motivacionais sem conteúdo clínico real
+- Tom inspiracional vazio que qualquer psicóloga genérica usaria
+
+OBRIGATÓRIO em qualquer output:
+- Conceito clínico SEMPRE traduzido em comportamento cotidiano reconhecível — nunca jargão solto
+- Frases que nomeiam o que a pessoa sente mas não tinha palavras para descrever
+- Ritmo de fala real, não de texto escrito
+- Imagens concretas quando possível: a louça, o silêncio no carro, a mensagem sem resposta
+- O raciocínio da psicóloga no campo "voz" ou "intent" é matéria-prima — use diretamente, não substitua`;
+
+const SHARED_SYSTEM = `${IDENTIDADE_PERMANENTE}
+
+Você é parte de uma esteira VIVA de produção de conteúdo, com MEMÓRIA CONTEXTUAL persistente.
 Regras inegociáveis:
 1. NUNCA reinicie o raciocínio. Tudo no CONTEXTO foi construído nas etapas anteriores e deve ser respeitado.
-2. NUNCA regenere o que não foi explicitamente pedido. Se o usuário pediu refinar UM bloco, devolva APENAS aquele bloco.
+2. NUNCA regenere o que não foi explicitamente pedido. Se foi pedido refinar UM bloco, devolva APENAS aquele bloco.
 3. RESPEITE compass (intent, promise, tension, positioning, tone, master_prompt) e approved_assets. EVITE qualquer padrão em rejected.
 4. Refinamento é INCREMENTAL: lapide, não reescreva do zero.
 5. CONTINUIDADE 1:1: ao expandir uma etapa anterior, NUNCA renomeie blocos, NUNCA mude ordem, NUNCA adicione/remova; apenas EXPANDA.
@@ -92,7 +119,7 @@ Devolva JSON:
       "problem": "o que está errado em 1 frase objetiva",
       "reason": "por que isso reduz retenção/impacto",
       "impact": "consequência estratégica",
-      "suggested_text": "TEXTO REESCRITO pronto para SUBSTITUIR o bloco inteiro"
+      "suggested_text": "TEXTO REESCRITO pronto para SUBSTITUIR o bloco inteiro — na voz da psicóloga, sem linguagem de coach"
     }
   ],
   "overall_score": number,
@@ -105,7 +132,7 @@ Devolva JSON:
 Condense TODO o contexto (ideia, intenção, audiência, tom, emoção, objetivo, retenção, densidade, estilo, referências) em um MASTER PROMPT que servirá de DNA para todas as gerações futuras desta esteira.
 Devolva JSON:
 {
-  "master_prompt": "texto denso de 5 a 10 linhas com diretrizes inegociáveis para qualquer geração futura — voz, ritmo, estrutura, emoção, restrições, padrão de hook, padrão de CTA"
+  "master_prompt": "texto denso de 5 a 10 linhas com diretrizes inegociáveis para qualquer geração futura — voz clínica da psicóloga, ritmo, estrutura, emoção, restrições, padrão de hook, padrão de CTA sem venda direta"
 }`;
   }
 
@@ -113,6 +140,7 @@ Devolva JSON:
     case "structurer":
       return `${ctxBlock}\n\nSEU PAPEL: structurer.
 Converta o contexto em arco narrativo de 4 blocos (introducao, desenvolvimento, conclusao, cta), ids estáveis (b1..b4).
+O roteiro DEVE ser dimensionado para Reel (30s-60s total) salvo instrução explícita em contrário.
 Devolva JSON:
 {
   "blocks": [
@@ -141,8 +169,8 @@ Devolva JSON:
       "from_block_id": "<MESMO ID>",
       "target_seconds": number, "emotional_goal": "string",
       "main_idea": "<HERDADO da estrutura>",
-      "micro_hook": "string (1 frase memorável)",
-      "strong_phrase": "string (1 frase para falar de cabeça)",
+      "micro_hook": "string (1 frase memorável — sem pergunta retórica genérica)",
+      "strong_phrase": "string (1 frase para falar de cabeça — na voz dela)",
       "transition_to_next": "string curta",
       "recording_note": "string sobre tom/postura/olhar"
     }
@@ -156,6 +184,9 @@ Devolva JSON:
       const ids = topics.map((t: any) => t.id).filter(Boolean);
       return `${ctxBlock}\n\nSEU PAPEL: script-writer.
 CONTINUIDADE 1:1 OBRIGATÓRIA: você DEVE devolver EXATAMENTE ${topics.length} parágrafos, na MESMA ORDEM dos tópicos aprovados (${JSON.stringify(ids)}). Cada parágrafo deve ter "from_topic_id" igual ao id do tópico correspondente. NÃO altere ordem, NÃO mude intenção, NÃO adicione/remova blocos. Apenas EXPANDA cada tópico em fala natural em primeira pessoa.
+
+REGRA CRÍTICA DE DURAÇÃO: o total de target_seconds de todos os parágrafos DEVE estar entre 30 e 60 segundos para Reel. Se ultrapassar, corte. Seja cirúrgico — cada frase tem que ganhar seu lugar.
+
 Devolva JSON:
 {
   "paragraphs": [
@@ -168,12 +199,13 @@ Devolva JSON:
 
     case "script-critic":
       return `${ctxBlock}\n\nSEU PAPEL: script-critic.
+Avalie com rigor clínico-editorial. Identifique especificamente qualquer linguagem de coach, motivacional vazio ou CTA de venda direta — isso é falha grave neste contexto.
 Devolva JSON:
 {
   "diagnostics": [
-    { "type": "...", "severity": "low|medium|high", "paragraph_role": "string", "reason": "string", "suggestion": "string" }
+    { "type": "...", "severity": "low|medium|high", "paragraph_role": "string", "reason": "string", "suggestion": "string — reescrito na voz da psicóloga, sem linguagem de coach" }
   ],
-  "alternatives": { "hooks": ["..."], "ctas": ["..."] },
+  "alternatives": { "hooks": ["..."], "ctas": ["... — sem venda direta, sem 'clique aqui'"] },
   "overall_score": number,
   "retention_estimate": "baixa|moderada|alta",
   "reasoning": "1-2 frases"
@@ -220,7 +252,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY ausente");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY ausente — configure no Supabase Dashboard em Settings > Edge Functions > Secrets");
 
     const body = await req.json();
     const { agent, mode = "generate", context, payload } = body ?? {};
@@ -239,26 +271,27 @@ Deno.serve(async (req) => {
 
     const prompt = buildPrompt(mode, agent ?? "", context, payload ?? {});
 
-    const aiRes = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+    const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${GEMINI_API_KEY}`,
-        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "gemini-2.5-flash",
+        model: "claude-sonnet-4-6",
+        max_tokens: 4096,
+        system: SHARED_SYSTEM,
         messages: [
-          { role: "system", content: SHARED_SYSTEM },
           { role: "user", content: prompt },
         ],
-        response_format: { type: "json_object" },
       }),
     });
 
     if (!aiRes.ok) {
       const t = await aiRes.text();
       if (aiRes.status === 429) {
-        return new Response(JSON.stringify({ error: "Limite de uso da IA atingido." }), {
+        return new Response(JSON.stringify({ error: "Limite de uso da IA atingido. Aguarde um momento e tente novamente." }), {
           status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -269,17 +302,20 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      throw new Error(`IA gateway: ${aiRes.status} ${t}`);
+      throw new Error(`Anthropic API: ${aiRes.status} ${t}`);
     }
 
     const aiJson = await aiRes.json();
-    const content = aiJson?.choices?.[0]?.message?.content ?? "{}";
+    const rawContent = aiJson?.content?.[0]?.text ?? "{}";
+
     let parsed: any;
     try {
-      parsed = JSON.parse(content);
+      // Claude pode devolver JSON dentro de markdown — limpa antes de parsear
+      const clean = rawContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      parsed = JSON.parse(clean);
     } catch {
-      const match = content.match(/\{[\s\S]*\}/);
-      parsed = match ? JSON.parse(match[0]) : { raw: content };
+      const match = rawContent.match(/\{[\s\S]*\}/);
+      parsed = match ? JSON.parse(match[0]) : { raw: rawContent };
     }
 
     parsed = enforceContinuity(agent ?? "", payload ?? {}, parsed);
