@@ -3152,12 +3152,14 @@ function Phase5({
   queue,
   flush,
   onOpenPiece,
+  onBack,
 }: {
   piece: Piece;
   pd: PhaseData;
   queue: (patch: Record<string, unknown>) => void;
   flush: () => Promise<void>;
   onOpenPiece: (id: string) => void;
+  onBack: () => void;
 }) {
   const qc = useQueryClient();
   const today = new Date().toISOString().slice(0, 10);
