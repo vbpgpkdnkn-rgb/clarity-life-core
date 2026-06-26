@@ -856,7 +856,19 @@ export default function Studio() {
 /* FOCO VIEW                                                          */
 /* ------------------------------------------------------------------ */
 
-function FocoView({ pieceId, onBack, onOpenPiece }: { pieceId: string | null; onBack: () => void; onOpenPiece: (id: string) => void }) {
+function FocoView({
+  pieceId,
+  onBack,
+  onOpenPiece,
+  initialPhase,
+  initialTeleOpen,
+}: {
+  pieceId: string | null;
+  onBack: () => void;
+  onOpenPiece: (id: string) => void;
+  initialPhase?: number;
+  initialTeleOpen?: boolean;
+}) {
   const qc = useQueryClient();
   const [currentPhase, setCurrentPhase] = useState<number>(1);
   const { queue, flush } = useDebouncedSave(pieceId);
@@ -879,7 +891,7 @@ function FocoView({ pieceId, onBack, onOpenPiece }: { pieceId: string | null; on
   const reachedPhase = piece?.phase ?? 1;
 
   useEffect(() => {
-    if (piece) setCurrentPhase(piece.phase ?? 1);
+    if (piece) setCurrentPhase(initialPhase ?? piece.phase ?? 1);
   }, [piece?.id]);
 
   useEffect(() => {
