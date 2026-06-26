@@ -720,6 +720,7 @@ export type Database = {
       }
       content_pieces: {
         Row: {
+          ai_memory: Json
           appointments_booked: number
           audience_context: string | null
           booked_appointment: boolean
@@ -752,11 +753,13 @@ export type Database = {
           series_position: number | null
           status: Database["public"]["Enums"]["content_status"]
           target_publish_at: string | null
+          teleprompter_font_size: number
           theme: string | null
           title: string
           updated_at: string
         }
         Insert: {
+          ai_memory?: Json
           appointments_booked?: number
           audience_context?: string | null
           booked_appointment?: boolean
@@ -789,11 +792,13 @@ export type Database = {
           series_position?: number | null
           status?: Database["public"]["Enums"]["content_status"]
           target_publish_at?: string | null
+          teleprompter_font_size?: number
           theme?: string | null
           title: string
           updated_at?: string
         }
         Update: {
+          ai_memory?: Json
           appointments_booked?: number
           audience_context?: string | null
           booked_appointment?: boolean
@@ -826,6 +831,7 @@ export type Database = {
           series_position?: number | null
           status?: Database["public"]["Enums"]["content_status"]
           target_publish_at?: string | null
+          teleprompter_font_size?: number
           theme?: string | null
           title?: string
           updated_at?: string
@@ -2280,6 +2286,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      script_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          structure: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          structure?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          structure?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       session_analyses: {
         Row: {
