@@ -790,7 +790,7 @@ export default function Studio() {
       const { data, error } = await supabase
         .from("content_pieces")
         .select(
-          "id,title,theme,phase,status,scope,energia,creation_strategy,planned_date,series_name,series_position,phase_data,pipeline_stage,script,editing_checklist,updated_at",
+          "id,title,theme,phase,status,scope,energia,creation_strategy,planned_date,published_at,series_name,series_position,phase_data,pipeline_stage,script,editing_checklist,updated_at",
         )
         .eq("scope", "profissional")
         .order("updated_at", { ascending: false });
