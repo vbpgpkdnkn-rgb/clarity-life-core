@@ -1842,6 +1842,12 @@ function Phase3({
     patchPD({ blocos_editados: next });
   };
 
+  const salvarEsboco = async () => {
+    const blocosLocais = withCta(pd.blocos_editados ?? pd.blocos_rascunho ?? []);
+    patchPD({ blocos_salvos_usuario: blocosLocais });
+    await flush();
+  };
+
   /* ---------- 3c AJUSTES ---------- */
   const ajustes = pd.ajustes_marcados ?? [];
   const protegido = pd.roteiro_protegido === true;
@@ -1851,13 +1857,36 @@ function Phase3({
     patchPD({ ajustes_marcados: next });
   };
 
+  // Base de ajustes: SEMPRE blocos_salvos_usuario quando existir.
+  const baseParaAjustes = (): ScriptBlock[] =>
+    withCta(pd.blocos_salvos_usuario ?? pd.blocos_editados ?? pd.blocos_rascunho ?? []);
+
+  const analisarAjustes = async () => {
+    const result = await callAI("phase3_adjust", {
+      blocos_atuais: baseParaAjustes(),
+      ajustes_marcados: [],
+      instrucao_livre:
+        "Faça uma análise dos pontos que poderiam ser melhorados neste roteiro, sem alterar nada ainda.",
+    });
+    if (!result) return;
+    const r = result as { blocos_ajustados?: ScriptBlock[]; papeis_modificados?: string[]; comentario?: string };
+    patchPD({
+      analise_ajustes_ia: {
+        papeis_modificados: r.papeis_modificados ?? [],
+        sugestoes: r.comentario ?? "",
+        blocos_sugeridos: r.blocos_ajustados ?? [],
+      },
+    });
+    await flush();
+  };
+
   const aplicarAjustes = async () => {
     if (protegido) {
       setSub("revisao");
       return;
     }
     const result = await callAI("phase3_adjust", {
-      blocos_atuais: withCta(pd.blocos_editados ?? pd.blocos_rascunho ?? []),
+      blocos_atuais: baseParaAjustes(),
       ajustes_marcados: ajustes,
       instrucao_livre: pd.instrucao_ajuste_livre ?? "",
     });
@@ -1872,14 +1901,71 @@ function Phase3({
 
   /* ---------- 3d REVISÃO ---------- */
   const blocosFinais: ScriptBlock[] = withCta(
-    pd.blocos_ajustados ?? pd.blocos_editados ?? pd.blocos_rascunho ?? [],
+    pd.blocos_salvos_usuario ?? pd.blocos_ajustados ?? pd.blocos_editados ?? pd.blocos_rascunho ?? [],
+  );
+  const tempoFinalSeconds = blocosFinais.reduce(
+    (acc, b) => acc + wordsAndSeconds(b.texto || "").seconds,
+    0,
   );
 
   const editarBlocoFinal = (idx: number, texto: string) => {
-    const base = withCta(pd.blocos_ajustados ?? pd.blocos_editados ?? pd.blocos_rascunho ?? []);
+    const base = blocosFinais;
     const next = base.map((b, i) => (i === idx ? { ...b, texto } : b));
-    if (pd.blocos_ajustados) patchPD({ blocos_ajustados: next });
-    else patchPD({ blocos_editados: next });
+    patchPD({ blocos_salvos_usuario: next });
+  };
+
+  const [targetSeconds, setTargetSeconds] = useState<number>(90);
+  const sugerirCortes = async () => {
+    const result = await callAI("phase3_adjust", {
+      blocos_atuais: blocosFinais,
+      ajustes_marcados: [],
+      instrucao_livre: `Sugira quais trechos cortar para reduzir o roteiro para ${targetSeconds} segundos. Não reescreva — apenas indique exatamente qual parte de cada bloco pode ser removida, mostrando o texto resultante.`,
+    });
+    if (!result) return;
+    const r = result as { blocos_ajustados?: ScriptBlock[] };
+    patchPD({ sugestao_cortes: { blocos: withCta(r.blocos_ajustados ?? []), target: targetSeconds } });
+    await flush();
+  };
+
+  const usarVersaoCortada = async () => {
+    const cortes = pd.sugestao_cortes?.blocos;
+    if (!cortes) return;
+    patchPD({ blocos_salvos_usuario: cortes, blocos_ajustados: cortes, sugestao_cortes: undefined });
+    await flush();
+    toast.success("Versão com cortes aplicada");
+  };
+
+  const sugerirParaPontoFraco = async (ponto: string, correcao: string) => {
+    const result = await callAI("phase3_adjust", {
+      blocos_atuais: blocosFinais,
+      ajustes_marcados: [ponto],
+      instrucao_livre: correcao,
+    });
+    if (!result) return;
+    const r = result as { blocos_ajustados?: ScriptBlock[] };
+    const blocos = withCta(r.blocos_ajustados ?? []);
+    patchPD({
+      sugestoes_ponto_fraco: {
+        ...(pd.sugestoes_ponto_fraco ?? {}),
+        [ponto]: blocos,
+      },
+    });
+    await flush();
+  };
+
+  const aprovarSugestaoPontoFraco = async (ponto: string) => {
+    const sugestao = pd.sugestoes_ponto_fraco?.[ponto];
+    if (!sugestao || sugestao.length === 0) return;
+    // Aplica apenas os blocos cujo papel foi modificado pela sugestão
+    const papeisModificados = new Set(sugestao.map((b) => b.papel));
+    const next = blocosFinais.map((b) => {
+      if (!papeisModificados.has(b.papel)) return b;
+      const nova = sugestao.find((s) => s.papel === b.papel);
+      return nova ? { ...b, texto: nova.texto } : b;
+    });
+    patchPD({ blocos_salvos_usuario: next });
+    await flush();
+    toast.success("Sugestão aprovada");
   };
 
   const analisarRoteiro = async () => {
