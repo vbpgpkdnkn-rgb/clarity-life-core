@@ -3379,8 +3379,11 @@ function Phase5({
           },
         },
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message ?? "Erro na edge function");
+      if (!data) throw new Error("Sem resposta da IA");
+      if (data.error) throw new Error(data.error);
       const result = (data as { result: PerformanceAnalysis }).result;
+      if (!result) throw new Error("Resposta da IA inválida");
       const newMemory = Array.isArray(piece.ai_memory) ? [...piece.ai_memory] : [];
       if (result.memoria_entrada) newMemory.push(result.memoria_entrada);
       const trimmed = newMemory.slice(-20);
