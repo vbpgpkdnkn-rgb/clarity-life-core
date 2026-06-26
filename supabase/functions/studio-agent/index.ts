@@ -52,22 +52,29 @@ JSON:
 }`;
 
     case "phase2_validate":
-      return `Valide se a estratégia desta peça está coerente.
+      return `Valide se a estratégia desta peça está coerente e sugira metas de resultado realistas.
 
 - tema: ${payload.tema ?? "(vazio)"}
 - energia escolhida: ${payload.energia ?? "(nenhuma)"}
 - estratégia de criação: ${payload.creation_strategy ?? "(nenhuma)"}
+- intenção de uso: ${payload.intencao_uso ?? "(nenhuma)"}
 - objetivo: ${payload.objetivo ?? "(vazio)"}
-- meta de resultado: ${payload.meta_resultado ?? "(nenhuma)"}
+- metas de resultado já marcadas: ${Array.isArray(payload.metas_resultado) && payload.metas_resultado.length ? payload.metas_resultado.join(", ") : "(nenhuma)"}
 
 Avalie alinhamento. Ex: energia "topo" com meta "agendar sessão" tem conflito.
+Em "metas_sugeridas" retorne 2 a 4 metas concretas e específicas para ESTE tema (não genéricas).
+Em "insights_estrategicos" retorne 2 a 4 bullets curtos sobre como tirar o melhor desta peça.
+Em "evitar" retorne 2 a 4 bullets curtos com armadilhas a não cometer.
 
 JSON:
 {
   "aprovado_para_roteiro": boolean,
   "status": "alinhado" | "conflito",
   "comentario": "1 a 3 frases",
-  "sugestao": "string | null"
+  "sugestao": "string | null",
+  "metas_sugeridas": ["string"],
+  "insights_estrategicos": ["string"],
+  "evitar": ["string"]
 }`;
 
     case "phase3_insights":
