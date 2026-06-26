@@ -988,8 +988,9 @@ export default function Studio() {
   const piecesByDay: Record<string, Piece[]> = {};
   for (const d of weekDays) piecesByDay[d] = [];
   for (const it of items) {
-    if (it.planned_date && piecesByDay[it.planned_date]) {
-      piecesByDay[it.planned_date].push(it);
+    const dateKey = it.planned_date ?? it.published_at ?? null;
+    if (dateKey && piecesByDay[dateKey]) {
+      piecesByDay[dateKey].push(it);
     }
   }
 
