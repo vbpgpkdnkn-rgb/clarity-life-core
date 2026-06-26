@@ -43,13 +43,18 @@ type PhaseData = {
     observacao?: string;
     padroes_audiencia?: string | null;
   };
+  intencao_uso?: string;
   objetivo?: string;
   meta_resultado?: string;
+  metas_resultado?: string[];
   ia_validacao_fase2?: {
     aprovado_para_roteiro?: boolean;
     status?: "alinhado" | "conflito";
     comentario?: string;
     sugestao?: string | null;
+    metas_sugeridas?: string[];
+    insights_estrategicos?: string[];
+    evitar?: string[];
   };
   // Fase 3
   template_selecionado?: ScriptStructure | null;
