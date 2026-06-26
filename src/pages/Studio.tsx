@@ -54,10 +54,12 @@ type PhaseData = {
   origem?: string;
   conteudo?: string;
   conteudo_audiencia?: string;
+  insight_manual?: string;
   ia_leitura_fase1?: {
     energia_sugerida?: string;
     observacao?: string;
     padroes_audiencia?: string | null;
+    caminho_narrativo?: string;
   };
   intencao_uso?: string;
   objetivo?: string;
@@ -98,6 +100,7 @@ type Insight = {
   titulo_angulo?: string;
   tensao?: string;
   frase_semente?: string;
+  revelacao?: string;
   energia_sugerida?: string;
 };
 type ScriptBlock = {
@@ -2171,6 +2174,12 @@ function Phase1({
               <p className="text-sm leading-relaxed">{pd.ia_leitura_fase1.observacao}</p>
             </div>
           )}
+          {pd.ia_leitura_fase1.caminho_narrativo && (
+            <div>
+              <span className="text-xs font-medium opacity-60 block mb-1">Caminho sugerido</span>
+              <p className="text-sm leading-relaxed font-medium">{pd.ia_leitura_fase1.caminho_narrativo}</p>
+            </div>
+          )}
           {pd.ia_leitura_fase1.padroes_audiencia && (
             <div>
               <span className="text-xs font-medium opacity-60 block mb-1">Padrão da audiência</span>
@@ -2179,6 +2188,20 @@ function Phase1({
           )}
         </div>
       )}
+
+      <div className="space-y-2">
+        <Label className="text-xs">Adicionar insight próprio (opcional)</Label>
+        <div className="flex gap-2">
+          <Textarea
+            placeholder="Se nenhum caminho da IA serviu, escreva aqui o que você quer explorar..."
+            rows={2}
+            defaultValue={pd.insight_manual ?? ""}
+            onChange={(e) => patchPD({ insight_manual: e.target.value })}
+            className="flex-1"
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">Este insight será usado na geração de esboço junto com os selecionados.</p>
+      </div>
     </div>
   );
 }
@@ -2521,6 +2544,8 @@ function Phase3({
       energia: piece.energia,
       creation_strategy: piece.creation_strategy,
       objetivo: pd.objetivo,
+      conteudo: pd.conteudo,
+      insight_manual: pd.insight_manual ?? null,
       conteudo_audiencia: pd.conteudo_audiencia,
       ai_memory: piece.ai_memory,
       script_template: pd.template_selecionado ?? null,
@@ -2548,7 +2573,10 @@ function Phase3({
       tema: piece.theme,
       energia: piece.energia,
       objetivo: pd.objetivo,
-      insights_aprovados: aprovados,
+      conteudo: pd.conteudo,
+      insights_aprovados: pd.insight_manual
+        ? [...aprovados, { id: "manual", titulo_angulo: "Insight próprio", frase_semente: pd.insight_manual }]
+        : aprovados,
       script_template: pd.template_selecionado ?? null,
     });
     if (!result) return;
@@ -2884,6 +2912,12 @@ function Phase3({
                         {ins.frase_semente && (
                           <div className="text-sm italic">"{ins.frase_semente}"</div>
                         )}
+                        {(ins as unknown as { revelacao?: string }).revelacao && (
+                          <div className="text-xs mt-1">
+                            <span className="text-muted-foreground uppercase mr-1">Revelação:</span>
+                            {(ins as unknown as { revelacao?: string }).revelacao}
+                          </div>
+                        )}
                       </div>
                     )}
                     <label className="flex items-center gap-2 text-xs cursor-pointer pt-2 border-t">
@@ -3201,7 +3235,7 @@ function Phase3({
                 </div>
               </div>
 
-              {pd.sugestao_cortes?.blocos && pd.sugestao_cortes.blocos.length > 0 && (
+              {pd.sugestao_cortes && (
                 <div className="space-y-2 border-t pt-3">
                   <div className="text-xs uppercase font-medium opacity-60">
                     Original vs. com cortes (alvo {pd.sugestao_cortes.target}s)
@@ -3220,7 +3254,7 @@ function Phase3({
                     </div>
                     <div className="space-y-2">
                       <div className="text-[11px] uppercase opacity-60">Com cortes sugeridos</div>
-                      {pd.sugestao_cortes.blocos.map((b, i) => (
+                      {pd.sugestao_cortes.blocos?.map((b, i) => (
                         <Card key={i} className="p-2 text-xs space-y-1 border-accent/40">
                           <Badge variant="outline" className="text-[9px]">
                             {papelLabel(b.papel)}
@@ -3337,10 +3371,8 @@ function ReviewCard({
         <div className="space-y-2">
           <div className="text-xs uppercase text-amber-600 font-medium">Pontos fracos</div>
           <ul className="text-sm space-y-3">
-            {r.pontos_fracos.map((p, i) => {
-              const sug = sugestoes?.[p.ponto];
-              return (
-                <li key={i} className="space-y-2">
+            {r.pontos_fracos.map((p, i) => (
+              <li key={i} className="space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <span className="font-medium">{p.ponto}</span>
@@ -3357,27 +3389,26 @@ function ReviewCard({
                       </Button>
                     )}
                   </div>
-                  {sug && sug.length > 0 && (
-                    <Card className="p-3 space-y-2 bg-accent/5 border-accent/40">
-                      <div className="text-[11px] uppercase opacity-60">Sugestão para este ponto</div>
-                      {sug.map((b, j) => (
-                        <div key={j} className="text-xs space-y-1">
-                          <Badge variant="outline" className="text-[9px]">
-                            {papelLabel(b.papel)}
-                          </Badge>
-                          <p className="whitespace-pre-wrap">{b.texto}</p>
+                  {sugestoes?.[p.ponto] && (
+                    <div className="mt-2 p-3 rounded border bg-muted/30 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">Como ficaria:</p>
+                      {sugestoes[p.ponto].map((bloco, bi) => (
+                        <div key={bi} className="text-sm">
+                          <span className="text-xs uppercase text-muted-foreground mr-1">{bloco.papel}:</span>
+                          {bloco.texto}
                         </div>
                       ))}
-                      {onAprovarSugestao && (
-                        <Button size="sm" onClick={() => onAprovarSugestao(p.ponto)}>
-                          Aprovar esta sugestão
-                        </Button>
-                      )}
-                    </Card>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onAprovarSugestao?.(p.ponto)}
+                      >
+                        Aprovar esta sugestão
+                      </Button>
+                    </div>
                   )}
                 </li>
-              );
-            })}
+            ))}
           </ul>
         </div>
       )}
