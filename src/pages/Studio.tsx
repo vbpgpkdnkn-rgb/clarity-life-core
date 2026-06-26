@@ -3371,10 +3371,8 @@ function ReviewCard({
         <div className="space-y-2">
           <div className="text-xs uppercase text-amber-600 font-medium">Pontos fracos</div>
           <ul className="text-sm space-y-3">
-            {r.pontos_fracos.map((p, i) => {
-              const sug = sugestoes?.[p.ponto];
-              return (
-                <li key={i} className="space-y-2">
+            {r.pontos_fracos.map((p, i) => (
+              <li key={i} className="space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <span className="font-medium">{p.ponto}</span>
