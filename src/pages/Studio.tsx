@@ -1136,7 +1136,7 @@ export default function Studio() {
                           key={s.id}
                           serie={s}
                           pieces={(seriesPiecesQ.data ?? []).filter((p) => p.series_name === s.name)}
-                          allUnlinked={items.filter((p) => !p.series_name)}
+                          allUnlinked={items.filter((p) => p.series_name !== s.name)}
                           onOpenPiece={openPiece}
                         />
                       ))}
