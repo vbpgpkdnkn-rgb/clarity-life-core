@@ -2364,7 +2364,7 @@ function Phase2({
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           Validar estratégia
         </Button>
-        <Button onClick={onAdvance} disabled={!aprovado}>
+        <Button onClick={onAdvance}>
           Avançar para Roteiro
         </Button>
       </div>
