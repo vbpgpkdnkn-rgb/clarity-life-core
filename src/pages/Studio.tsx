@@ -789,8 +789,9 @@ function Phase1({
     <div className="space-y-6">
       <Card className="p-6 space-y-5">
         <div className="space-y-2">
-          <Label>Qual é o tema?</Label>
+          <LabelRow onVoice={appendTo(temaRef, (v) => queue({ theme: v }))}>Qual é o tema?</LabelRow>
           <Textarea
+            ref={temaRef}
             defaultValue={piece.theme ?? ""}
             onChange={(e) => queue({ theme: e.target.value })}
             placeholder="Ex: O custo emocional de ser sempre o adulto no relacionamento"
@@ -804,17 +805,36 @@ function Phase1({
         </div>
 
         <div className="space-y-2">
-          <Label>De onde veio?</Label>
-          <Input
-            defaultValue={pd.origem ?? ""}
-            onChange={(e) => patchPD({ origem: e.target.value })}
-            placeholder="Consultório, nome do criador, link..."
-          />
+          <Label>Como vai usar este tema?</Label>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {INTENCOES_USO.map((opt) => {
+              const active = pd.intencao_uso === opt.v;
+              return (
+                <button
+                  key={opt.v}
+                  type="button"
+                  onClick={() => patchPD({ intencao_uso: opt.v })}
+                  className={cn(
+                    "text-left p-3 rounded-md border transition-colors",
+                    active
+                      ? "border-accent bg-accent/10"
+                      : "border-border hover:border-accent/50",
+                  )}
+                >
+                  <div className="text-sm font-semibold">{opt.label}</div>
+                  <div className="text-xs text-muted-foreground">{opt.desc}</div>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="space-y-2">
-          <Label>Descreva o que você viu, pensou ou percebeu</Label>
+          <LabelRow onVoice={appendTo(conteudoRef, (v) => patchPD({ conteudo: v }))}>
+            Descreva o que você viu, pensou ou percebeu
+          </LabelRow>
           <Textarea
+            ref={conteudoRef}
             defaultValue={pd.conteudo ?? ""}
             onChange={(e) => patchPD({ conteudo: e.target.value })}
             placeholder="Sem estrutura obrigatória. Escreva como você pensaria."
@@ -830,8 +850,11 @@ function Phase1({
             {audienceOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </CollapsibleTrigger>
           <CollapsibleContent className="px-4 pb-4 space-y-2">
-            <Label>Comentários da audiência</Label>
+            <LabelRow onVoice={appendTo(audienciaRef, (v) => patchPD({ conteudo_audiencia: v }))}>
+              Comentários da audiência
+            </LabelRow>
             <Textarea
+              ref={audienciaRef}
               defaultValue={pd.conteudo_audiencia ?? ""}
               onChange={(e) => patchPD({ conteudo_audiencia: e.target.value })}
               placeholder="Cole aqui comentários do TikTok, Instagram ou qualquer plataforma..."
