@@ -2371,8 +2371,17 @@ function Phase3({
               )}
               {protegido ? "Ir para revisão" : "Aplicar ajustes"}
             </Button>
-            <Button variant="outline" onClick={() => setSub("revisao")}>
-              Revisar roteiro final
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (pd.blocos_ajustados && pd.blocos_ajustados.length > 0) {
+                  patchPD({ blocos_salvos_usuario: withCta(pd.blocos_ajustados) });
+                  await flush();
+                }
+                setSub("revisao");
+              }}
+            >
+              Salvar ajustes e ir para Revisão
             </Button>
           </div>
 
