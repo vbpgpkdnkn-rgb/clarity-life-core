@@ -1318,23 +1318,101 @@ function Phase1({
             {seriesOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </CollapsibleTrigger>
           <CollapsibleContent className="px-4 pb-4 space-y-3">
-            <div className="space-y-2">
-              <Label>Nome da série</Label>
-              <Input
-                defaultValue={piece.series_name ?? ""}
-                onChange={(e) => queue({ series_name: e.target.value || null })}
-              />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setSeriesMode("new")}
+                className={cn(
+                  "flex-1 p-3 rounded-md border text-sm font-medium transition-colors",
+                  seriesMode === "new"
+                    ? "border-accent bg-accent/10"
+                    : "border-border hover:border-accent/50",
+                )}
+              >
+                ＋ Nova série
+              </button>
+              <button
+                type="button"
+                onClick={() => setSeriesMode("existing")}
+                className={cn(
+                  "flex-1 p-3 rounded-md border text-sm font-medium transition-colors",
+                  seriesMode === "existing"
+                    ? "border-accent bg-accent/10"
+                    : "border-border hover:border-accent/50",
+                )}
+              >
+                → Continuar série existente
+              </button>
             </div>
-            <div className="space-y-2">
-              <Label>Episódio nº</Label>
-              <Input
-                type="number"
-                defaultValue={piece.series_position ?? ""}
-                onChange={(e) =>
-                  queue({ series_position: e.target.value ? Number(e.target.value) : null })
-                }
-              />
-            </div>
+
+            {seriesMode === "new" && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>Nome da série</Label>
+                  <Input
+                    defaultValue={piece.series_name ?? ""}
+                    onChange={(e) => queue({ series_name: e.target.value || null })}
+                    placeholder="Ex: Comunicação não-violenta"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Total de episódios planejados</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    defaultValue={pd.serie_total_episodios as number | undefined ?? ""}
+                    onChange={(e) =>
+                      patchPD({ serie_total_episodios: e.target.value ? Number(e.target.value) : undefined })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Número deste episódio</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    defaultValue={piece.series_position ?? ""}
+                    onChange={(e) =>
+                      queue({ series_position: e.target.value ? Number(e.target.value) : null })
+                    }
+                  />
+                </div>
+              </div>
+            )}
+
+            {seriesMode === "existing" && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>Série existente</Label>
+                  <Select
+                    value={piece.series_name ?? ""}
+                    onValueChange={(v) => queue({ series_name: v || null })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Escolha uma série" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(seriesQ.data ?? []).map((n) => (
+                        <SelectItem key={n} value={n}>
+                          {n}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Número deste episódio</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    defaultValue={piece.series_position ?? ""}
+                    onChange={(e) =>
+                      queue({ series_position: e.target.value ? Number(e.target.value) : null })
+                    }
+                  />
+                </div>
+              </div>
+            )}
           </CollapsibleContent>
         </Card>
       </Collapsible>
@@ -1347,20 +1425,33 @@ function Phase1({
         <Button onClick={onAdvance}>Avançar para Estratégia</Button>
       </div>
 
-      {leitura && (
-        <Card className="p-5 space-y-3 border-accent/40">
+      {pd.ia_leitura_fase1 && (
+        <div className="rounded-lg border p-4 bg-muted/30 space-y-3">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Energia sugerida:</span>
-            {energiaBadge(leitura.energia_sugerida)}
+            <span className="text-xs font-medium uppercase tracking-wide opacity-60">Energia sugerida</span>
+            <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+              pd.ia_leitura_fase1.energia_sugerida === "topo" ? "bg-green-100 text-green-800" :
+              pd.ia_leitura_fase1.energia_sugerida === "meio" ? "bg-blue-100 text-blue-800" :
+              "bg-purple-100 text-purple-800"
+            }`}>
+              {pd.ia_leitura_fase1.energia_sugerida === "topo" ? "TOPO — identificação" :
+               pd.ia_leitura_fase1.energia_sugerida === "meio" ? "MEIO — confiança clínica" :
+               "FUNDO — reduzir resistência"}
+            </span>
           </div>
-          {leitura.observacao && <p className="text-sm">{leitura.observacao}</p>}
-          {leitura.padroes_audiencia && (
-            <div className="text-sm border-t pt-3">
-              <div className="text-xs uppercase text-muted-foreground mb-1">Padrões da audiência</div>
-              {leitura.padroes_audiencia}
+          {pd.ia_leitura_fase1.observacao && (
+            <div>
+              <span className="text-xs font-medium opacity-60 block mb-1">O que este tema revela</span>
+              <p className="text-sm leading-relaxed">{pd.ia_leitura_fase1.observacao}</p>
             </div>
           )}
-        </Card>
+          {pd.ia_leitura_fase1.padroes_audiencia && (
+            <div>
+              <span className="text-xs font-medium opacity-60 block mb-1">Padrão da audiência</span>
+              <p className="text-sm leading-relaxed">{pd.ia_leitura_fase1.padroes_audiencia}</p>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
