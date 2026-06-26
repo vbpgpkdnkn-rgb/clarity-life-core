@@ -334,7 +334,7 @@ export default function Studio() {
 /* FOCO VIEW                                                          */
 /* ------------------------------------------------------------------ */
 
-function FocoView({ pieceId, onBack }: { pieceId: string | null; onBack: () => void }) {
+function FocoView({ pieceId, onBack, onOpenPiece }: { pieceId: string | null; onBack: () => void; onOpenPiece: (id: string) => void }) {
   const qc = useQueryClient();
   const [currentPhase, setCurrentPhase] = useState<number>(1);
   const { queue, flush } = useDebouncedSave(pieceId);
