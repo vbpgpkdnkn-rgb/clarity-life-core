@@ -937,10 +937,23 @@ function Phase2({
   onAdvance: () => Promise<void>;
 }) {
   const [loading, setLoading] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
   const patchPD = (p: Partial<PhaseData>) => queue({ phase_data: { ...pd, ...p } });
+  const objetivoRef = useRef<HTMLTextAreaElement>(null);
 
-  const validar = async () => {
-    setLoading(true);
+  const metasSelecionadas: string[] = pd.metas_resultado ?? (pd.meta_resultado ? [pd.meta_resultado] : []);
+  const metasSugeridas: string[] = pd.ia_validacao_fase2?.metas_sugeridas ?? [];
+
+  const toggleMeta = (m: string) => {
+    const set = new Set(metasSelecionadas);
+    if (set.has(m)) set.delete(m);
+    else set.add(m);
+    patchPD({ metas_resultado: Array.from(set) });
+  };
+
+  const callValidate = async (mode: "validar" | "sugerir") => {
+    const setBusy = mode === "validar" ? setLoading : setSuggesting;
+    setBusy(true);
     try {
       await flush();
       const { data, error } = await supabase.functions.invoke("studio-agent", {
@@ -951,7 +964,8 @@ function Phase2({
             energia: piece.energia,
             creation_strategy: piece.creation_strategy,
             objetivo: pd.objetivo,
-            meta_resultado: pd.meta_resultado,
+            metas_resultado: metasSelecionadas,
+            intencao_uso: pd.intencao_uso,
           },
         },
       });
@@ -960,16 +974,26 @@ function Phase2({
       const result = data?.result ?? {};
       queue({ phase_data: { ...pd, ia_validacao_fase2: result } });
       await flush();
-      toast.success("Validação pronta");
+      toast.success(mode === "validar" ? "Validação pronta" : "Metas sugeridas");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha");
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
+  };
+
+  const appendObjetivo = (spoken: string) => {
+    const el = objetivoRef.current;
+    if (!el) return;
+    const prev = el.value ?? "";
+    const next = prev ? `${prev} ${spoken}`.trim() : spoken;
+    el.value = next;
+    patchPD({ objetivo: next });
   };
 
   const validacao = pd.ia_validacao_fase2;
   const aprovado = validacao?.aprovado_para_roteiro === true;
+  const temMetasParaExibir = metasSugeridas.length > 0 || metasSelecionadas.length > 0;
 
   return (
     <div className="space-y-6">
@@ -1008,8 +1032,9 @@ function Phase2({
       </Card>
 
       <Card className="p-6 space-y-3">
-        <Label>Qual é o objetivo deste conteúdo?</Label>
+        <LabelRow onVoice={appendObjetivo}>Qual é o objetivo deste conteúdo?</LabelRow>
         <Textarea
+          ref={objetivoRef}
           defaultValue={pd.objetivo ?? ""}
           onChange={(e) => patchPD({ objetivo: e.target.value })}
           placeholder="O que você quer que a pessoa sinta, perceba ou faça ao terminar?"
@@ -1018,28 +1043,60 @@ function Phase2({
       </Card>
 
       <Card className="p-6 space-y-3">
-        <Label>Meta de resultado</Label>
-        <div className="space-y-2">
-          {METAS_RESULTADO.map((m) => {
-            const active = pd.meta_resultado === m;
-            return (
-              <label key={m} className="flex items-center gap-2 cursor-pointer text-sm">
-                <input
-                  type="radio"
-                  name="meta_resultado"
-                  checked={active}
-                  onChange={() => patchPD({ meta_resultado: m })}
-                  className="accent-accent"
-                />
-                {m}
-              </label>
-            );
-          })}
+        <div className="flex items-center justify-between">
+          <Label>Meta de resultado</Label>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => callValidate("sugerir")}
+            disabled={suggesting}
+          >
+            {suggesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            Sugerir metas com IA
+          </Button>
         </div>
+
+        {suggesting && !temMetasParaExibir ? (
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-6 w-2/3" />
+            <Skeleton className="h-6 w-1/2" />
+          </div>
+        ) : (
+          <>
+            {metasSugeridas.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-xs uppercase text-muted-foreground">Sugeridas pela IA</div>
+                {metasSugeridas.map((m) => (
+                  <label key={`s-${m}`} className="flex items-start gap-2 cursor-pointer text-sm">
+                    <Checkbox
+                      checked={metasSelecionadas.includes(m)}
+                      onCheckedChange={() => toggleMeta(m)}
+                    />
+                    <span>{m}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            <div className="space-y-2 pt-2 border-t">
+              <div className="text-xs uppercase text-muted-foreground">Opções fixas</div>
+              {METAS_RESULTADO.map((m) => (
+                <label key={m} className="flex items-start gap-2 cursor-pointer text-sm">
+                  <Checkbox
+                    checked={metasSelecionadas.includes(m)}
+                    onCheckedChange={() => toggleMeta(m)}
+                  />
+                  <span>{m}</span>
+                </label>
+              ))}
+            </div>
+          </>
+        )}
       </Card>
 
       <div className="flex flex-wrap gap-3">
-        <Button variant="outline" onClick={validar} disabled={loading}>
+        <Button variant="outline" onClick={() => callValidate("validar")} disabled={loading}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           Validar estratégia
         </Button>
@@ -1067,6 +1124,32 @@ function Phase2({
               {validacao.sugestao}
             </div>
           )}
+        </Card>
+      )}
+
+      {validacao?.insights_estrategicos && validacao.insights_estrategicos.length > 0 && (
+        <Card className="p-5 space-y-2 border border-sky-500/40 bg-sky-500/5">
+          <div className="text-xs uppercase font-medium text-sky-700 dark:text-sky-300">
+            Insights estratégicos
+          </div>
+          <ul className="text-sm list-disc pl-5 space-y-1">
+            {validacao.insights_estrategicos.map((it, i) => (
+              <li key={i}>{it}</li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {validacao?.evitar && validacao.evitar.length > 0 && (
+        <Card className="p-5 space-y-2 border border-red-500/40 bg-red-500/5">
+          <div className="text-xs uppercase font-medium text-red-700 dark:text-red-300">
+            Evitar neste conteúdo
+          </div>
+          <ul className="text-sm list-disc pl-5 space-y-1">
+            {validacao.evitar.map((it, i) => (
+              <li key={i}>{it}</li>
+            ))}
+          </ul>
         </Card>
       )}
     </div>
