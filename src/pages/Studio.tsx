@@ -383,12 +383,43 @@ export default function Studio() {
     },
   });
 
+  // ------- Séries -------
+  const seriesListQ = useQuery({
+    queryKey: ["studio-series-list"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("content_series")
+        .select("*")
+        .order("created_at", { ascending: false });
+      return (data ?? []) as {
+        id: string; name: string; description: string | null;
+        total_episodes_planned: number | null; instagram_url: string | null;
+        status: string; started_at: string | null;
+      }[];
+    },
+  });
+
+  const seriesPiecesQ = useQuery({
+    queryKey: ["studio-series-pieces"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("content_pieces")
+        .select("id,title,phase,status,energia,series_name,series_position,planned_date,published_at,performance_analysis,pipeline_stage")
+        .not("series_name", "is", null)
+        .order("series_name")
+        .order("series_position", { ascending: true, nullsFirst: false });
+      return (data ?? []) as (Pick<Piece, "id"|"title"|"phase"|"status"|"energia"|"series_name"|"series_position"|"planned_date"|"published_at"|"pipeline_stage"> & { performance_analysis: unknown })[];
+    },
+  });
+
   const [ideaOpen, setIdeaOpen] = useState(false);
   const [ideaText, setIdeaText] = useState("");
   const [ideaEnergia, setIdeaEnergia] = useState<string>("none");
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiveTab, setArchiveTab] = useState<"andamento" | "publicadas">("andamento");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [seriesPanelOpen, setSeriesPanelOpen] = useState(true);
+  const [newSeriesOpen, setNewSeriesOpen] = useState(false);
 
   const saveIdea = async () => {
     const txt = ideaText.trim();
