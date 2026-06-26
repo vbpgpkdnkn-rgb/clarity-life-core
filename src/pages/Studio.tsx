@@ -2224,23 +2224,19 @@ function Phase2({
   onAdvance: () => Promise<void>;
 }) {
   const [loading, setLoading] = useState(false);
-  const [suggesting, setSuggesting] = useState(false);
   const patchPD = (p: Partial<PhaseData>) => queue({ phase_data: { ...pd, ...p } });
-  const objetivoRef = useRef<HTMLTextAreaElement>(null);
 
   const metasSelecionadas: string[] = pd.metas_resultado ?? (pd.meta_resultado ? [pd.meta_resultado] : []);
   const metasSugeridas: string[] = pd.ia_validacao_fase2?.metas_sugeridas ?? [];
 
   const toggleMeta = (m: string) => {
     const set = new Set(metasSelecionadas);
-    if (set.has(m)) set.delete(m);
-    else set.add(m);
+    if (set.has(m)) set.delete(m); else set.add(m);
     patchPD({ metas_resultado: Array.from(set) });
   };
 
-  const callValidate = async (mode: "validar" | "sugerir") => {
-    const setBusy = mode === "validar" ? setLoading : setSuggesting;
-    setBusy(true);
+  const callValidate = async () => {
+    setLoading(true);
     try {
       await flush();
       const { data, error } = await supabase.functions.invoke("studio-agent", {
@@ -2250,57 +2246,45 @@ function Phase2({
             tema: piece.theme,
             energia: piece.energia,
             creation_strategy: piece.creation_strategy,
-            objetivo: pd.objetivo,
             metas_resultado: metasSelecionadas,
             intencao_uso: pd.intencao_uso,
+            ai_memory: piece.ai_memory,
           },
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      const result = data?.result ?? {};
-      queue({ phase_data: { ...pd, ia_validacao_fase2: result } });
+      queue({ phase_data: { ...pd, ia_validacao_fase2: data?.result ?? {} } });
       await flush();
-      toast.success(mode === "validar" ? "Validação pronta" : "Metas sugeridas");
+      toast.success("Estratégia validada");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha");
     } finally {
-      setBusy(false);
+      setLoading(false);
     }
   };
 
-  const appendObjetivo = (spoken: string) => {
-    const el = objetivoRef.current;
-    if (!el) return;
-    const prev = el.value ?? "";
-    const next = prev ? `${prev} ${spoken}`.trim() : spoken;
-    el.value = next;
-    patchPD({ objetivo: next });
+  const aplicarSugestao = async () => {
+    if (!pd.ia_validacao_fase2?.sugestao) return;
+    patchPD({ sugestao_aplicada: pd.ia_validacao_fase2.sugestao });
+    await flush();
+    toast.success("Sugestão aplicada — continue para o roteiro");
+    onAdvance();
   };
 
   const validacao = pd.ia_validacao_fase2;
-  const aprovado = validacao?.aprovado_para_roteiro === true;
-  const temMetasParaExibir = metasSugeridas.length > 0 || metasSelecionadas.length > 0;
 
   return (
-    <div className="space-y-6">
-      <Card className="p-6 space-y-3">
-        <Label>Energia</Label>
+    <div className="space-y-5">
+      <Card className="p-5 space-y-3">
+        <Label className="text-sm font-medium">Energia</Label>
         <div className="grid md:grid-cols-3 gap-3">
           {ENERGIAS.map((e) => {
             const active = (piece.energia ?? "").toLowerCase() === e.v;
             return (
-              <button
-                key={e.v}
-                type="button"
-                onClick={() => queue({ energia: e.v })}
-                className={cn(
-                  "text-left p-4 rounded-md border transition-colors",
-                  active
-                    ? "border-accent bg-accent/10"
-                    : "border-border hover:border-accent/50",
-                )}
-              >
+              <button key={e.v} type="button" onClick={() => queue({ energia: e.v })}
+                className={cn("text-left p-4 rounded-md border transition-colors",
+                  active ? "border-accent bg-accent/10" : "border-border hover:border-accent/50")}>
                 <div className="text-sm font-semibold mb-1">{e.label}</div>
                 <div className="text-xs text-muted-foreground">{e.desc}</div>
               </button>
@@ -2309,135 +2293,83 @@ function Phase2({
         </div>
       </Card>
 
-      <Card className="p-6 space-y-3">
-        <Label>Estratégia de criação</Label>
-        <ToggleRow
-          options={ESTRATEGIAS}
-          value={piece.creation_strategy}
-          onChange={(v) => queue({ creation_strategy: v })}
-        />
+      <Card className="p-5 space-y-3">
+        <Label className="text-sm font-medium">Estratégia de criação</Label>
+        <ToggleRow options={ESTRATEGIAS} value={piece.creation_strategy} onChange={(v) => queue({ creation_strategy: v })} />
       </Card>
 
-      <Card className="p-6 space-y-3">
-        <LabelRow onVoice={appendObjetivo}>Qual é o objetivo deste conteúdo?</LabelRow>
-        <Textarea
-          ref={objetivoRef}
-          defaultValue={pd.objetivo ?? ""}
-          onChange={(e) => patchPD({ objetivo: e.target.value })}
-          placeholder="O que você quer que a pessoa sinta, perceba ou faça ao terminar?"
-          rows={3}
-        />
-      </Card>
-
-      <Card className="p-6 space-y-3">
-        <div className="flex items-center justify-between">
-          <Label>Meta de resultado</Label>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => callValidate("sugerir")}
-            disabled={suggesting}
-          >
-            {suggesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            Sugerir metas com IA
-          </Button>
-        </div>
-
-        {suggesting && !temMetasParaExibir ? (
+      <Card className="p-5 space-y-3">
+        <Label className="text-sm font-medium">Meta de resultado</Label>
+        <p className="text-xs text-muted-foreground">O roteiro será construído para alcançar esta meta.</p>
+        {metasSugeridas.length > 0 && (
           <div className="space-y-2">
-            <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-6 w-2/3" />
-            <Skeleton className="h-6 w-1/2" />
+            <div className="text-xs uppercase text-muted-foreground">Sugeridas pela IA</div>
+            {metasSugeridas.map((m) => (
+              <label key={`s-${m}`} className="flex items-start gap-2 cursor-pointer text-sm">
+                <Checkbox checked={metasSelecionadas.includes(m)} onCheckedChange={() => toggleMeta(m)} />
+                <span>{m}</span>
+              </label>
+            ))}
+            <div className="border-t pt-2" />
           </div>
-        ) : (
-          <>
-            {metasSugeridas.length > 0 && (
-              <div className="space-y-2">
-                <div className="text-xs uppercase text-muted-foreground">Sugeridas pela IA</div>
-                {metasSugeridas.map((m) => (
-                  <label key={`s-${m}`} className="flex items-start gap-2 cursor-pointer text-sm">
-                    <Checkbox
-                      checked={metasSelecionadas.includes(m)}
-                      onCheckedChange={() => toggleMeta(m)}
-                    />
-                    <span>{m}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-            <div className="space-y-2 pt-2 border-t">
-              <div className="text-xs uppercase text-muted-foreground">Opções fixas</div>
-              {METAS_RESULTADO.map((m) => (
-                <label key={m} className="flex items-start gap-2 cursor-pointer text-sm">
-                  <Checkbox
-                    checked={metasSelecionadas.includes(m)}
-                    onCheckedChange={() => toggleMeta(m)}
-                  />
-                  <span>{m}</span>
-                </label>
-              ))}
-            </div>
-          </>
         )}
+        <div className="space-y-2">
+          {METAS_RESULTADO.map((m) => (
+            <label key={m} className="flex items-start gap-2 cursor-pointer text-sm">
+              <Checkbox checked={metasSelecionadas.includes(m)} onCheckedChange={() => toggleMeta(m)} />
+              <span>{m}</span>
+            </label>
+          ))}
+        </div>
       </Card>
 
       <div className="flex flex-wrap gap-3">
-        <Button variant="outline" onClick={() => callValidate("validar")} disabled={loading}>
+        <Button variant="outline" onClick={callValidate} disabled={loading}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           Validar estratégia
         </Button>
-        <Button onClick={onAdvance}>
-          Avançar para Roteiro
+        <Button onClick={async () => { await flush(); onAdvance(); }}>
+          Avançar para Roteiro →
         </Button>
       </div>
 
       {validacao && (
-        <Card
-          className={cn(
-            "p-5 space-y-2 border",
-            validacao.status === "alinhado"
-              ? "border-emerald-500/40 bg-emerald-500/5"
-              : "border-amber-500/40 bg-amber-500/5",
-          )}
-        >
-          <div className="text-xs uppercase font-medium">
-            {validacao.status === "alinhado" ? "Estratégia alinhada" : "Conflito detectado"}
-          </div>
-          {validacao.comentario && <p className="text-sm">{validacao.comentario}</p>}
-          {validacao.sugestao && (
-            <div className="text-sm border-t pt-2">
-              <span className="text-xs uppercase text-muted-foreground mr-2">Sugestão:</span>
-              {validacao.sugestao}
+        <div className="space-y-3">
+          <Card className={cn("p-4 space-y-2 border",
+            validacao.status === "alinhado" ? "border-emerald-500/40 bg-emerald-500/5" : "border-amber-500/40 bg-amber-500/5")}>
+            <div className="text-xs uppercase font-medium">
+              {validacao.status === "alinhado" ? "✓ Estratégia alinhada" : "⚠ Conflito detectado"}
             </div>
+            {validacao.comentario && <p className="text-sm">{validacao.comentario}</p>}
+            {validacao.sugestao && (
+              <div className="space-y-2 border-t pt-2">
+                <div className="text-sm">
+                  <span className="text-xs uppercase text-muted-foreground mr-2">Sugestão da IA:</span>
+                  {validacao.sugestao}
+                </div>
+                <Button size="sm" onClick={aplicarSugestao}>
+                  Aplicar esta ideia e seguir para o roteiro →
+                </Button>
+              </div>
+            )}
+          </Card>
+          {validacao.insights_estrategicos && validacao.insights_estrategicos.length > 0 && (
+            <Card className="p-4 space-y-2 border border-sky-500/40 bg-sky-500/5">
+              <div className="text-xs uppercase font-medium text-sky-700 dark:text-sky-300">Insights estratégicos</div>
+              <ul className="text-sm list-disc pl-5 space-y-1">
+                {validacao.insights_estrategicos.map((it, i) => <li key={i}>{it}</li>)}
+              </ul>
+            </Card>
           )}
-        </Card>
-      )}
-
-      {validacao?.insights_estrategicos && validacao.insights_estrategicos.length > 0 && (
-        <Card className="p-5 space-y-2 border border-sky-500/40 bg-sky-500/5">
-          <div className="text-xs uppercase font-medium text-sky-700 dark:text-sky-300">
-            Insights estratégicos
-          </div>
-          <ul className="text-sm list-disc pl-5 space-y-1">
-            {validacao.insights_estrategicos.map((it, i) => (
-              <li key={i}>{it}</li>
-            ))}
-          </ul>
-        </Card>
-      )}
-
-      {validacao?.evitar && validacao.evitar.length > 0 && (
-        <Card className="p-5 space-y-2 border border-red-500/40 bg-red-500/5">
-          <div className="text-xs uppercase font-medium text-red-700 dark:text-red-300">
-            Evitar neste conteúdo
-          </div>
-          <ul className="text-sm list-disc pl-5 space-y-1">
-            {validacao.evitar.map((it, i) => (
-              <li key={i}>{it}</li>
-            ))}
-          </ul>
-        </Card>
+          {validacao.evitar && validacao.evitar.length > 0 && (
+            <Card className="p-4 space-y-2 border border-red-500/40 bg-red-500/5">
+              <div className="text-xs uppercase font-medium text-red-700 dark:text-red-300">Evitar neste conteúdo</div>
+              <ul className="text-sm list-disc pl-5 space-y-1">
+                {validacao.evitar.map((it, i) => <li key={i}>{it}</li>)}
+              </ul>
+            </Card>
+          )}
+        </div>
       )}
     </div>
   );
@@ -2447,34 +2379,16 @@ function Phase2({
 /* PHASE 3 — ROTEIRO                                                  */
 /* ================================================================== */
 
-const AJUSTES_PRESET = [
-  "Gancho muito longo — comprimir",
-  "Escrita muito formal — humanizar",
-  "Falta microchoque — o conteúdo está linear",
-  "Insight genérico — não gera descoberta",
-  "Resolução fraca — não transforma",
-  "Linguagem de coach detectada — corrigir",
-  "CTA ausente ou fora do posicionamento",
-];
-
 const wordsAndSeconds = (text: string) => {
-  const words = (text ?? "").trim().split(/\s+/).filter(Boolean).length;
-  const seconds = Math.round((words / 150) * 60); // ~150 ppm de fala
-  return { words, seconds };
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  return { words, seconds: Math.round(words / 2.5) };
 };
 
-const papelLabel = (papel: string) => {
-  const p = (papel ?? "").toLowerCase();
-  if (p === "resolucao" || p === "resolução") return "Resolução / Transformação";
-  if (p === "cta") return "CTA";
-  return papel;
-};
+const papelLabel = (papel: string) => papel || "Bloco";
 
-const withCta = (blocks: ScriptBlock[]): ScriptBlock[] => {
-  if (!blocks || blocks.length === 0) return blocks;
-  const hasCta = blocks.some((b) => (b.papel ?? "").toLowerCase() === "cta");
-  if (hasCta) return blocks;
-  return [...blocks, { papel: "cta", texto: "" }];
+const withCta = (blocos: ScriptBlock[]): ScriptBlock[] => {
+  if (blocos.some((b) => (b.papel ?? "").toLowerCase().includes("cta"))) return blocos;
+  return [...blocos, { papel: "CTA", texto: "", nota_gravacao: "Chamada para ação — escreva manualmente" }];
 };
 
 function Phase3({
@@ -2496,12 +2410,10 @@ function Phase3({
   const [sub, setSub] = useState<"insights" | "topicos" | "roteiro" | "revisao">("insights");
   const [loading, setLoading] = useState<string | null>(null);
   const [teleOpen, setTeleOpen] = useState(false);
-  const instrucaoRef = useRef<HTMLTextAreaElement>(null);
   const [targetSeconds, setTargetSeconds] = useState(90);
+  const [faltouTexto, setFaltouTexto] = useState("");
 
-  useEffect(() => {
-    if (openTeleOnMount) setTeleOpen(true);
-  }, []);
+  useEffect(() => { if (openTeleOnMount) setTeleOpen(true); }, []);
 
   const patchPD = (p: Partial<PhaseData>) => queue({ phase_data: { ...pd, ...p } });
 
@@ -2509,9 +2421,7 @@ function Phase3({
     setLoading(action);
     try {
       await flush();
-      const { data, error } = await supabase.functions.invoke("studio-agent", {
-        body: { action, payload },
-      });
+      const { data, error } = await supabase.functions.invoke("studio-agent", { body: { action, payload } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       return data?.result ?? {};
@@ -2523,126 +2433,103 @@ function Phase3({
     }
   };
 
-  const templatesQ = useQuery({
-    queryKey: ["script-templates"],
-    queryFn: async () => {
-      const { data } = await supabase.from("script_templates").select("id,name,description,structure").eq("is_active", true).order("name");
-      return data ?? [];
-    },
-  });
-
   // ── ETAPA 1: INSIGHTS ──
-  const insights: Insight[] = pd.insights_gerados ?? [];
-  const aprovados: Insight[] = pd.insights_aprovados ?? [];
-  const isSelected = (id: string) => aprovados.some((i) => i.id === id);
+  const insights: string[] = pd.bullets_insights ?? [];
+  const sugestaoFalta: string = pd.sugestao_faltou ?? "";
 
   const gerarInsights = async () => {
     const result = await callAI("phase3_insights", {
       tema: piece.theme,
       energia: piece.energia,
       creation_strategy: piece.creation_strategy,
-      objetivo: pd.objetivo,
+      metas_resultado: pd.metas_resultado ?? [],
       conteudo: pd.conteudo,
       insight_manual: pd.insight_manual ?? null,
       conteudo_audiencia: pd.conteudo_audiencia,
+      sugestao_aplicada: pd.sugestao_aplicada ?? null,
       ai_memory: piece.ai_memory,
-      script_template: pd.template_selecionado ?? null,
+      modo: "bullets",
     });
     if (!result) return;
-    const ins: Insight[] = (result as { insights?: Insight[] }).insights ?? [];
-    patchPD({ insights_gerados: ins });
+    const raw = result as { insights?: { frase_semente?: string; titulo_angulo?: string }[] };
+    const bullets = (raw.insights ?? []).map(i => i.frase_semente ?? i.titulo_angulo ?? "").filter(Boolean);
+    patchPD({ bullets_insights: bullets });
     await flush();
   };
 
-  const toggleInsight = (ins: Insight) => {
-    if (!ins.id) return;
-    const next = isSelected(ins.id)
-      ? aprovados.filter((i) => i.id !== ins.id)
-      : [...aprovados, ins];
-    patchPD({ insights_aprovados: next });
-  };
-
-  // ── ETAPA 2: TÓPICOS ──
-  const topicos: string[] = (pd.topicos_rascunho as string[] | undefined) ?? [];
-
-  const gerarTopicos = async () => {
+  const resolverFalta = async () => {
+    if (!faltouTexto.trim()) return;
     const result = await callAI("phase3_insights", {
       tema: piece.theme,
       energia: piece.energia,
       creation_strategy: piece.creation_strategy,
-      objetivo: pd.objetivo,
+      metas_resultado: pd.metas_resultado ?? [],
       conteudo: pd.conteudo,
-      insight_manual: pd.insight_manual ?? null,
-      insights_aprovados: aprovados,
-      conteudo_audiencia: pd.conteudo_audiencia,
+      faltou: faltouTexto,
+      bullets_existentes: insights,
       ai_memory: piece.ai_memory,
-      modo: "topicos",
+      modo: "resolver_falta",
     });
     if (!result) return;
-    const ins = (result as { insights?: Insight[] }).insights ?? [];
-    const topics = ins.map((i) => i.frase_semente ?? i.titulo_angulo ?? "").filter(Boolean);
-    patchPD({ topicos_rascunho: topics.length > 0 ? topics : aprovados.map((i) => i.frase_semente ?? i.titulo_angulo ?? "") });
+    const raw = result as { solucao?: string; bullet_adicional?: string };
+    patchPD({ sugestao_faltou: raw.solucao ?? raw.bullet_adicional ?? "" });
     await flush();
-    toast.success("Tópicos gerados — edite antes de ir para o roteiro");
   };
 
+  const aprovarInsights = async () => {
+    const todos = [...insights, ...(sugestaoFalta ? [sugestaoFalta] : [])];
+    patchPD({ topicos_rascunho: todos, bullets_insights: todos });
+    await flush();
+    setSub("topicos");
+  };
+
+  // ── ETAPA 2: TÓPICOS ──
+  const topicos: string[] = (pd.topicos_rascunho as string[] | undefined) ?? [];
   const atualizarTopico = (idx: number, valor: string) => {
-    const next = [...topicos];
-    next[idx] = valor;
+    const next = [...topicos]; next[idx] = valor;
     patchPD({ topicos_rascunho: next });
   };
   const adicionarTopico = () => patchPD({ topicos_rascunho: [...topicos, ""] });
-  const removerTopico = (idx: number) => {
-    const next = topicos.filter((_, i) => i !== idx);
-    patchPD({ topicos_rascunho: next });
-  };
+  const removerTopico = (idx: number) => patchPD({ topicos_rascunho: topicos.filter((_, i) => i !== idx) });
 
   // ── ETAPA 3: ROTEIRO ──
-  const withCta = (blocos: ScriptBlock[]): ScriptBlock[] => {
-    if (blocos.some((b) => (b.papel ?? "").toLowerCase().includes("cta"))) return blocos;
-    return [...blocos, { papel: "CTA", texto: "", nota_gravacao: "Chamada para ação — escreva manualmente" }];
-  };
-
-  const blocosRoteiro: ScriptBlock[] = withCta(pd.blocos_salvos_usuario ?? pd.blocos_editados ?? pd.blocos_rascunho ?? []);
-  const totalSeconds = blocosRoteiro.reduce((acc, b) => acc + wordsAndSeconds(b.texto || "").seconds, 0);
-  const tempoOk = totalSeconds >= 75 && totalSeconds <= 105;
+  const blocos: ScriptBlock[] = withCta(pd.blocos_salvos_usuario ?? pd.blocos_editados ?? pd.blocos_rascunho ?? []);
+  const totalSec = blocos.reduce((a, b) => a + wordsAndSeconds(b.texto || "").seconds, 0);
 
   const gerarRoteiro = async () => {
     const result = await callAI("phase3_draft", {
       tema: piece.theme,
       energia: piece.energia,
-      objetivo: pd.objetivo,
+      metas_resultado: pd.metas_resultado ?? [],
       conteudo: pd.conteudo,
       topicos_para_abordar: topicos,
-      insights_aprovados: aprovados,
-      script_template: pd.template_selecionado ?? null,
+      modelo_roteiro: pd.modelo_roteiro ?? null,
+      ai_memory: piece.ai_memory,
     });
     if (!result) return;
-    const blocos: ScriptBlock[] = withCta((result as { blocos?: ScriptBlock[] }).blocos ?? []);
-    patchPD({ blocos_rascunho: blocos, blocos_editados: blocos, blocos_salvos_usuario: blocos });
+    const b: ScriptBlock[] = withCta((result as { blocos?: ScriptBlock[] }).blocos ?? []);
+    patchPD({ blocos_rascunho: b, blocos_editados: b, blocos_salvos_usuario: b });
     await flush();
   };
 
   const editarBloco = (idx: number, texto: string) => {
-    const next = withCta([...blocosRoteiro]);
-    next[idx] = { ...next[idx], texto };
+    const next = [...blocos]; next[idx] = { ...next[idx], texto };
     patchPD({ blocos_editados: next, blocos_salvos_usuario: next });
   };
 
   const salvarRoteiro = async () => {
-    patchPD({ blocos_salvos_usuario: blocosRoteiro });
+    patchPD({ blocos_salvos_usuario: blocos });
     await flush();
     toast.success("Roteiro salvo");
   };
 
   // ── ETAPA 4: REVISÃO ──
   const blocosFinais: ScriptBlock[] = withCta(pd.blocos_salvos_usuario ?? pd.blocos_editados ?? pd.blocos_rascunho ?? []);
-  const tempoFinalSeconds = blocosFinais.reduce((acc, b) => acc + wordsAndSeconds(b.texto || "").seconds, 0);
+  const tempoFinalSec = blocosFinais.reduce((a, b) => a + wordsAndSeconds(b.texto || "").seconds, 0);
 
   const editarBlocoFinal = (idx: number, texto: string) => {
-    const base = [...blocosFinais];
-    base[idx] = { ...base[idx], texto };
-    patchPD({ blocos_salvos_usuario: base });
+    const next = [...blocosFinais]; next[idx] = { ...next[idx], texto };
+    patchPD({ blocos_salvos_usuario: next });
   };
 
   const salvarBlocoFinal = async () => {
@@ -2651,12 +2538,32 @@ function Phase3({
     toast.success("Roteiro salvo");
   };
 
+  const sugerirCortes = async () => {
+    const result = await callAI("phase3_adjust", {
+      blocos_atuais: blocosFinais,
+      ajustes_marcados: [],
+      instrucao_livre: `Corte trechos para reduzir para ${targetSeconds} segundos. Retorne os blocos com o texto cortado — não reescreva, apenas remova.`,
+    });
+    if (!result) return;
+    const r = result as { blocos_ajustados?: ScriptBlock[] };
+    patchPD({ sugestao_cortes: { blocos: withCta(r.blocos_ajustados ?? []), target: targetSeconds } });
+    await flush();
+  };
+
+  const usarVersaoCortada = async () => {
+    const cortes = pd.sugestao_cortes?.blocos;
+    if (!cortes) return;
+    patchPD({ blocos_salvos_usuario: cortes, sugestao_cortes: undefined });
+    await flush();
+    toast.success("Versão com cortes salva como roteiro");
+  };
+
   const analisarRoteiro = async () => {
     const result = await callAI("phase3_review", {
       tema: piece.theme,
       energia: piece.energia,
       creation_strategy: piece.creation_strategy,
-      objetivo: pd.objetivo,
+      metas_resultado: pd.metas_resultado ?? [],
       blocos_finais: blocosFinais,
       ai_memory: piece.ai_memory,
     });
@@ -2674,51 +2581,26 @@ function Phase3({
     await flush();
   };
 
-  const sugerirCortes = async () => {
-    const result = await callAI("phase3_adjust", {
-      blocos_atuais: blocosFinais,
-      ajustes_marcados: [],
-      instrucao_livre: `Sugira quais trechos cortar para reduzir o roteiro para ${targetSeconds} segundos. Não reescreva — apenas mostre o texto resultante de cada bloco com os cortes aplicados.`,
-    });
-    if (!result) return;
-    const r = result as { blocos_ajustados?: ScriptBlock[] };
-    patchPD({ sugestao_cortes: { blocos: withCta(r.blocos_ajustados ?? []), target: targetSeconds } });
-    await flush();
-  };
-
-  const usarVersaoCortada = async () => {
-    const cortes = pd.sugestao_cortes?.blocos;
-    if (!cortes) return;
-    patchPD({ blocos_salvos_usuario: cortes, sugestao_cortes: undefined });
-    await flush();
-    toast.success("Versão com cortes salva");
-  };
-
-  const sugerirParaPontoFraco = async (ponto: string, correcao: string) => {
+  const sugerirInline = async (idx: number, ponto: string, correcao: string) => {
     const result = await callAI("phase3_adjust", {
       blocos_atuais: blocosFinais,
       ajustes_marcados: [ponto],
       instrucao_livre: correcao,
+      bloco_alvo_idx: idx,
     });
     if (!result) return;
     const r = result as { blocos_ajustados?: ScriptBlock[] };
-    patchPD({
-      sugestoes_ponto_fraco: { ...(pd.sugestoes_ponto_fraco ?? {}), [ponto]: withCta(r.blocos_ajustados ?? []) },
-    });
+    patchPD({ sugestoes_inline: { ...(pd.sugestoes_inline ?? {}), [idx]: r.blocos_ajustados?.[idx] ?? r.blocos_ajustados?.[0] } });
     await flush();
   };
 
-  const aprovarSugestaoPontoFraco = async (ponto: string) => {
-    const sugestao = pd.sugestoes_ponto_fraco?.[ponto];
-    if (!sugestao?.length) return;
-    const papeisModificados = new Set(sugestao.map((b) => b.papel));
-    const next = blocosFinais.map((b) => {
-      if (!papeisModificados.has(b.papel)) return b;
-      return sugestao.find((s) => s.papel === b.papel) ?? b;
-    });
-    patchPD({ blocos_salvos_usuario: next });
+  const aprovarInline = async (idx: number) => {
+    const sugestao = (pd.sugestoes_inline ?? {})[idx];
+    if (!sugestao) return;
+    const next = [...blocosFinais]; next[idx] = { ...next[idx], texto: sugestao.texto };
+    patchPD({ blocos_salvos_usuario: next, sugestoes_inline: { ...(pd.sugestoes_inline ?? {}), [idx]: undefined } });
     await flush();
-    toast.success("Sugestão aprovada");
+    toast.success("Sugestão aplicada ao roteiro");
   };
 
   const aprovarRoteiro = async () => {
@@ -2730,11 +2612,6 @@ function Phase3({
     await onAdvance();
   };
 
-  const salvarMulticonteudo = () => {
-    patchPD({ insights_multiconteudo: aprovados });
-    toast.success("Insights salvos para multiconteúdo");
-  };
-
   const fontSize = piece.teleprompter_font_size ?? 32;
   const fontTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const setFont = (v: number) => {
@@ -2743,6 +2620,8 @@ function Phase3({
     fontTimer.current = setTimeout(flush, 500);
   };
 
+  const revisaoIA = pd.revisao_ia;
+
   const subTabs = [
     { v: "insights" as const, label: "1. Insights" },
     { v: "topicos" as const, label: "2. Tópicos" },
@@ -2750,28 +2629,13 @@ function Phase3({
     { v: "revisao" as const, label: "4. Revisão" },
   ];
 
-  const ESTRUTURA_ROTEIRO = [
-    { papel: "Hook", desc: "Frase que para — por ser verdadeira, não dramática" },
-    { papel: "Contexto Emocional", desc: "Situar o que acontece. Emoção antes de informação." },
-    { papel: "Microchoque", desc: "Virada que quebra o previsível. Desloca perspectiva." },
-    { papel: "Insight de Descoberta", desc: "Percepção nova. Não é dica — é reconhecimento." },
-    { papel: "Resolução / Transformação", desc: "Abre direção. Conecta à tese da série." },
-    { papel: "CTA", desc: "Gera comentários — nunca venda direta." },
-  ];
-
   return (
-    <div className="space-y-6">
-      {/* Tabs */}
+    <div className="space-y-5">
       <div className="flex gap-1 border-b overflow-x-auto">
         {subTabs.map((t) => (
-          <button
-            key={t.v}
-            onClick={() => setSub(t.v)}
-            className={cn(
-              "px-3 py-2 text-sm border-b-2 -mb-px transition-colors whitespace-nowrap",
-              sub === t.v ? "border-accent text-foreground font-medium" : "border-transparent text-muted-foreground hover:text-foreground",
-            )}
-          >
+          <button key={t.v} onClick={() => setSub(t.v)}
+            className={cn("px-3 py-2 text-sm border-b-2 -mb-px transition-colors whitespace-nowrap",
+              sub === t.v ? "border-accent text-foreground font-medium" : "border-transparent text-muted-foreground hover:text-foreground")}>
             {t.label}
           </button>
         ))}
@@ -2780,80 +2644,51 @@ function Phase3({
       {/* ── 1. INSIGHTS ── */}
       {sub === "insights" && (
         <div className="space-y-4">
-          {(templatesQ.data ?? []).length > 0 && (
+          <Button onClick={gerarInsights} disabled={loading === "phase3_insights"}>
+            {loading === "phase3_insights" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {insights.length > 0 ? "Regerar insights" : "Gerar insights"}
+          </Button>
+          {loading === "phase3_insights" && (
+            <div className="space-y-2">{[1,2,3,4].map(i => <Skeleton key={i} className="h-8 w-full" />)}</div>
+          )}
+          {insights.length > 0 && (
             <Card className="p-4 space-y-2">
-              <Label className="text-xs">Usar modelo de roteiro como referência?</Label>
-              <Select
-                value={pd.template_selecionado ? JSON.stringify(pd.template_selecionado) : "__none__"}
-                onValueChange={(v) => patchPD({ template_selecionado: v === "__none__" ? null : JSON.parse(v) })}
-              >
-                <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Nenhum</SelectItem>
-                  {(templatesQ.data ?? []).map((t: { id: string; name: string; structure: unknown }) => (
-                    <SelectItem key={t.id} value={JSON.stringify(t.structure)}>{t.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <p className="text-xs text-muted-foreground uppercase font-medium">Assuntos a abordar neste conteúdo</p>
+              <ul className="space-y-2">
+                {insights.map((ins, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className="text-accent mt-1 shrink-0">•</span>
+                    <span className="text-sm">{ins}</span>
+                  </li>
+                ))}
+              </ul>
             </Card>
           )}
-
-          <div className="flex gap-3 flex-wrap">
-            <Button onClick={gerarInsights} disabled={loading === "phase3_insights"}>
-              {loading === "phase3_insights" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {insights.length > 0 ? "Regerar insights" : "Gerar insights"}
-            </Button>
-            {aprovados.length > 0 && (
-              <Button variant="outline" onClick={() => setSub("topicos")}>
-                Continuar com {aprovados.length} insight{aprovados.length > 1 ? "s" : ""} →
+          {insights.length > 0 && (
+            <Card className="p-4 space-y-3">
+              <Label className="text-sm">O que sentiu falta?</Label>
+              <Textarea
+                value={faltouTexto}
+                onChange={(e) => setFaltouTexto(e.target.value)}
+                placeholder="Descreva o que ainda falta cobrir neste conteúdo..."
+                rows={3}
+              />
+              <Button variant="outline" size="sm" onClick={resolverFalta} disabled={loading === "phase3_insights" || !faltouTexto.trim()}>
+                {loading === "phase3_insights" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Resolver com IA
               </Button>
-            )}
-            {aprovados.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={salvarMulticonteudo}>
-                Salvar para multiconteúdo
-              </Button>
-            )}
-          </div>
-
-          {loading === "phase3_insights" && (
-            <div className="grid md:grid-cols-2 gap-3">
-              {[1,2,3,4].map((i) => (
-                <Card key={i} className="p-4 space-y-2">
-                  <Skeleton className="h-4 w-2/3" />
-                  <Skeleton className="h-3 w-full" />
-                  <Skeleton className="h-3 w-4/5" />
-                </Card>
-              ))}
-            </div>
+              {sugestaoFalta && (
+                <div className="rounded border bg-accent/5 p-3 text-sm space-y-2">
+                  <p className="text-xs text-muted-foreground uppercase font-medium">Solução da IA</p>
+                  <p>{sugestaoFalta}</p>
+                </div>
+              )}
+            </Card>
           )}
-
-          {loading !== "phase3_insights" && insights.length > 0 && (
-            <div className="grid md:grid-cols-2 gap-3">
-              {insights.map((ins, idx) => {
-                const id = ins.id ?? String(idx);
-                const sel = isSelected(id);
-                const insExt = ins as unknown as { revelacao?: string };
-                return (
-                  <Card key={id} className={cn("p-4 space-y-3 cursor-pointer transition-colors", sel ? "border-accent bg-accent/5" : "hover:border-accent/40")}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="font-medium text-sm flex-1">{ins.titulo_angulo}</div>
-                      {energiaBadge(ins.energia_sugerida)}
-                    </div>
-                    {ins.tensao && <p className="text-xs text-muted-foreground">{ins.tensao}</p>}
-                    {ins.frase_semente && <p className="text-sm italic border-l-2 border-accent/40 pl-2">"{ins.frase_semente}"</p>}
-                    {insExt.revelacao && (
-                      <div className="text-xs bg-muted/50 rounded p-2">
-                        <span className="font-medium">Revelação: </span>{insExt.revelacao}
-                      </div>
-                    )}
-                    <label className="flex items-center gap-2 text-xs cursor-pointer pt-2 border-t">
-                      <Checkbox checked={sel} onCheckedChange={() => toggleInsight({ ...ins, id })} />
-                      {sel ? "Selecionado ✓" : "Selecionar este insight"}
-                    </label>
-                  </Card>
-                );
-              })}
-            </div>
+          {insights.length > 0 && (
+            <Button onClick={aprovarInsights} className="w-full">
+              Aprovar insights e seguir para Tópicos →
+            </Button>
           )}
         </div>
       )}
@@ -2862,72 +2697,41 @@ function Phase3({
       {sub === "topicos" && (
         <div className="space-y-4">
           <Card className="p-4 space-y-2 bg-muted/20">
-            <p className="text-sm text-muted-foreground">
-              Estes são os tópicos que precisam ser abordados no conteúdo — não o roteiro ainda. Edite, reordene, adicione ou remova antes de gerar o roteiro.
-            </p>
-            {aprovados.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                <span className="text-xs text-muted-foreground">Insights aprovados:</span>
-                {aprovados.map((i) => (
-                  <Badge key={i.id} variant="outline" className="text-[10px]">{i.titulo_angulo}</Badge>
-                ))}
-              </div>
-            )}
+            <p className="text-sm text-muted-foreground">Edite os tópicos que precisam ser abordados. Depois cole um modelo de roteiro para a IA organizar na estrutura certa.</p>
           </Card>
-
-          <div className="flex gap-3 flex-wrap">
-            <Button variant="outline" onClick={gerarTopicos} disabled={loading === "phase3_insights"}>
-              {loading === "phase3_insights" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {topicos.length > 0 ? "Regerar tópicos" : "Gerar tópicos da IA"}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={adicionarTopico}>
-              + Adicionar tópico manualmente
-            </Button>
+          <div className="space-y-2">
+            {topicos.map((t, idx) => (
+              <div key={idx} className="flex gap-2 items-start">
+                <span className="text-xs text-muted-foreground pt-2.5 w-5 shrink-0">{idx + 1}.</span>
+                <textarea
+                  className="flex-1 min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={t}
+                  onChange={(e) => atualizarTopico(idx, e.target.value)}
+                  placeholder={`Tópico ${idx + 1}...`}
+                />
+                <Button size="icon" variant="ghost" className="shrink-0 mt-1 text-muted-foreground hover:text-destructive" onClick={() => removerTopico(idx)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
           </div>
-
+          <Button variant="outline" size="sm" onClick={adicionarTopico}>
+            + Adicionar tópico
+          </Button>
+          <Card className="p-4 space-y-2">
+            <Label className="text-sm">Modelo base de roteiro (opcional)</Label>
+            <p className="text-xs text-muted-foreground">Cole um roteiro de referência. A IA vai usar a estrutura narrativa dele para organizar seus tópicos.</p>
+            <textarea
+              className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={pd.modelo_roteiro ?? ""}
+              onChange={(e) => patchPD({ modelo_roteiro: e.target.value })}
+              placeholder="Cole aqui um roteiro modelo para servir de estrutura narrativa..."
+            />
+          </Card>
           {topicos.length > 0 && (
-            <div className="space-y-2">
-              {topicos.map((t, idx) => (
-                <div key={idx} className="flex gap-2 items-start">
-                  <span className="text-xs text-muted-foreground pt-2.5 w-5 shrink-0">{idx + 1}.</span>
-                  <Textarea
-                    value={t}
-                    onChange={(e) => atualizarTopico(idx, e.target.value)}
-                    rows={2}
-                    placeholder={`Tópico ${idx + 1}...`}
-                    className="flex-1 text-sm"
-                  />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="shrink-0 mt-1 text-muted-foreground hover:text-destructive"
-                    onClick={() => removerTopico(idx)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {topicos.length === 0 && !loading && (
-            <Card className="p-6 text-center text-sm text-muted-foreground">
-              Clique em "Gerar tópicos" ou adicione manualmente o que precisa ser dito neste conteúdo.
-            </Card>
-          )}
-
-          {topicos.length > 0 && (
-            <div className="flex gap-3 pt-2">
-              <Button
-                onClick={async () => {
-                  patchPD({ topicos_rascunho: topicos });
-                  await flush();
-                  setSub("roteiro");
-                }}
-              >
-                Ir para o roteiro →
-              </Button>
-            </div>
+            <Button className="w-full" onClick={async () => { patchPD({ topicos_rascunho: topicos }); await flush(); setSub("roteiro"); }}>
+              Seguir para o Roteiro →
+            </Button>
           )}
         </div>
       )}
@@ -2935,66 +2739,37 @@ function Phase3({
       {/* ── 3. ROTEIRO ── */}
       {sub === "roteiro" && (
         <div className="space-y-4">
-          <Card className="p-4 space-y-2 bg-muted/20">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Estrutura do roteiro</p>
-            <div className="grid sm:grid-cols-2 gap-1.5">
-              {ESTRUTURA_ROTEIRO.map((e) => (
-                <div key={e.papel} className="text-xs">
-                  <span className="font-medium">{e.papel}: </span>
-                  <span className="text-muted-foreground">{e.desc}</span>
-                </div>
-              ))}
-            </div>
-          </Card>
-
           <div className="flex gap-3 flex-wrap">
             <Button onClick={gerarRoteiro} disabled={loading === "phase3_draft"}>
               {loading === "phase3_draft" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {blocosRoteiro.filter(b => b.texto).length > 0 ? "Regerar roteiro" : "Gerar roteiro"}
+              {blocos.filter(b => b.texto).length > 0 ? "Regerar roteiro" : "Gerar roteiro"}
             </Button>
-            {blocosRoteiro.filter(b => b.texto).length > 0 && (
-              <Button variant="outline" onClick={salvarRoteiro}>
-                Salvar roteiro
-              </Button>
+            {blocos.filter(b => b.texto).length > 0 && (
+              <Button variant="outline" onClick={salvarRoteiro}>Salvar roteiro</Button>
             )}
           </div>
-
-          {blocosRoteiro.filter(b => b.texto).length > 0 && (
-            <Card className="p-3 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span>Tempo total estimado</span>
-                <span className={cn("font-semibold tabular-nums", tempoOk ? "text-emerald-600" : "text-amber-600")}>
-                  {totalSeconds}s {tempoOk ? "✓ (~90s)" : "(ideal: 75-105s)"}
-                </span>
-              </div>
-              <div className="h-1.5 rounded bg-muted overflow-hidden">
-                <div className={cn("h-full transition-all", tempoOk ? "bg-emerald-500" : "bg-amber-500")} style={{ width: `${Math.min(100, (totalSeconds / 105) * 100)}%` }} />
-              </div>
-            </Card>
+          {blocos.filter(b => b.texto).length > 0 && (
+            <div className="flex items-center justify-between text-xs px-1">
+              <span className="text-muted-foreground">Tempo estimado</span>
+              <span className={cn("font-semibold tabular-nums", totalSec >= 75 && totalSec <= 105 ? "text-emerald-600" : "text-amber-600")}>
+                {totalSec}s {totalSec >= 75 && totalSec <= 105 ? "✓" : "(ideal ~90s)"}
+              </span>
+            </div>
           )}
-
           <div className="space-y-3">
-            {blocosRoteiro.map((b, idx) => {
+            {blocos.map((b, idx) => {
               const { words, seconds } = wordsAndSeconds(b.texto || "");
-              const estrutura = ESTRUTURA_ROTEIRO.find(e => e.papel === b.papel);
               return (
                 <Card key={idx} className="p-4 space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <Badge variant="outline" className="text-[10px] uppercase">{papelLabel(b.papel)}</Badge>
-                      {estrutura && <span className="text-[10px] text-muted-foreground ml-2">{estrutura.desc}</span>}
-                    </div>
-                    {b.texto && (
-                      <div className="text-[11px] text-muted-foreground tabular-nums shrink-0">
-                        {words}p · ~{seconds}s
-                      </div>
-                    )}
+                    <Badge variant="outline" className="text-[10px] uppercase">{papelLabel(b.papel)}</Badge>
+                    {b.texto && <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">{words}p · ~{seconds}s</span>}
                   </div>
-                  <Textarea
+                  <textarea
+                    className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     value={b.texto}
                     onChange={(e) => editarBloco(idx, e.target.value)}
-                    rows={b.papel === "CTA" ? 2 : 3}
-                    placeholder={(b.papel ?? "").toLowerCase() === "cta" ? "Escreva a chamada para ação — não use venda direta" : `Escreva o ${b.papel}...`}
+                    placeholder={(b.papel ?? "").toLowerCase() === "cta" ? "Chamada para ação — não use venda direta" : `Escreva o ${b.papel}...`}
                   />
                   {b.nota_gravacao && b.papel !== "CTA" && (
                     <p className="text-[11px] text-muted-foreground italic">↳ {b.nota_gravacao}</p>
@@ -3003,65 +2778,25 @@ function Phase3({
               );
             })}
           </div>
-
-          {blocosRoteiro.filter(b => b.texto).length > 0 && (
-            <div className="flex gap-3 pt-2">
-              <Button
-                onClick={async () => {
-                  await salvarRoteiro();
-                  setSub("revisao");
-                }}
-              >
-                Salvar e ir para revisão →
-              </Button>
-            </div>
+          {blocos.filter(b => b.texto).length > 0 && (
+            <Button className="w-full" onClick={async () => { await salvarRoteiro(); setSub("revisao"); }}>
+              Salvar e ir para Revisão →
+            </Button>
           )}
         </div>
       )}
 
       {/* ── 4. REVISÃO ── */}
       {sub === "revisao" && (
-        <div className="space-y-4">
-          <div className="space-y-3">
-            {blocosFinais.map((b, idx) => (
-              <BlockReadEdit key={idx} block={b} onSave={(texto) => editarBlocoFinal(idx, texto)} />
-            ))}
-          </div>
-
-          <div className="flex gap-3 flex-wrap">
-            <Button variant="outline" onClick={salvarBlocoFinal}>
-              Salvar roteiro
-            </Button>
-            <Button onClick={analisarRoteiro} disabled={loading === "phase3_review"}>
-              {loading === "phase3_review" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              Análise da IA
-            </Button>
-            <Button variant="outline" onClick={() => setTeleOpen(true)}>
-              <Play className="h-4 w-4" /> Teleprompter
-            </Button>
-            <Button onClick={aprovarRoteiro}>Roteiro aprovado → Produção</Button>
-          </div>
-
-          {pd.revisao_ia && (
-            <ReviewCard
-              r={pd.revisao_ia}
-              sugestoes={pd.sugestoes_ponto_fraco ?? {}}
-              loadingPonto={loading === "phase3_adjust"}
-              onSugerirPonto={sugerirParaPontoFraco}
-              onAprovarSugestao={aprovarSugestaoPontoFraco}
-            />
-          )}
-
+        <div className="space-y-5">
           <Card className="p-4 space-y-3">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div>
                 <div className="text-sm font-medium">Cortar por tempo</div>
-                <div className="text-xs text-muted-foreground">
-                  Tempo atual: <span className="font-semibold tabular-nums">{tempoFinalSeconds}s</span>
-                </div>
+                <div className="text-xs text-muted-foreground">Tempo atual: <span className="font-semibold">{tempoFinalSec}s</span></div>
               </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-xs whitespace-nowrap">Reduzir para</Label>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Label className="text-xs">Reduzir para</Label>
                 <Input type="number" min={15} value={targetSeconds} onChange={(e) => setTargetSeconds(Number(e.target.value) || 0)} className="w-20" />
                 <span className="text-xs text-muted-foreground">seg</span>
                 <Button size="sm" variant="outline" onClick={sugerirCortes} disabled={loading === "phase3_adjust"}>
@@ -3070,36 +2805,120 @@ function Phase3({
                 </Button>
               </div>
             </div>
-
             {pd.sugestao_cortes && (
               <div className="space-y-2 border-t pt-3">
-                <div className="text-xs uppercase font-medium opacity-60">Original vs. com cortes (alvo {pd.sugestao_cortes.target}s)</div>
-                <div className="grid md:grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <div className="text-[11px] uppercase opacity-60">Original</div>
-                    {blocosFinais.map((b, i) => (
-                      <Card key={i} className="p-2 text-xs space-y-1">
-                        <Badge variant="outline" className="text-[9px]">{papelLabel(b.papel)}</Badge>
-                        <p className="whitespace-pre-wrap">{b.texto}</p>
-                      </Card>
-                    ))}
-                  </div>
-                  <div className="space-y-2">
-                    <div className="text-[11px] uppercase opacity-60">Com cortes sugeridos</div>
-                    {pd.sugestao_cortes.blocos?.map((b, i) => (
-                      <Card key={i} className="p-2 text-xs space-y-1 border-accent/40">
-                        <Badge variant="outline" className="text-[9px]">{papelLabel(b.papel)}</Badge>
-                        <p className="whitespace-pre-wrap">{b.texto}</p>
-                      </Card>
-                    ))}
-                  </div>
+                <div className="text-xs uppercase opacity-60">Versão com cortes (alvo {pd.sugestao_cortes.target}s)</div>
+                <div className="space-y-2">
+                  {pd.sugestao_cortes.blocos?.map((b, i) => (
+                    <div key={i} className="space-y-1">
+                      <Badge variant="outline" className="text-[9px]">{papelLabel(b.papel)}</Badge>
+                      <textarea
+                        className="w-full min-h-[60px] rounded-md border border-accent/40 bg-accent/5 px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        value={b.texto}
+                        onChange={(e) => {
+                          const next = [...(pd.sugestao_cortes?.blocos ?? [])];
+                          next[i] = { ...next[i], texto: e.target.value };
+                          patchPD({ sugestao_cortes: { ...pd.sugestao_cortes!, blocos: next } });
+                        }}
+                      />
+                    </div>
+                  ))}
                 </div>
                 <Button size="sm" onClick={usarVersaoCortada}>
-                  Usar versão com cortes
+                  Usar esta versão como roteiro
                 </Button>
               </div>
             )}
           </Card>
+
+          <div className="flex gap-3 flex-wrap">
+            <Button variant="outline" onClick={analisarRoteiro} disabled={loading === "phase3_review"}>
+              {loading === "phase3_review" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              Análise da IA
+            </Button>
+            <Button variant="outline" onClick={() => setTeleOpen(true)}>
+              <Play className="h-4 w-4" /> Teleprompter
+            </Button>
+          </div>
+
+          {revisaoIA && (
+            <Card className="p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className={cn("text-3xl font-bold tabular-nums",
+                  (revisaoIA.score_retencao ?? 0) >= 70 ? "text-emerald-600" :
+                  (revisaoIA.score_retencao ?? 0) >= 50 ? "text-amber-600" : "text-red-600")}>
+                  {revisaoIA.score_retencao ?? "—"}
+                </div>
+                <div>
+                  <div className="text-sm font-medium">Retenção estimada</div>
+                  <div className="text-xs text-muted-foreground uppercase">{revisaoIA.estimativa ?? "?"}</div>
+                </div>
+              </div>
+              {revisaoIA.comentario_final && <p className="text-sm border-t pt-2">{revisaoIA.comentario_final}</p>}
+              {revisaoIA.alerta_posicionamento && (
+                <div className="text-sm border border-red-500/40 bg-red-500/5 rounded p-2">
+                  <span className="text-xs font-medium text-red-600 mr-1">⚠</span>{revisaoIA.alerta_posicionamento}
+                </div>
+              )}
+            </Card>
+          )}
+
+          <div className="space-y-3">
+            {blocosFinais.map((b, idx) => {
+              const pf = revisaoIA?.pontos_fracos?.find(p => b.papel?.toLowerCase().includes(p.ponto?.toLowerCase().slice(0, 10)));
+              const sugestaoInline = (pd.sugestoes_inline ?? {})[idx];
+              const { words, seconds } = wordsAndSeconds(b.texto || "");
+              return (
+                <Card key={idx} className="p-4 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Badge variant="outline" className="text-[10px] uppercase">{papelLabel(b.papel)}</Badge>
+                    <span className="text-[11px] text-muted-foreground tabular-nums">{words}p · ~{seconds}s</span>
+                  </div>
+                  <textarea
+                    className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value={b.texto}
+                    onChange={(e) => editarBlocoFinal(idx, e.target.value)}
+                  />
+                  {pf && !sugestaoInline && (
+                    <div className="border-t pt-2 space-y-1">
+                      <p className="text-xs text-amber-600">⚠ {pf.ponto}</p>
+                      <p className="text-xs text-muted-foreground">↳ {pf.correcao}</p>
+                      <Button size="sm" variant="outline" disabled={loading === "phase3_adjust"}
+                        onClick={() => sugerirInline(idx, pf.ponto, pf.correcao)}>
+                        {loading === "phase3_adjust" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                        Ver como ficaria →
+                      </Button>
+                    </div>
+                  )}
+                  {sugestaoInline && (
+                    <div className="border-t pt-2 space-y-2 bg-accent/5 rounded p-2">
+                      <p className="text-xs font-medium text-accent">Sugestão da IA para este bloco:</p>
+                      <p className="text-sm border-l-2 border-accent pl-2">{sugestaoInline.texto}</p>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => aprovarInline(idx)}>
+                          ✓ Aplicar esta versão
+                        </Button>
+                        <Button size="sm" variant="ghost"
+                          onClick={() => patchPD({ sugestoes_inline: { ...(pd.sugestoes_inline ?? {}), [idx]: undefined } })}>
+                          Descartar
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+
+          <Button variant="outline" onClick={salvarBlocoFinal}>
+            Salvar roteiro
+          </Button>
+
+          <div className="border-t pt-4">
+            <Button className="w-full" size="lg" onClick={aprovarRoteiro}>
+              Roteiro aprovado — ir para Produção →
+            </Button>
+          </div>
         </div>
       )}
 
