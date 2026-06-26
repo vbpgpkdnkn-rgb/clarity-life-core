@@ -322,6 +322,7 @@ export default function Studio() {
               setView("biblioteca");
               setActiveId(null);
             }}
+            onOpenPiece={(id) => setActiveId(id)}
           />
         )}
       </div>
