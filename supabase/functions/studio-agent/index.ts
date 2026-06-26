@@ -294,6 +294,7 @@ Deno.serve(async (req) => {
       "phase4_derivatives",
       "generate_captions",
       "analyze_instagram_image",
+      "suggest_stories",
       "phase5_performance",
     ];
     if (!action || !valid.includes(action)) {
