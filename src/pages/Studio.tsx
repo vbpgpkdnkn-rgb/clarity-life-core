@@ -573,11 +573,16 @@ function FocoView({ pieceId, onBack, onOpenPiece }: { pieceId: string | null; on
           pd={pd}
           queue={queue}
           flush={flush}
-          onAdvance={async () => {
+          onAdvance={async (publishedAt: string) => {
             await flush();
             await supabase
               .from("content_pieces")
-              .update({ phase: 5, pipeline_stage: "pronto_postar" } as never)
+              .update({
+                phase: 5,
+                pipeline_stage: "publicado",
+                status: "publicado",
+                published_at: publishedAt,
+              } as never)
               .eq("id", piece.id);
             qc.invalidateQueries({ queryKey: ["studio-piece", piece.id] });
             qc.invalidateQueries({ queryKey: ["studio-pieces"] });
