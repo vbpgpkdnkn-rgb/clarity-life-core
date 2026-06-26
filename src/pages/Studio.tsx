@@ -1241,6 +1241,11 @@ export default function Studio() {
                           >
                             <div className="text-[11px] font-medium line-clamp-2">{it.title ?? "Sem título"}</div>
                             {energiaBadge(it.energia)}
+                            {it.series_name && (
+                              <div className="text-[10px] text-muted-foreground truncate">
+                                📺 {it.series_name} {it.series_position ? `ep ${it.series_position}` : ""}
+                              </div>
+                            )}
                           </button>
                         ))
                       )}
