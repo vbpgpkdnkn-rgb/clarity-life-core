@@ -22,13 +22,27 @@ import {
   Loader2,
   Mic,
   MicOff,
+  MoreVertical,
+  PenLine,
   Pencil,
   Play,
   Plus,
+  Scissors,
   Sparkles,
+  Trash2,
   Upload,
+  Video,
   X,
 } from "lucide-react";
+import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { TextareaWithMic } from "@/components/ui/textarea-with-mic";
+import { startOfWeekFor, weekDates, dayName, dayNumber, isToday } from "@/lib/week";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -295,6 +309,15 @@ export default function Studio() {
   const qc = useQueryClient();
   const [view, setView] = useState<"biblioteca" | "foco" | "stories">("biblioteca");
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [initialPhase, setInitialPhase] = useState<number | undefined>(undefined);
+  const [initialTeleOpen, setInitialTeleOpen] = useState(false);
+
+  const openPiece = (id: string, phase?: number, teleOpen?: boolean) => {
+    setActiveId(id);
+    setInitialPhase(phase);
+    setInitialTeleOpen(teleOpen ?? false);
+    setView("foco");
+  };
 
   const piecesQ = useQuery({
     queryKey: ["studio-pieces"],
@@ -302,7 +325,7 @@ export default function Studio() {
       const { data, error } = await supabase
         .from("content_pieces")
         .select(
-          "id,title,theme,phase,status,scope,energia,creation_strategy,planned_date,series_name,series_position,phase_data,updated_at",
+          "id,title,theme,phase,status,scope,energia,creation_strategy,planned_date,series_name,series_position,phase_data,pipeline_stage,script,editing_checklist,updated_at",
         )
         .eq("scope", "profissional")
         .order("updated_at", { ascending: false });
@@ -324,31 +347,176 @@ export default function Studio() {
     },
     onSuccess: (id) => {
       qc.invalidateQueries({ queryKey: ["studio-pieces"] });
-      setActiveId(id);
-      setView("foco");
+      openPiece(id, 1);
     },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
-  const [filter, setFilter] = useState<"todos" | "tema" | "estrategia" | "roteiro" | "producao" | "publicados">("todos");
+  const deleteMut = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("content_pieces").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["studio-pieces"] });
+      toast.success("Peça apagada");
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro ao apagar"),
+  });
 
-  const filtered = useMemo(() => {
-    const items = piecesQ.data ?? [];
-    switch (filter) {
-      case "tema": return items.filter((it) => (it.phase ?? 1) === 1);
-      case "estrategia": return items.filter((it) => (it.phase ?? 1) === 2);
-      case "roteiro": return items.filter((it) => (it.phase ?? 1) === 3);
-      case "producao": return items.filter((it) => (it.phase ?? 1) === 4);
-      case "publicados": return items.filter((it) => it.status === "publicado");
-      default: return items;
+  // ------- Ideas (banco de ideias) -------
+  const ideasQ = useQuery({
+    queryKey: ["studio-ideas"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("content_ideas")
+        .select("id,title,energia,used,scope,created_at")
+        .eq("used", false)
+        .eq("scope", "profissional")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as { id: string; title: string; energia: string | null; used: boolean; scope: string; created_at: string }[];
+    },
+  });
+
+  const [ideaOpen, setIdeaOpen] = useState(false);
+  const [ideaText, setIdeaText] = useState("");
+  const [ideaEnergia, setIdeaEnergia] = useState<string>("none");
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveTab, setArchiveTab] = useState<"andamento" | "publicadas">("andamento");
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  const saveIdea = async () => {
+    const txt = ideaText.trim();
+    if (!txt) return;
+    const energia = ideaEnergia === "none" ? null : ideaEnergia;
+    const { error } = await supabase.from("content_ideas").insert({
+      title: txt,
+      scope: "profissional",
+      energia,
+      used: false,
+    } as never);
+    if (error) {
+      toast.error(error.message);
+      return;
     }
-  }, [piecesQ.data, filter]);
+    qc.invalidateQueries({ queryKey: ["studio-ideas"] });
+    setIdeaText("");
+    setIdeaEnergia("none");
+    setIdeaOpen(false);
+    toast.success("Ideia salva");
+  };
+
+  const startPieceFromIdea = async (idea: { id: string; title: string; energia: string | null }) => {
+    const { data, error } = await supabase
+      .from("content_pieces")
+      .insert({
+        title: idea.title,
+        theme: idea.title,
+        phase: 1,
+        status: "ideia",
+        scope: "profissional",
+        energia: idea.energia,
+      } as never)
+      .select("id")
+      .single();
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    await supabase.from("content_ideas").update({ used: true } as never).eq("id", idea.id);
+    qc.invalidateQueries({ queryKey: ["studio-ideas"] });
+    qc.invalidateQueries({ queryKey: ["studio-pieces"] });
+    openPiece(data.id as string, 1);
+  };
+
+  const archiveIdea = async (id: string) => {
+    const { error } = await supabase.from("content_ideas").update({ used: true } as never).eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["studio-ideas"] });
+    toast.success("Ideia arquivada");
+  };
+
+  const markAsRecorded = async (id: string) => {
+    const { error } = await supabase
+      .from("content_pieces")
+      .update({ pipeline_stage: "gravando" } as never)
+      .eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["studio-pieces"] });
+    toast.success("Marcado como gravado");
+  };
+
+  // ------- Production queues -------
+  const items = piecesQ.data ?? [];
+  const sortByDate = (a: Piece, b: Piece) =>
+    (a.planned_date ?? "9999") < (b.planned_date ?? "9999") ? -1 : 1;
+
+  const roteirizar = items
+    .filter((it) => (it.phase ?? 1) <= 3 || ((it.phase ?? 1) === 4 && !it.script))
+    .sort(sortByDate);
+  const gravar = items
+    .filter(
+      (it) =>
+        (it.phase ?? 1) === 4 &&
+        !!it.script &&
+        !["gravando", "pronto_postar", "publicado"].includes(it.pipeline_stage ?? ""),
+    )
+    .sort(sortByDate);
+  const editar = items.filter((it) => it.pipeline_stage === "gravando").sort(sortByDate);
+
+  // ------- Semana editorial -------
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const weekStart = startOfWeekFor(todayIso);
+  const weekDays = weekDates(weekStart);
+  const piecesByDay: Record<string, Piece[]> = {};
+  for (const d of weekDays) piecesByDay[d] = [];
+  for (const it of items) {
+    if (it.planned_date && piecesByDay[it.planned_date]) {
+      piecesByDay[it.planned_date].push(it);
+    }
+  }
+
+  // ------- Archive lists -------
+  const phaseLabel = (n: number | null) => {
+    const labels = ["Tema", "Estratégia", "Roteiro", "Produção", "Publicado"];
+    return labels[Math.max(0, Math.min(4, (n ?? 1) - 1))];
+  };
+  const andamento = items.filter((it) => it.status !== "publicado");
+  const publicadas = items.filter((it) => it.status === "publicado");
+  const archiveList = archiveTab === "andamento" ? andamento : publicadas;
+
+  const QueueCard = ({
+    it,
+    children,
+  }: {
+    it: Piece;
+    children: React.ReactNode;
+  }) => (
+    <Card className="p-3 space-y-2 bg-background/80">
+      <div className="text-sm font-semibold line-clamp-2">{it.title ?? "Sem título"}</div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {energiaBadge(it.energia)}
+        {it.planned_date && (
+          <span className="text-[10px] text-muted-foreground">{formatDate(it.planned_date)}</span>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2 pt-1">{children}</div>
+    </Card>
+  );
 
   return (
     <AppLayout>
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <div className="max-w-7xl mx-auto p-6 space-y-8">
         {view === "biblioteca" ? (
           <>
+            {/* Cabeçalho */}
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
                 <h1 className="font-display text-3xl font-semibold tracking-tight flex items-center gap-2">
@@ -368,89 +536,310 @@ export default function Studio() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {[
-                { key: "todos", label: "Todos" },
-                { key: "tema", label: "Tema" },
-                { key: "estrategia", label: "Estratégia" },
-                { key: "roteiro", label: "Roteiro" },
-                { key: "producao", label: "Produção" },
-                { key: "publicados", label: "Publicados" },
-              ].map((tab) => (
-                <Button
-                  key={tab.key}
-                  variant={filter === tab.key ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setFilter(tab.key as typeof filter)}
-                >
-                  {tab.label}
-                </Button>
-              ))}
-            </div>
+            {/* SEÇÃO 1: Fila de produção */}
+            <section className="space-y-3">
+              <div>
+                <h2 className="text-lg font-semibold flex items-center gap-2">🎬 O que fazer agora</h2>
+                <p className="text-sm text-muted-foreground">
+                  {roteirizar.length} para roteirizar · {gravar.length} para gravar · {editar.length} para editar
+                </p>
+              </div>
 
-            {filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 gap-4">
-                <p className="text-muted-foreground">Nenhuma peça aqui ainda</p>
-                <Button onClick={() => createMut.mutate()} disabled={createMut.isPending}>
-                  <Plus className="h-4 w-4" />
-                  Criar primeira peça
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 overflow-x-auto">
+                {/* Roteirizar */}
+                <div className="rounded-lg p-3 bg-amber-50 dark:bg-amber-950/20 space-y-2 min-w-[260px]">
+                  <div className="flex items-center gap-2 text-sm font-medium text-amber-900 dark:text-amber-200">
+                    <PenLine className="h-4 w-4" /> Roteirizar
+                  </div>
+                  {roteirizar.length === 0 ? (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400">Tudo em dia ✓</p>
+                  ) : (
+                    roteirizar.map((it) => (
+                      <QueueCard key={it.id} it={it}>
+                        <Button size="sm" variant="outline" onClick={() => openPiece(it.id, 3)}>
+                          Abrir roteiro
+                        </Button>
+                      </QueueCard>
+                    ))
+                  )}
+                </div>
+
+                {/* Gravar */}
+                <div className="rounded-lg p-3 bg-green-50 dark:bg-green-950/20 space-y-2 min-w-[260px]">
+                  <div className="flex items-center gap-2 text-sm font-medium text-green-900 dark:text-green-200">
+                    <Video className="h-4 w-4" /> Gravar
+                  </div>
+                  {gravar.length === 0 ? (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400">Nada para gravar agora ✓</p>
+                  ) : (
+                    gravar.map((it) => (
+                      <QueueCard key={it.id} it={it}>
+                        <Button size="sm" variant="outline" onClick={() => openPiece(it.id, 4, true)}>
+                          Ver teleprompter
+                        </Button>
+                        <Button size="sm" onClick={() => markAsRecorded(it.id)}>
+                          ✓ Gravado
+                        </Button>
+                      </QueueCard>
+                    ))
+                  )}
+                </div>
+
+                {/* Editar e postar */}
+                <div className="rounded-lg p-3 bg-blue-50 dark:bg-blue-950/20 space-y-2 min-w-[260px]">
+                  <div className="flex items-center gap-2 text-sm font-medium text-blue-900 dark:text-blue-200">
+                    <Scissors className="h-4 w-4" /> Editar e postar
+                  </div>
+                  {editar.length === 0 ? (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400">Nada para editar agora ✓</p>
+                  ) : (
+                    editar.map((it) => {
+                      const done = (it.editing_checklist ?? []).filter((c) => c.done).length;
+                      const total = (it.editing_checklist ?? []).length || 15;
+                      return (
+                        <Card key={it.id} className="p-3 space-y-2 bg-background/80">
+                          <div className="text-sm font-semibold line-clamp-2">{it.title ?? "Sem título"}</div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {done}/{total} itens
+                          </div>
+                          <Button size="sm" variant="outline" onClick={() => openPiece(it.id, 4)}>
+                            Abrir edição
+                          </Button>
+                        </Card>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* SEÇÃO 2: Banco de ideias */}
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <h2 className="text-lg font-semibold">💡 Banco de ideias</h2>
+                <Button size="sm" variant="outline" onClick={() => setIdeaOpen(true)}>
+                  <Plus className="h-4 w-4" /> Capturar ideia
                 </Button>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filtered.map((it) => (
-                  <Card
-                    key={it.id}
-                    onClick={() => {
-                      setActiveId(it.id);
-                      setView("foco");
-                    }}
-                    className={cn(
-                      "p-4 cursor-pointer hover:border-accent transition-colors space-y-2 relative",
-                      it.status === "publicado" && "opacity-60"
-                    )}
-                  >
-                    {it.status === "publicado" && (
-                      <div className="absolute top-2 right-2">
-                        <Check className="h-4 w-4 text-emerald-500" />
+              {(ideasQ.data ?? []).length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma ideia capturada. Capture enquanto estiver no feeling.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {(ideasQ.data ?? []).map((idea) => {
+                    const short = idea.title.length > 40 ? idea.title.slice(0, 40) + "…" : idea.title;
+                    return (
+                      <div
+                        key={idea.id}
+                        className="flex items-center gap-1.5 rounded-full border bg-card pl-3 pr-1 py-1 text-xs"
+                      >
+                        <span>{short}</span>
+                        {energiaBadge(idea.energia)}
+                        <button
+                          type="button"
+                          title="Iniciar peça"
+                          onClick={() => startPieceFromIdea(idea)}
+                          className="h-6 w-6 rounded-full hover:bg-accent/20 flex items-center justify-center"
+                        >
+                          →
+                        </button>
+                        <button
+                          type="button"
+                          title="Arquivar"
+                          onClick={() => archiveIdea(idea.id)}
+                          className="h-6 w-6 rounded-full hover:bg-destructive/20 flex items-center justify-center text-muted-foreground"
+                        >
+                          ✕
+                        </button>
                       </div>
-                    )}
-                    <div className="text-sm font-semibold line-clamp-2">{it.title ?? "Sem título"}</div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {energiaBadge(it.energia)}
-                      {it.creation_strategy && (
-                        <Badge variant="outline" className="text-[10px] capitalize">
-                          {it.creation_strategy}
-                        </Badge>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* SEÇÃO 3: Semana editorial */}
+            <section className="space-y-3">
+              <h2 className="text-lg font-semibold">📅 Semana editorial</h2>
+              <div className="grid grid-cols-7 gap-2">
+                {weekDays.map((d) => {
+                  const today = isToday(d);
+                  const dayPieces = piecesByDay[d] ?? [];
+                  return (
+                    <div
+                      key={d}
+                      className={cn(
+                        "rounded-lg p-2 min-h-[110px] border space-y-1.5",
+                        today ? "border-accent bg-accent/10" : "border-dashed",
                       )}
-                      {it.planned_date && (
-                        <span className="text-[10px] text-muted-foreground">
-                          {formatDate(it.planned_date)}
-                        </span>
+                    >
+                      <div className="text-[10px] uppercase text-muted-foreground flex items-baseline gap-1">
+                        <span>{dayName(d)}</span>
+                        <span className="font-semibold text-foreground">{dayNumber(d)}</span>
+                      </div>
+                      {dayPieces.length === 0 ? (
+                        <p className="text-[10px] text-muted-foreground italic">livre</p>
+                      ) : (
+                        dayPieces.map((it) => (
+                          <button
+                            key={it.id}
+                            type="button"
+                            onClick={() => openPiece(it.id)}
+                            className="w-full text-left rounded p-1.5 bg-background hover:bg-accent/10 border space-y-1"
+                          >
+                            <div className="text-[11px] font-medium line-clamp-2">{it.title ?? "Sem título"}</div>
+                            {energiaBadge(it.energia)}
+                          </button>
+                        ))
                       )}
                     </div>
-                    {it.series_name && (
-                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                        <Film className="h-3 w-3" />
-                        <span className="truncate">
-                          {it.series_name}
-                          {it.series_position ? ` · ep ${it.series_position}` : ""}
-                        </span>
-                      </div>
-                    )}
-                  </Card>
-                ))}
+                  );
+                })}
               </div>
-            )}
+            </section>
+
+            {/* SEÇÃO 4: Arquivo */}
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold">📁 Todas as peças</h2>
+                <Button size="sm" variant="ghost" onClick={() => setArchiveOpen((v) => !v)}>
+                  {archiveOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  {archiveOpen ? "Fechar" : "Abrir"}
+                </Button>
+              </div>
+              {archiveOpen && (
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    {(["andamento", "publicadas"] as const).map((t) => (
+                      <Button
+                        key={t}
+                        size="sm"
+                        variant={archiveTab === t ? "default" : "outline"}
+                        onClick={() => setArchiveTab(t)}
+                      >
+                        {t === "andamento" ? "Em andamento" : "Publicadas"}
+                      </Button>
+                    ))}
+                  </div>
+                  {archiveList.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhuma peça aqui.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {archiveList.map((it) => (
+                        <Card key={it.id} className="p-3 space-y-2 relative">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="text-sm font-semibold line-clamp-2 flex-1">{it.title ?? "Sem título"}</div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openPiece(it.id)}>Abrir</DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() => setConfirmDelete(it.id)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Apagar
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground">{phaseLabel(it.phase)}</div>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {energiaBadge(it.energia)}
+                            {it.planned_date && (
+                              <span className="text-[10px] text-muted-foreground">{formatDate(it.planned_date)}</span>
+                            )}
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+
+            {/* Modal: capturar ideia */}
+            <Dialog open={ideaOpen} onOpenChange={setIdeaOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Capturar ideia</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <TextareaWithMic
+                    value={ideaText}
+                    onValueChange={setIdeaText}
+                    placeholder="Qual é o tema? Escreva como veio na cabeça."
+                    micLang="pt-BR"
+                    className="min-h-[140px]"
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Energia</Label>
+                    <Select value={ideaEnergia} onValueChange={setIdeaEnergia}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Não sei ainda</SelectItem>
+                        <SelectItem value="topo">Topo (identificação)</SelectItem>
+                        <SelectItem value="meio">Meio (confiança)</SelectItem>
+                        <SelectItem value="fundo">Fundo (converter)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" onClick={() => setIdeaOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={saveIdea} disabled={!ideaText.trim()}>
+                      Salvar ideia
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Confirm delete */}
+            <Dialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Apagar peça</DialogTitle>
+                </DialogHeader>
+                <p className="text-sm text-muted-foreground">
+                  Apagar esta peça permanentemente? Esta ação não pode ser desfeita.
+                </p>
+                <div className="flex justify-end gap-2">
+                  <Button variant="ghost" onClick={() => setConfirmDelete(null)}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      if (confirmDelete) deleteMut.mutate(confirmDelete);
+                      setConfirmDelete(null);
+                    }}
+                  >
+                    Apagar
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </>
         ) : view === "foco" ? (
           <FocoView
             pieceId={activeId}
+            initialPhase={initialPhase}
+            initialTeleOpen={initialTeleOpen}
             onBack={() => {
               setView("biblioteca");
               setActiveId(null);
+              setInitialPhase(undefined);
+              setInitialTeleOpen(false);
             }}
-            onOpenPiece={(id) => setActiveId(id)}
+            onOpenPiece={(id) => openPiece(id)}
           />
         ) : (
           <StoriesView
@@ -467,7 +856,19 @@ export default function Studio() {
 /* FOCO VIEW                                                          */
 /* ------------------------------------------------------------------ */
 
-function FocoView({ pieceId, onBack, onOpenPiece }: { pieceId: string | null; onBack: () => void; onOpenPiece: (id: string) => void }) {
+function FocoView({
+  pieceId,
+  onBack,
+  onOpenPiece,
+  initialPhase,
+  initialTeleOpen,
+}: {
+  pieceId: string | null;
+  onBack: () => void;
+  onOpenPiece: (id: string) => void;
+  initialPhase?: number;
+  initialTeleOpen?: boolean;
+}) {
   const qc = useQueryClient();
   const [currentPhase, setCurrentPhase] = useState<number>(1);
   const { queue, flush } = useDebouncedSave(pieceId);
@@ -490,7 +891,7 @@ function FocoView({ pieceId, onBack, onOpenPiece }: { pieceId: string | null; on
   const reachedPhase = piece?.phase ?? 1;
 
   useEffect(() => {
-    if (piece) setCurrentPhase(piece.phase ?? 1);
+    if (piece) setCurrentPhase(initialPhase ?? piece.phase ?? 1);
   }, [piece?.id]);
 
   useEffect(() => {
@@ -572,6 +973,7 @@ function FocoView({ pieceId, onBack, onOpenPiece }: { pieceId: string | null; on
           pd={pd}
           queue={queue}
           flush={flush}
+          openTeleOnMount={initialTeleOpen}
           onAdvance={async () => {
             await flush();
             await supabase.from("content_pieces").update({ phase: 4 } as never).eq("id", piece.id);
@@ -588,6 +990,7 @@ function FocoView({ pieceId, onBack, onOpenPiece }: { pieceId: string | null; on
           pd={pd}
           queue={queue}
           flush={flush}
+          openTeleOnMount={initialTeleOpen}
           onAdvance={async (publishedAt: string) => {
             await flush();
             await supabase
@@ -1218,12 +1621,14 @@ function Phase3({
   queue,
   flush,
   onAdvance,
+  openTeleOnMount,
 }: {
   piece: Piece;
   pd: PhaseData;
   queue: (p: Record<string, unknown>) => void;
   flush: () => Promise<void>;
   onAdvance: () => Promise<void>;
+  openTeleOnMount?: boolean;
 }) {
   const qc = useQueryClient();
   const [sub, setSub] = useState<"insights" | "esboco" | "ajustes" | "revisao">("insights");
@@ -1231,6 +1636,11 @@ function Phase3({
   const [teleOpen, setTeleOpen] = useState(false);
   const [insightsExpanded, setInsightsExpanded] = useState<string[]>([]);
   const instrucaoRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (openTeleOnMount) setTeleOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const patchPD = (p: Partial<PhaseData>) => queue({ phase_data: { ...pd, ...p } });
 
@@ -1961,17 +2371,24 @@ function Phase4({
   queue,
   flush,
   onAdvance,
+  openTeleOnMount,
 }: {
   piece: Piece;
   pd: PhaseData;
   queue: (p: Record<string, unknown>) => void;
   flush: () => Promise<void>;
   onAdvance: (publishedAt: string) => Promise<void>;
+  openTeleOnMount?: boolean;
 }) {
   const qc = useQueryClient();
   const [sub, setSub] = useState<"editorial" | "gravacao" | "pos">("editorial");
   const [teleOpen, setTeleOpen] = useState(false);
   const [genLoading, setGenLoading] = useState(false);
+
+  useEffect(() => {
+    if (openTeleOnMount) setTeleOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const tabs: { v: typeof sub; label: string }[] = [
     { v: "editorial", label: "Editorial" },
