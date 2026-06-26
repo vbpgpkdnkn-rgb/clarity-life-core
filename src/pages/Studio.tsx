@@ -3408,8 +3408,7 @@ function ReviewCard({
                     </div>
                   )}
                 </li>
-              );
-            })}
+            )}
           </ul>
         </div>
       )}
