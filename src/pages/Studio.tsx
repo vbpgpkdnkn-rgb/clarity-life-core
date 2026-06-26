@@ -885,3 +885,615 @@ function Phase2({
     </div>
   );
 }
+
+/* ================================================================== */
+/* PHASE 3 — ROTEIRO                                                  */
+/* ================================================================== */
+
+const AJUSTES_PRESET = [
+  "Gancho muito longo — comprimir",
+  "Escrita muito formal — humanizar",
+  "Falta microchoque — o conteúdo está linear",
+  "Insight genérico — não gera descoberta",
+  "Resolução fraca — não transforma",
+  "Linguagem de coach detectada — corrigir",
+  "CTA ausente ou fora do posicionamento",
+];
+
+const wordsAndSeconds = (text: string) => {
+  const words = (text ?? "").trim().split(/\s+/).filter(Boolean).length;
+  const seconds = Math.round((words / 150) * 60); // ~150 ppm de fala
+  return { words, seconds };
+};
+
+function Phase3({
+  piece,
+  pd,
+  queue,
+  flush,
+  onAdvance,
+}: {
+  piece: Piece;
+  pd: PhaseData;
+  queue: (p: Record<string, unknown>) => void;
+  flush: () => Promise<void>;
+  onAdvance: () => Promise<void>;
+}) {
+  const qc = useQueryClient();
+  const [sub, setSub] = useState<"insights" | "esboco" | "ajustes" | "revisao">("insights");
+  const [loading, setLoading] = useState<string | null>(null);
+  const [teleOpen, setTeleOpen] = useState(false);
+
+  const patchPD = (p: Partial<PhaseData>) => queue({ phase_data: { ...pd, ...p } });
+
+  const templatesQ = useQuery({
+    queryKey: ["script-templates"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("script_templates")
+        .select("id,name,description,structure")
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const callAI = async (action: string, payload: Record<string, unknown>) => {
+    setLoading(action);
+    try {
+      await flush();
+      const { data, error } = await supabase.functions.invoke("studio-agent", {
+        body: { action, payload },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data?.result ?? {};
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha");
+      return null;
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  /* ---------- 3a INSIGHTS ---------- */
+  const gerarInsights = async () => {
+    const result = await callAI("phase3_insights", {
+      tema: piece.theme,
+      energia: piece.energia,
+      creation_strategy: piece.creation_strategy,
+      objetivo: pd.objetivo,
+      conteudo_audiencia: pd.conteudo_audiencia,
+      ai_memory: piece.ai_memory,
+      script_template: pd.template_selecionado ?? null,
+    });
+    if (!result) return;
+    const insights: Insight[] = (result as { insights?: Insight[] }).insights ?? [];
+    patchPD({ insights_gerados: insights });
+    await flush();
+  };
+
+  const insights = pd.insights_gerados ?? [];
+  const aprovados = pd.insights_aprovados ?? [];
+  const isSelected = (id: string) => aprovados.some((i) => i.id === id);
+  const toggleInsight = (ins: Insight) => {
+    if (!ins.id) return;
+    const next = isSelected(ins.id)
+      ? aprovados.filter((i) => i.id !== ins.id)
+      : [...aprovados, ins];
+    patchPD({ insights_aprovados: next });
+  };
+
+  /* ---------- 3b ESBOÇO ---------- */
+  const gerarEsboco = async () => {
+    const result = await callAI("phase3_draft", {
+      tema: piece.theme,
+      energia: piece.energia,
+      objetivo: pd.objetivo,
+      insights_aprovados: aprovados,
+      script_template: pd.template_selecionado ?? null,
+    });
+    if (!result) return;
+    const blocos: ScriptBlock[] = (result as { blocos?: ScriptBlock[] }).blocos ?? [];
+    patchPD({ blocos_rascunho: blocos, blocos_editados: blocos });
+    await flush();
+  };
+
+  const blocosBase: ScriptBlock[] = pd.blocos_editados ?? pd.blocos_rascunho ?? [];
+  const totalSeconds = blocosBase.reduce((acc, b) => acc + wordsAndSeconds(b.texto || "").seconds, 0);
+  const tempoOk = totalSeconds >= 45 && totalSeconds <= 65;
+
+  const editarBloco = (idx: number, texto: string) => {
+    const next = (pd.blocos_editados ?? pd.blocos_rascunho ?? []).map((b, i) =>
+      i === idx ? { ...b, texto } : b,
+    );
+    patchPD({ blocos_editados: next });
+  };
+
+  /* ---------- 3c AJUSTES ---------- */
+  const ajustes = pd.ajustes_marcados ?? [];
+  const toggleAjuste = (a: string) => {
+    const next = ajustes.includes(a) ? ajustes.filter((x) => x !== a) : [...ajustes, a];
+    patchPD({ ajustes_marcados: next });
+  };
+
+  const aplicarAjustes = async () => {
+    const result = await callAI("phase3_adjust", {
+      blocos_atuais: pd.blocos_editados ?? pd.blocos_rascunho ?? [],
+      ajustes_marcados: ajustes,
+      instrucao_livre: pd.instrucao_ajuste_livre ?? "",
+    });
+    if (!result) return;
+    const r = result as { blocos_ajustados?: ScriptBlock[]; papeis_modificados?: string[] };
+    patchPD({
+      blocos_ajustados: r.blocos_ajustados ?? [],
+      papeis_modificados: r.papeis_modificados ?? [],
+    });
+    await flush();
+  };
+
+  /* ---------- 3d REVISÃO ---------- */
+  const blocosFinais: ScriptBlock[] =
+    pd.blocos_ajustados ?? pd.blocos_editados ?? pd.blocos_rascunho ?? [];
+
+  const editarBlocoFinal = (idx: number, texto: string) => {
+    const base = pd.blocos_ajustados ?? pd.blocos_editados ?? pd.blocos_rascunho ?? [];
+    const next = base.map((b, i) => (i === idx ? { ...b, texto } : b));
+    if (pd.blocos_ajustados) patchPD({ blocos_ajustados: next });
+    else patchPD({ blocos_editados: next });
+  };
+
+  const analisarRoteiro = async () => {
+    const result = await callAI("phase3_review", {
+      tema: piece.theme,
+      energia: piece.energia,
+      creation_strategy: piece.creation_strategy,
+      objetivo: pd.objetivo,
+      blocos_finais: blocosFinais,
+      ai_memory: piece.ai_memory,
+    });
+    if (!result) return;
+    patchPD({ revisao_ia: result as ReviewIA });
+    await flush();
+  };
+
+  const aprovarRoteiro = async () => {
+    const corrido = blocosFinais.map((b) => b.texto).join("\n\n");
+    await flush();
+    await supabase
+      .from("content_pieces")
+      .update({ phase: 4, script: corrido } as never)
+      .eq("id", piece.id);
+    qc.invalidateQueries({ queryKey: ["studio-piece", piece.id] });
+    qc.invalidateQueries({ queryKey: ["studio-pieces"] });
+    await onAdvance();
+  };
+
+  const fontSize = piece.teleprompter_font_size ?? 32;
+  const fontTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const setFont = (v: number) => {
+    queue({ teleprompter_font_size: v });
+    if (fontTimer.current) clearTimeout(fontTimer.current);
+    fontTimer.current = setTimeout(flush, 500);
+  };
+
+  const subTabs: { v: typeof sub; label: string }[] = [
+    { v: "insights", label: "Insights" },
+    { v: "esboco", label: "Esboço" },
+    { v: "ajustes", label: "Ajustes" },
+    { v: "revisao", label: "Revisão final" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex gap-1 border-b">
+        {subTabs.map((t) => (
+          <button
+            key={t.v}
+            onClick={() => setSub(t.v)}
+            className={cn(
+              "px-3 py-2 text-sm border-b-2 -mb-px transition-colors",
+              sub === t.v
+                ? "border-accent text-foreground font-medium"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* 3a INSIGHTS */}
+      {sub === "insights" && (
+        <div className="space-y-4">
+          {(templatesQ.data ?? []).length > 0 && (
+            <Card className="p-4 space-y-2">
+              <Label>Usar um modelo de roteiro?</Label>
+              <Select
+                value={
+                  pd.template_selecionado
+                    ? JSON.stringify(pd.template_selecionado)
+                    : "__none__"
+                }
+                onValueChange={(v) => {
+                  if (v === "__none__") patchPD({ template_selecionado: null });
+                  else patchPD({ template_selecionado: JSON.parse(v) });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Nenhum" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Nenhum</SelectItem>
+                  {(templatesQ.data ?? []).map((t: { id: string; name: string; structure: unknown }) => (
+                    <SelectItem key={t.id} value={JSON.stringify(t.structure)}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Card>
+          )}
+
+          <div className="flex gap-3 flex-wrap">
+            <Button onClick={gerarInsights} disabled={loading === "phase3_insights"}>
+              {loading === "phase3_insights" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {insights.length > 0 ? "Regerar insights" : "Gerar insights"}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={aprovados.length === 0}
+              onClick={() => setSub("esboco")}
+            >
+              Gerar esboço com estes insights
+            </Button>
+          </div>
+
+          {loading === "phase3_insights" && (
+            <div className="grid md:grid-cols-2 gap-3">
+              {[1, 2, 3, 4].map((i) => (
+                <Card key={i} className="p-4 space-y-3">
+                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-5/6" />
+                  <Skeleton className="h-3 w-1/3" />
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {loading !== "phase3_insights" && insights.length > 0 && (
+            <div className="grid md:grid-cols-2 gap-3">
+              {insights.map((ins, idx) => {
+                const id = ins.id ?? String(idx);
+                const sel = isSelected(id);
+                return (
+                  <Card
+                    key={id}
+                    className={cn(
+                      "p-4 space-y-3 cursor-pointer transition-colors",
+                      sel ? "border-accent bg-accent/5" : "hover:border-accent/40",
+                    )}
+                    onClick={() => toggleInsight({ ...ins, id })}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="font-medium text-sm">{ins.titulo_angulo}</div>
+                      {energiaBadge(ins.energia_sugerida)}
+                    </div>
+                    {ins.tensao && (
+                      <div className="text-xs">
+                        <span className="text-muted-foreground uppercase mr-1">Tensão:</span>
+                        {ins.tensao}
+                      </div>
+                    )}
+                    {ins.frase_semente && (
+                      <div className="text-sm italic">"{ins.frase_semente}"</div>
+                    )}
+                    <label className="flex items-center gap-2 text-xs cursor-pointer pt-2 border-t">
+                      <Checkbox checked={sel} onCheckedChange={() => toggleInsight({ ...ins, id })} />
+                      Selecionar este insight
+                    </label>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 3b ESBOÇO */}
+      {sub === "esboco" && (
+        <div className="space-y-4">
+          <div className="flex gap-3 flex-wrap">
+            <Button onClick={gerarEsboco} disabled={loading === "phase3_draft"}>
+              {loading === "phase3_draft" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {blocosBase.length > 0 ? "Regerar esboço" : "Gerar esboço"}
+            </Button>
+            <Button variant="outline" disabled={blocosBase.length === 0} onClick={() => setSub("ajustes")}>
+              Ir para ajustes
+            </Button>
+          </div>
+
+          {blocosBase.length > 0 && (
+            <Card className="p-4 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span>Tempo total estimado</span>
+                <span className={cn("font-semibold", tempoOk ? "text-emerald-600" : "text-red-500")}>
+                  {totalSeconds}s {tempoOk ? "✓" : "(ideal 45–65s)"}
+                </span>
+              </div>
+              <div className="h-2 rounded bg-muted overflow-hidden">
+                <div
+                  className={cn("h-full transition-all", tempoOk ? "bg-emerald-500" : "bg-red-500")}
+                  style={{ width: `${Math.min(100, (totalSeconds / 65) * 100)}%` }}
+                />
+              </div>
+            </Card>
+          )}
+
+          <div className="space-y-3">
+            {blocosBase.map((b, idx) => {
+              const { words, seconds } = wordsAndSeconds(b.texto || "");
+              return (
+                <Card key={idx} className="p-4 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Badge variant="outline" className="text-[10px] uppercase">
+                      {b.papel}
+                    </Badge>
+                    <div className="text-[11px] text-muted-foreground tabular-nums">
+                      {words} palavras · ~{seconds}s
+                    </div>
+                  </div>
+                  <Textarea
+                    value={b.texto}
+                    onChange={(e) => editarBloco(idx, e.target.value)}
+                    rows={3}
+                  />
+                  {b.nota_gravacao && (
+                    <p className="text-[11px] text-muted-foreground italic">↳ {b.nota_gravacao}</p>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 3c AJUSTES */}
+      {sub === "ajustes" && (
+        <div className="space-y-4">
+          <Card className="p-4 space-y-3">
+            <Label>O que ajustar?</Label>
+            {AJUSTES_PRESET.map((a) => (
+              <label key={a} className="flex items-start gap-2 text-sm cursor-pointer">
+                <Checkbox
+                  checked={ajustes.includes(a)}
+                  onCheckedChange={() => toggleAjuste(a)}
+                  className="mt-0.5"
+                />
+                {a}
+              </label>
+            ))}
+          </Card>
+
+          <Card className="p-4 space-y-2">
+            <Label>O que mais quer ajustar?</Label>
+            <Textarea
+              defaultValue={pd.instrucao_ajuste_livre ?? ""}
+              onChange={(e) => patchPD({ instrucao_ajuste_livre: e.target.value })}
+              rows={3}
+              placeholder="Instrução livre"
+            />
+          </Card>
+
+          <div className="flex gap-3 flex-wrap">
+            <Button onClick={aplicarAjustes} disabled={loading === "phase3_adjust"}>
+              {loading === "phase3_adjust" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              Aplicar ajustes
+            </Button>
+            <Button variant="outline" onClick={() => setSub("revisao")}>
+              Revisar roteiro final
+            </Button>
+          </div>
+
+          {pd.papeis_modificados && pd.papeis_modificados.length > 0 && (
+            <Card className="p-4 border-emerald-500/30 bg-emerald-500/5">
+              <div className="text-xs uppercase font-medium mb-1">Blocos modificados</div>
+              <div className="flex flex-wrap gap-1.5">
+                {pd.papeis_modificados.map((p) => (
+                  <Badge key={p} variant="outline" className="text-[10px]">
+                    {p}
+                  </Badge>
+                ))}
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* 3d REVISÃO FINAL */}
+      {sub === "revisao" && (
+        <div className="space-y-4">
+          <div className="space-y-3">
+            {blocosFinais.map((b, idx) => (
+              <BlockReadEdit
+                key={idx}
+                block={b}
+                onSave={(texto) => editarBlocoFinal(idx, texto)}
+              />
+            ))}
+          </div>
+
+          <div className="flex gap-3 flex-wrap">
+            <Button onClick={analisarRoteiro} disabled={loading === "phase3_review"}>
+              {loading === "phase3_review" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              Análise da IA
+            </Button>
+            <Button variant="outline" onClick={() => setTeleOpen(true)}>
+              <Play className="h-4 w-4" />
+              Abrir Teleprompter
+            </Button>
+            <Button onClick={aprovarRoteiro}>Roteiro aprovado — ir para Produção</Button>
+          </div>
+
+          {pd.revisao_ia && <ReviewCard r={pd.revisao_ia} />}
+        </div>
+      )}
+
+      <Teleprompter
+        open={teleOpen}
+        onOpenChange={setTeleOpen}
+        text={blocosFinais.map((b) => b.texto).join("\n\n")}
+        fontSize={fontSize}
+        onFontChange={setFont}
+      />
+    </div>
+  );
+}
+
+function BlockReadEdit({ block, onSave }: { block: ScriptBlock; onSave: (t: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [local, setLocal] = useState(block.texto);
+  useEffect(() => setLocal(block.texto), [block.texto]);
+  return (
+    <Card className="p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <Badge variant="outline" className="text-[10px] uppercase">
+          {block.papel}
+        </Badge>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            if (editing) onSave(local);
+            setEditing((v) => !v);
+          }}
+        >
+          <Pencil className="h-3.5 w-3.5" />
+          {editing ? "Salvar" : "Editar"}
+        </Button>
+      </div>
+      {editing ? (
+        <Textarea value={local} onChange={(e) => setLocal(e.target.value)} rows={3} />
+      ) : (
+        <p className="text-sm whitespace-pre-wrap">{block.texto}</p>
+      )}
+      {block.nota_gravacao && (
+        <p className="text-[11px] text-muted-foreground italic">↳ {block.nota_gravacao}</p>
+      )}
+    </Card>
+  );
+}
+
+function ReviewCard({ r }: { r: ReviewIA }) {
+  return (
+    <Card className="p-5 space-y-4">
+      <div className="flex items-baseline gap-3">
+        <div className="text-4xl font-bold tabular-nums">{r.score_retencao ?? 0}</div>
+        <div className="text-sm text-muted-foreground">
+          retenção · estimativa <span className="font-medium uppercase">{r.estimativa ?? "?"}</span>
+        </div>
+      </div>
+      {r.pontos_fortes && r.pontos_fortes.length > 0 && (
+        <div className="space-y-1">
+          <div className="text-xs uppercase text-emerald-600 font-medium">Pontos fortes</div>
+          <ul className="text-sm list-disc pl-5 space-y-1">
+            {r.pontos_fortes.map((p, i) => (
+              <li key={i}>{p}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {r.pontos_fracos && r.pontos_fracos.length > 0 && (
+        <div className="space-y-1">
+          <div className="text-xs uppercase text-amber-600 font-medium">Pontos fracos</div>
+          <ul className="text-sm space-y-2">
+            {r.pontos_fracos.map((p, i) => (
+              <li key={i}>
+                <span className="font-medium">{p.ponto}</span>
+                <div className="text-xs text-muted-foreground">↳ {p.correcao}</div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {r.alerta_posicionamento && (
+        <div className="text-sm border border-red-500/40 bg-red-500/5 rounded p-3">
+          <span className="text-xs uppercase text-red-600 font-medium mr-2">Alerta de posicionamento</span>
+          {r.alerta_posicionamento}
+        </div>
+      )}
+      {r.comentario_final && <p className="text-sm border-t pt-3">{r.comentario_final}</p>}
+    </Card>
+  );
+}
+
+function Teleprompter({
+  open,
+  onOpenChange,
+  text,
+  fontSize,
+  onFontChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  text: string;
+  fontSize: number;
+  onFontChange: (v: number) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="max-w-none w-screen h-screen p-0 bg-black text-white border-0 rounded-none flex flex-col"
+        onInteractOutside={(e) => e.preventDefault()}
+      >
+        <div className="absolute top-3 right-3 z-10">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            className="text-white hover:bg-white/10"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+        <div className="absolute top-3 left-3 right-16 z-10 flex items-center gap-3">
+          <span className="text-xs opacity-70 w-16">Fonte: {fontSize}px</span>
+          <Slider
+            min={20}
+            max={48}
+            step={1}
+            value={[fontSize]}
+            onValueChange={(v) => onFontChange(v[0])}
+            className="max-w-xs"
+          />
+        </div>
+        <div className="flex-1 overflow-y-auto p-10 pt-20">
+          <div
+            className="max-w-4xl mx-auto leading-relaxed whitespace-pre-wrap"
+            style={{ fontSize: `${fontSize}px` }}
+          >
+            {text || "(roteiro vazio)"}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
