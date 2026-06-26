@@ -738,7 +738,12 @@ function SeriesCardItem({
                         setLinkSel((m) => ({ ...m, [p.id]: { ...cur, checked: v === true } }))
                       }
                     />
-                    <span className="flex-1 text-xs truncate">{p.title ?? "Sem título"}</span>
+                    <span className="flex-1 text-xs truncate">
+                      {p.title ?? "Sem título"}
+                      {p.series_name && (
+                        <span className="text-[10px] text-muted-foreground ml-1">(atualmente: {p.series_name})</span>
+                      )}
+                    </span>
                     <Input
                       type="number"
                       min={1}
