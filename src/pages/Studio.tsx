@@ -882,6 +882,20 @@ export default function Studio() {
   const [seriesPanelOpen, setSeriesPanelOpen] = useState(true);
   const [newSeriesOpen, setNewSeriesOpen] = useState(false);
 
+  const [quickPostOpen, setQuickPostOpen] = useState(false);
+  const [qpTitle, setQpTitle] = useState("");
+  const [qpTema, setQpTema] = useState("");
+  const [qpEnergia, setQpEnergia] = useState("topo");
+  const [qpStatus, setQpStatus] = useState<"publicado" | "pronto_postar">("publicado");
+  const [qpDate, setQpDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [qpSeries, setQpSeries] = useState("none");
+  const [qpEpNum, setQpEpNum] = useState("");
+  const [qpViews, setQpViews] = useState("");
+  const [qpSaves, setQpSaves] = useState("");
+  const [qpDms, setQpDms] = useState("");
+  const [qpCaption, setQpCaption] = useState("");
+  const [qpSaving, setQpSaving] = useState(false);
+
   const saveIdea = async () => {
     const txt = ideaText.trim();
     if (!txt) return;
