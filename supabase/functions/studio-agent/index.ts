@@ -23,6 +23,7 @@ type Action =
   | "phase3_review"
   | "phase4_derivatives"
   | "generate_captions"
+  | "analyze_instagram_image"
   | "phase5_performance";
 
 const BLOCK_ROLES = ["Hook", "Contexto Emocional", "Microchoque", "Insight de Descoberta", "Resolução"];
