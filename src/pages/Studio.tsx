@@ -3285,21 +3285,12 @@ function Teleprompter({
 /* ================================================================== */
 
 const DEFAULT_EDIT_CHECKLIST: { label: string; done: boolean }[] = [
-  { label: "Ambiente limpo e organizado no enquadramento", done: false },
-  { label: "Iluminação adequada (luz frontal, sem sombras no rosto)", done: false },
-  { label: "Câmera na altura dos olhos", done: false },
-  { label: "Roupa alinhada ao posicionamento (profissional/intencional)", done: false },
-  { label: "Teleprompter posicionado e fonte ajustada", done: false },
-  { label: "Áudio testado (sem eco, sem barulho de fundo)", done: false },
-  { label: "Roteiro revisado e memorizado nos pontos-chave", done: false },
-  { label: "Energia e presença: respirar fundo antes de começar", done: false },
-  { label: "Gravação: 3 takes mínimos", done: false },
-  { label: "Revisar take escolhido antes de ir para edição", done: false },
-  { label: "Corte inicial e final limpos", done: false },
-  { label: "Ajuste de áudio (volume, equalização)", done: false },
-  { label: "Legendas adicionadas", done: false },
-  { label: "Thumbnail ou capa definida", done: false },
-  { label: "Revisão final do conteúdo completo antes de postar", done: false },
+  { label: "Gravação concluída", done: false },
+  { label: "Take escolhido", done: false },
+  { label: "Edição finalizada", done: false },
+  { label: "Legenda escrita", done: false },
+  { label: "Thumbnail definida", done: false },
+  { label: "Agendado ou publicado", done: false },
 ];
 
 type Derivatives = {
@@ -3745,11 +3736,11 @@ function PostProductionSub({
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       const r = data?.result ?? {};
-      const opts: string[] = Array.isArray(r.opcoes)
-        ? r.opcoes.map((o: unknown) => (typeof o === "string" ? o : (o as { texto?: string })?.texto ?? "")).filter(Boolean)
-        : [];
-      if (opts.length === 0) throw new Error("IA não retornou opções");
-      setCaptionOptions(opts.slice(0, 2));
+      const opts: string[] = [];
+      if (r.opcao_1?.texto) opts.push(r.opcao_1.texto);
+      if (r.opcao_2?.texto) opts.push(r.opcao_2.texto);
+      if (opts.length === 0) throw new Error("IA não retornou legendas");
+      setCaptionOptions(opts);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha");
     } finally {
@@ -3808,19 +3799,18 @@ function PostProductionSub({
         {captionOptions.length > 0 && (
           <div className="grid sm:grid-cols-2 gap-3">
             {captionOptions.map((opt, i) => (
-              <div key={i} className="border rounded p-3 space-y-2 bg-muted/30">
-                <div className="text-xs text-muted-foreground">Opção {i + 1}</div>
-                <div className="text-sm whitespace-pre-wrap">{opt}</div>
+              <div key={i} className="rounded-lg border p-4 space-y-2">
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{opt}</p>
                 <Button
                   size="sm"
+                  variant="outline"
                   onClick={() => {
                     setCaptionDraft(opt);
                     queue({ caption: opt });
                     setCaptionOptions([]);
-                    toast.success("Legenda aplicada — ajuste se quiser");
                   }}
                 >
-                  Usar esta
+                  Usar esta legenda
                 </Button>
               </div>
             ))}
