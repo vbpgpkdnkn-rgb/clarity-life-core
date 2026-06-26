@@ -772,7 +772,7 @@ function SeriesCardItem({
 
 export default function Studio() {
   const qc = useQueryClient();
-  const [view, setView] = useState<"biblioteca" | "foco" | "stories">("biblioteca");
+  const [view, setView] = useState<"biblioteca" | "foco" | "stories" | "calendario">("biblioteca");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [initialPhase, setInitialPhase] = useState<number | undefined>(undefined);
   const [initialTeleOpen, setInitialTeleOpen] = useState(false);
