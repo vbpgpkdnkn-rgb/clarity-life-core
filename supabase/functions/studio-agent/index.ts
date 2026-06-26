@@ -1,7 +1,7 @@
-// studio-agent v4 — Lovable AI Gateway (gemini-3-flash)
+// studio-agent v5 — Gemini 2.5 Flash com retry
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
 const BASE_CONTEXT = `Você é o copiloto de uma psicóloga clínica (10+ anos, IBCT e Gottman, público mulheres 25-45) na criação de conteúdo sobre maturidade relacional.
 
@@ -15,58 +15,63 @@ Energia do conteúdo:
 
 Responda SEMPRE em JSON válido conforme o schema pedido. Nada além do JSON.`;
 
-const BLOCK_ROLES = ["Hook", "Contexto Emocional", "Microchoque", "Insight de Descoberta", "Resolução / Transformação"];
-
 function memoryBlock(ai_memory: unknown): string {
   if (!Array.isArray(ai_memory) || ai_memory.length === 0) return "(sem histórico)";
   return JSON.stringify(ai_memory.slice(-10));
 }
 
-async function callGemini(prompt: string, imageBase64?: string, imageType?: string): Promise<string> {
-  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY ausente");
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-  let messages;
-  if (imageBase64 && imageType) {
-    messages = [
-      { role: "system", content: BASE_CONTEXT },
-      {
-        role: "user",
-        content: [
+async function callGemini(prompt: string, imageBase64?: string, imageType?: string): Promise<string> {
+  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY ausente nos Secrets do Supabase");
+
+  const messages = imageBase64 && imageType
+    ? [
+        { role: "system", content: BASE_CONTEXT },
+        { role: "user", content: [
           { type: "image_url", image_url: { url: `data:${imageType};base64,${imageBase64}` } },
           { type: "text", text: prompt },
-        ],
+        ]},
+      ]
+    : [
+        { role: "system", content: BASE_CONTEXT },
+        { role: "user", content: prompt },
+      ];
+
+  // Retry até 3x com backoff para rate limit
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${GEMINI_API_KEY}`,
+        "Content-Type": "application/json",
       },
-    ];
-  } else {
-    messages = [
-      { role: "system", content: BASE_CONTEXT },
-      { role: "user", content: prompt },
-    ];
-  }
+      body: JSON.stringify({
+        model: "gemini-2.5-flash",
+        messages,
+        response_format: { type: "json_object" },
+      }),
+    });
 
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Lovable-API-Key": LOVABLE_API_KEY,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
-      messages,
-      response_format: { type: "json_object" },
-    }),
-  });
+    if (res.ok) {
+      const data = await res.json();
+      return data.choices?.[0]?.message?.content ?? "{}";
+    }
 
-  if (!res.ok) {
+    if (res.status === 429) {
+      // Rate limit — aguardar e tentar de novo
+      const waitMs = (attempt + 1) * 3000;
+      console.log(`Rate limit, aguardando ${waitMs}ms (tentativa ${attempt + 1})`);
+      await sleep(waitMs);
+      continue;
+    }
+
     const errBody = await res.text();
-    console.error("studio-agent gateway error", res.status, errBody);
-    if (res.status === 429) throw new Error("Muitas requisições. Aguarde alguns segundos.");
-    if (res.status === 402) throw new Error("Créditos de IA esgotados.");
-    throw new Error(`AI ${res.status}: ${errBody.slice(0, 200)}`);
+    if (res.status === 402) throw new Error("Créditos Gemini esgotados. Verifique em aistudio.google.com");
+    throw new Error(`Gemini ${res.status}: ${errBody.slice(0, 200)}`);
   }
 
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? "{}";
+  throw new Error("Limite de requisições atingido. Aguarde 1 minuto e tente novamente.");
 }
 
 function parseJSON(raw: string): unknown {
@@ -93,8 +98,8 @@ ENTRADA:
 JSON:
 {
   "energia_sugerida": "topo | meio | fundo",
-  "observacao": "1 a 3 frases curtas",
-  "padroes_audiencia": "string | null"
+  "observacao": "1 a 3 frases curtas e diretas sobre o potencial clínico deste tema",
+  "padroes_audiencia": "string resumindo padrões detectados nos comentários | null"
 }`;
 
     case "phase2_validate":
@@ -133,17 +138,17 @@ JSON:
 {
   "insights": [
     {
-      "id": "string",
-      "titulo_angulo": "string",
-      "tensao": "string",
-      "frase_semente": "string",
+      "id": "string único",
+      "titulo_angulo": "3 a 5 palavras",
+      "tensao": "tensão clínica em 1 frase",
+      "frase_semente": "abertura em linguagem de fala",
       "energia_sugerida": "topo | meio | fundo"
     }
   ]
 }`;
 
     case "phase3_draft":
-      return `Escreva o esboço do roteiro em 5 blocos: ${BLOCK_ROLES.join(" / ")}.
+      return `Escreva o esboço do roteiro em 5 blocos: Hook / Contexto Emocional / Microchoque / Insight de Descoberta / Resolução / Transformação.
 
 - tema: ${payload.tema ?? "(vazio)"}
 - energia: ${payload.energia ?? "(nenhuma)"}
@@ -151,30 +156,33 @@ JSON:
 - insights aprovados: ${JSON.stringify(payload.insights_aprovados ?? [])}
 - template: ${payload.script_template ? JSON.stringify(payload.script_template) : "(padrão)"}
 
-Linguagem de fala. Total 45-65 segundos. NÃO inclua CTA.
+Linguagem de fala. Total 45-65 segundos (~110-165 palavras). NÃO inclua CTA.
 
 JSON:
 {
   "blocos": [
-    { "papel": "string", "texto": "string", "nota_gravacao": "string" }
+    { "papel": "Hook | Contexto Emocional | Microchoque | Insight de Descoberta | Resolução / Transformação",
+      "texto": "string em linguagem de fala",
+      "nota_gravacao": "instrução curta de entrega" }
   ]
 }`;
 
     case "phase3_adjust":
-      return `Ajuste APENAS os blocos necessários. Se ajustes_marcados e instrucao_livre estiverem vazios, retorne os blocos EXATAMENTE como estão.
+      return `Ajuste APENAS os blocos necessários.
+REGRA CRÍTICA: se ajustes_marcados está vazio E instrucao_livre está vazia ou diz "manter", retorne os blocos EXATAMENTE como estão, sem NENHUMA alteração.
 
 BLOCOS ATUAIS: ${JSON.stringify(payload.blocos_atuais ?? [])}
-AJUSTES: ${JSON.stringify(payload.ajustes_marcados ?? [])}
-INSTRUÇÃO: ${payload.instrucao_livre ?? "(nenhuma)"}
+AJUSTES MARCADOS: ${JSON.stringify(payload.ajustes_marcados ?? [])}
+INSTRUÇÃO LIVRE: ${payload.instrucao_livre ?? "(nenhuma)"}
 
 JSON:
 {
   "blocos_ajustados": [{ "papel": "string", "texto": "string", "nota_gravacao": "string" }],
-  "papeis_modificados": ["string"]
+  "papeis_modificados": ["lista dos papéis alterados — vazia se nenhum"]
 }`;
 
     case "phase3_review":
-      return `Análise crítica do roteiro. NÃO reescreva blocos. Apenas comente.
+      return `Análise crítica do roteiro. NÃO reescreva blocos. Apenas comente e aponte.
 
 - tema: ${payload.tema ?? "(vazio)"}
 - energia: ${payload.energia ?? "(nenhuma)"}
@@ -188,13 +196,13 @@ JSON:
   "score_retencao": 0,
   "estimativa": "baixa | moderada | alta",
   "pontos_fortes": ["string"],
-  "pontos_fracos": [{"ponto": "string", "correcao": "string"}],
+  "pontos_fracos": [{"ponto": "string", "correcao": "sugestão aplicável"}],
   "alerta_posicionamento": "string | null",
   "comentario_final": "string"
 }`;
 
     case "phase4_derivatives":
-      return `Transforme em 4 formatos com ÂNGULOS DIFERENTES — não repetição.
+      return `Transforme em 4 formatos com ÂNGULOS GENUINAMENTE DIFERENTES — não repetição da mesma mensagem. Cada formato explora um aspecto diferente do tema.
 
 - tema: ${payload.tema ?? "(vazio)"}
 - energia: ${payload.energia ?? "(nenhuma)"}
@@ -203,38 +211,32 @@ JSON:
 
 JSON:
 {
-  "tiktok": { "angulo": "string", "script": "string", "instrucao_gravacao": "string" },
+  "tiktok": { "angulo": "string", "script": "string (30-45s, direto, íntimo)", "instrucao_gravacao": "string" },
   "carousel": { "angulo": "string", "slides": [{ "n": 1, "titulo": "string", "corpo": "string" }] },
-  "stories": { "angulo": "string", "cards": [{ "n": 1, "tipo": "string", "texto": "string", "sugestao_visual": "string" }] },
+  "stories": { "angulo": "string", "cards": [{ "n": 1, "tipo": "abertura|enquete|quote|reflexao|cta", "texto": "string", "sugestao_visual": "string" }] },
   "debate": { "angulo": "string", "legenda": "string", "intencao": "string" }
 }`;
 
     case "generate_captions":
-      return `Você é a psicóloga clínica autora deste conteúdo. Escreva 2 opções de legenda para este Reel do Instagram.
+      return `Você é a psicóloga clínica autora deste conteúdo. Escreva 2 opções de legenda para Instagram.
 
-CONTEXTO DO CONTEÚDO:
+- tema: ${payload.tema ?? "(vazio)"}
+- roteiro: ${payload.script ?? "(vazio)"}
+- energia: ${payload.energia ?? "(nenhuma)"}
+- estratégia: ${payload.creation_strategy ?? "(nenhuma)"}
+- memória de comunicação: ${memoryBlock(payload.ai_memory)}
 
-- Tema: ${payload.tema ?? "(vazio)"}
-- Roteiro: ${payload.script ?? "(vazio)"}
-- Energia: ${payload.energia ?? "(nenhuma)"}
-- Estratégia: ${payload.creation_strategy ?? "(nenhuma)"}
-
-REGRAS ABSOLUTAS para a legenda:
-
+REGRAS:
 - Máximo 3 linhas de texto corrido
-- Linguagem de fala direta — como ela falaria para uma pessoa, não como se escrevesse um post
-- A primeira frase deve capturar a ideia central do vídeo em forma de insight ou pergunta
-- Sem emojis, sem hashtags, sem CTA de venda, sem "comenta aqui", sem "salva esse post"
-- Sem listas, sem tópicos, sem aspas
-- O objetivo é que quem lê sinta: "preciso assistir isso"
-- Se for série, mencionar discretamente o contexto (ex: "No episódio de hoje...")
-- Memória de comunicação anterior: ${memoryBlock(payload.ai_memory)}
+- Linguagem de fala direta — como ela falaria para uma pessoa
+- Primeira frase captura a ideia central como insight ou pergunta
+- Sem emojis, hashtags, CTAs de venda, "salva esse post", listas, aspas
+- Objetivo: quem lê sente "preciso assistir isso"
 
-Retorne APENAS o JSON, sem markdown:
-
+JSON:
 {
-  "opcao_1": { "texto": "legenda completa aqui" },
-  "opcao_2": { "texto": "legenda completa aqui — abordagem diferente da primeira" }
+  "opcao_1": { "texto": "legenda completa" },
+  "opcao_2": { "texto": "legenda com abordagem diferente da primeira" }
 }`;
 
     case "analyze_instagram_image":
@@ -249,15 +251,15 @@ JSON:
 }`;
 
     case "phase5_performance":
-      return `Analise o desempenho desta peça publicada.
+      return `Analise o desempenho desta peça publicada com honestidade clínica.
 
 - tema: ${payload.tema ?? "(vazio)"}
 - energia: ${payload.energia ?? "(nenhuma)"}
 - objetivo: ${payload.objetivo ?? "(vazio)"}
 - roteiro: ${payload.roteiro_texto ?? "(vazio)"}
 - métricas: ${JSON.stringify(payload.metricas ?? {})}
-- comentários: ${payload.comentarios ?? "(nenhum)"}
-- memória: ${memoryBlock(payload.ai_memory)}
+- comentários recebidos: ${payload.comentarios ?? "(nenhum)"}
+- memória de peças anteriores: ${memoryBlock(payload.ai_memory)}
 - série: ${payload.series_name ? `${payload.series_name} ep ${payload.series_position}` : "não"}
 - histórico recente: ${JSON.stringify(payload.historico_resumo ?? [])}
 
@@ -265,7 +267,7 @@ JSON:
 {
   "o_que_funcionou": [{"ponto": "string", "razao": "string"}],
   "o_que_nao_funcionou": [{"ponto": "string", "hipotese": "string", "correcao": "string"}],
-  "proximos_conteudos": "string",
+  "proximos_conteudos": "string aplicável",
   "comparacao_posts": "string | null",
   "serie_proxima_sugestao": "string | null",
   "comentarios_para_conteudo": [{"comentario": "string", "tema_sugerido": "string"}],
@@ -274,7 +276,7 @@ JSON:
 }`;
 
     case "suggest_stories":
-      return `Sugira 5 ideias de stories para hoje.
+      return `Sugira 5 ideias de stories para hoje baseadas no contexto da semana.
 
 - data: ${payload.data ?? "hoje"}
 - energia dos posts da semana: ${JSON.stringify(payload.energia_semana ?? {})}
@@ -286,24 +288,22 @@ Tipos: bastidores | rotina | reflexao | dica_clinica | pergunta_audiencia | teas
 JSON:
 {
   "sugestoes": [
-    { "slot": 1, "tipo": "string", "sugestao": "string" }
+    { "slot": 1, "tipo": "string", "sugestao": "descrição prática em 2 frases" }
   ]
 }`;
 
     case "analyze_series":
-      return `Analise esta série de conteúdo clínico sobre relacionamentos.
+      return `Analise esta série de conteúdo com honestidade estratégica.
 
-SÉRIE: ${payload.series_name ?? "(sem nome)"}
-EPISÓDIOS PUBLICADOS: ${JSON.stringify(payload.episodios ?? [])}
-TOTAL PLANEJADO: ${payload.total_planejado ?? "indefinido"}
-
-Avalie com honestidade clínica e estratégica.
+- série: ${payload.series_name ?? "(sem nome)"}
+- episódios publicados: ${JSON.stringify(payload.episodios ?? [])}
+- total planejado: ${payload.total_planejado ?? "indefinido"}
 
 JSON:
 {
-  "funcionando": "string — o que está gerando resultado concreto nesta série",
-  "mudar": "string — o que claramente não está funcionando e por quê",
-  "proximos_episodios": "string — sugestão específica para os próximos 3 episódios",
+  "funcionando": "string — o que gera resultado concreto",
+  "mudar": "string — o que não funciona e por quê",
+  "proximos_episodios": "string — sugestão para os próximos 3 com temas e ângulos",
   "vale_continuar": "sim | talvez | nao",
   "recomendacao": "string — recomendação direta sobre o futuro desta série"
 }`;
