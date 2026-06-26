@@ -100,6 +100,15 @@ type Piece = {
   ai_memory: unknown;
   teleprompter_font_size: number | null;
   script: string | null;
+  pipeline_stage: string | null;
+  pre_recording_notes: string | null;
+  editing_checklist: { label: string; done: boolean }[] | null;
+  editing_notes: string | null;
+  caption: string | null;
+  tiktok_script: string | null;
+  carousel_script: string | null;
+  stories_script: string | null;
+  debate_caption: string | null;
   updated_at: string;
 };
 
