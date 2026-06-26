@@ -2301,7 +2301,9 @@ function PostProductionSub({
           payload: {
             tema: piece.theme,
             energia: piece.energia,
+            creation_strategy: piece.creation_strategy,
             roteiro_final_texto: piece.script,
+            insights_multiconteudo: pd.insights_multiconteudo ?? [],
           },
         },
       });
