@@ -2136,3 +2136,382 @@ function DerivativeBlock({
     </Collapsible>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* PHASE 5 — DESEMPENHO                                                */
+/* ------------------------------------------------------------------ */
+
+type MetricsRow = {
+  id?: string;
+  piece_id: string;
+  measured_at: string;
+  views: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  reach: number;
+  dms_recebidos: number;
+  agendamentos: number;
+};
+
+function Phase5({
+  piece,
+  pd,
+  queue,
+  flush,
+  onOpenPiece,
+}: {
+  piece: Piece;
+  pd: PhaseData;
+  queue: (patch: Record<string, unknown>) => void;
+  flush: () => Promise<void>;
+  onOpenPiece: (id: string) => void;
+}) {
+  const qc = useQueryClient();
+  const today = new Date().toISOString().slice(0, 10);
+
+  const metricsQ = useQuery({
+    queryKey: ["studio-metrics", piece.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("content_metrics")
+        .select("*")
+        .eq("piece_id", piece.id)
+        .order("measured_at", { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      return (data?.[0] as unknown as MetricsRow) ?? null;
+    },
+  });
+
+  const [m, setM] = useState<MetricsRow>({
+    piece_id: piece.id,
+    measured_at: today,
+    views: 0,
+    likes: 0,
+    comments: 0,
+    shares: 0,
+    saves: 0,
+    reach: 0,
+    dms_recebidos: 0,
+    agendamentos: 0,
+  });
+
+  useEffect(() => {
+    if (metricsQ.data) setM({ ...metricsQ.data });
+  }, [metricsQ.data?.id]);
+
+  const [savingMetrics, setSavingMetrics] = useState(false);
+  const saveMetrics = async () => {
+    setSavingMetrics(true);
+    try {
+      const payload = { ...m, piece_id: piece.id, measured_at: today };
+      if (m.id) {
+        const { error } = await supabase.from("content_metrics").update(payload as never).eq("id", m.id);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from("content_metrics")
+          .insert(payload as never)
+          .select("id")
+          .single();
+        if (error) throw error;
+        setM((prev) => ({ ...prev, id: (data as { id: string }).id }));
+      }
+      toast.success("Métricas salvas");
+      qc.invalidateQueries({ queryKey: ["studio-metrics", piece.id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao salvar");
+    } finally {
+      setSavingMetrics(false);
+    }
+  };
+
+  const comentarios = (pd.comentarios_recebidos as string) ?? "";
+
+  const [analyzing, setAnalyzing] = useState(false);
+  const runAnalysis = async () => {
+    setAnalyzing(true);
+    try {
+      await flush();
+      const { data, error } = await supabase.functions.invoke("studio-agent", {
+        body: {
+          action: "phase5_performance",
+          payload: {
+            tema: piece.theme,
+            energia: piece.energia,
+            objetivo: pd.objetivo,
+            roteiro_texto: piece.script,
+            metricas: {
+              views: m.views,
+              likes: m.likes,
+              comments: m.comments,
+              shares: m.shares,
+              saves: m.saves,
+              reach: m.reach,
+              dms: m.dms_recebidos,
+              appointments: m.agendamentos,
+            },
+            comentarios,
+            ai_memory: piece.ai_memory,
+          },
+        },
+      });
+      if (error) throw error;
+      const result = (data as { result: PerformanceAnalysis }).result;
+      const newMemory = Array.isArray(piece.ai_memory) ? [...piece.ai_memory] : [];
+      if (result.memoria_entrada) newMemory.push(result.memoria_entrada);
+      const trimmed = newMemory.slice(-20);
+      await supabase
+        .from("content_pieces")
+        .update({ performance_analysis: result as unknown, ai_memory: trimmed as unknown } as never)
+        .eq("id", piece.id);
+      qc.invalidateQueries({ queryKey: ["studio-piece", piece.id] });
+      toast.success("Análise gerada");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao analisar");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const analysis = piece.performance_analysis;
+
+  const createReuseMut = useMutation({
+    mutationFn: async () => {
+      const { data: userRes } = await supabase.auth.getUser();
+      const uid = userRes.user?.id;
+      if (!uid) throw new Error("Sem sessão");
+      const { data, error } = await supabase
+        .from("content_pieces")
+        .insert({
+          user_id: uid,
+          title: (piece.title ?? "Nova peça") + " (novo ângulo)",
+          theme: (piece.theme ?? "") + " (novo ângulo)",
+          phase: 1,
+          status: "ideia",
+          scope: "profissional",
+          parent_piece_id: piece.id,
+        } as never)
+        .select("id")
+        .single();
+      if (error) throw error;
+      return (data as { id: string }).id;
+    },
+    onSuccess: (id) => {
+      qc.invalidateQueries({ queryKey: ["studio-pieces"] });
+      onOpenPiece(id);
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+  const markPublished = async () => {
+    await supabase
+      .from("content_pieces")
+      .update({ published_at: today, status: "publicado" } as never)
+      .eq("id", piece.id);
+    qc.invalidateQueries({ queryKey: ["studio-piece", piece.id] });
+    qc.invalidateQueries({ queryKey: ["studio-pieces"] });
+    toast.success("Peça marcada como publicada");
+  };
+
+  const [showHistory, setShowHistory] = useState(false);
+  const historyQ = useQuery({
+    queryKey: ["studio-published-history"],
+    enabled: showHistory,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("content_pieces")
+        .select("id,title,published_at,energia,performance_analysis")
+        .eq("status", "publicado")
+        .not("published_at", "is", null)
+        .order("published_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as Pick<Piece, "id" | "title" | "published_at" | "energia" | "performance_analysis">[];
+    },
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* Resumo */}
+      <Card className="p-5 space-y-2">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h3 className="font-medium text-base">{piece.title ?? "Sem título"}</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              {piece.published_at
+                ? `publicado em ${new Date(piece.published_at).toLocaleDateString("pt-BR")}`
+                : "ainda não publicado"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {energiaBadge(piece.energia)}
+            {piece.creation_strategy && (
+              <Badge variant="outline" className="text-[10px] capitalize">
+                {piece.creation_strategy}
+              </Badge>
+            )}
+          </div>
+        </div>
+        {!piece.published_at && (
+          <Button size="sm" variant="outline" onClick={markPublished}>
+            Marcar como publicado
+          </Button>
+        )}
+      </Card>
+
+      {/* Métricas */}
+      <Card className="p-5 space-y-4">
+        <h3 className="font-medium">Registrar métricas</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {([
+            ["views", "Views"],
+            ["likes", "Curtidas"],
+            ["comments", "Comentários"],
+            ["shares", "Compartilhamentos"],
+            ["saves", "Salvamentos"],
+            ["reach", "Alcance"],
+            ["dms_recebidos", "DMs recebidos"],
+            ["agendamentos", "Agendamentos"],
+          ] as const).map(([key, label]) => (
+            <div key={key} className="space-y-1">
+              <Label className="text-xs">{label}</Label>
+              <Input
+                type="number"
+                min={0}
+                value={m[key] ?? 0}
+                onChange={(e) =>
+                  setM((prev) => ({ ...prev, [key]: Number(e.target.value) || 0 }))
+                }
+              />
+            </div>
+          ))}
+        </div>
+        <Button onClick={saveMetrics} disabled={savingMetrics}>
+          {savingMetrics && <Loader2 className="h-4 w-4 animate-spin" />}
+          Salvar métricas
+        </Button>
+      </Card>
+
+      {/* Comentários */}
+      <Card className="p-5 space-y-2">
+        <h3 className="font-medium">Comentários recebidos</h3>
+        <Textarea
+          rows={5}
+          placeholder="Cole aqui comentários relevantes que recebeu neste post"
+          defaultValue={comentarios}
+          onChange={(e) =>
+            queue({ phase_data: { ...pd, comentarios_recebidos: e.target.value } })
+          }
+        />
+      </Card>
+
+      {/* Análise IA */}
+      <Card className="p-5 space-y-4">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h3 className="font-medium">Análise de desempenho pela IA</h3>
+          <Button onClick={runAnalysis} disabled={analyzing}>
+            {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            Analisar com IA
+          </Button>
+        </div>
+
+        {analysis && (
+          <div className="space-y-3">
+            {analysis.o_que_funcionou && analysis.o_que_funcionou.length > 0 && (
+              <Card className="p-4 border-green-500/40 bg-green-500/5 space-y-2">
+                <h4 className="text-sm font-medium text-green-700 dark:text-green-400">O que funcionou</h4>
+                <ul className="space-y-1.5 text-sm">
+                  {analysis.o_que_funcionou.map((it, i) => (
+                    <li key={i}>
+                      <strong>{it.ponto}</strong>
+                      <span className="text-muted-foreground"> — {it.razao}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+            {analysis.o_que_nao_funcionou && analysis.o_que_nao_funcionou.length > 0 && (
+              <Card className="p-4 border-orange-500/40 bg-orange-500/5 space-y-2">
+                <h4 className="text-sm font-medium text-orange-700 dark:text-orange-400">O que não funcionou</h4>
+                <ul className="space-y-2 text-sm">
+                  {analysis.o_que_nao_funcionou.map((it, i) => (
+                    <li key={i}>
+                      <strong>{it.ponto}</strong>
+                      <div className="text-muted-foreground text-xs">Hipótese: {it.hipotese}</div>
+                      <div className="text-muted-foreground text-xs">Correção: {it.correcao}</div>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+            {analysis.proximos_conteudos && (
+              <Card className="p-4 border-blue-500/40 bg-blue-500/5 space-y-1">
+                <h4 className="text-sm font-medium text-blue-700 dark:text-blue-400">Para os próximos conteúdos</h4>
+                <p className="text-sm">{analysis.proximos_conteudos}</p>
+              </Card>
+            )}
+            {analysis.reuso_sugerido && (
+              <Button
+                variant="outline"
+                onClick={() => createReuseMut.mutate()}
+                disabled={createReuseMut.isPending}
+              >
+                <Plus className="h-4 w-4" />
+                Criar novo conteúdo a partir deste
+              </Button>
+            )}
+          </div>
+        )}
+      </Card>
+
+      {/* Histórico */}
+      <Card className="p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-medium">Histórico de peças</h3>
+          <Button variant="ghost" size="sm" onClick={() => setShowHistory((s) => !s)}>
+            {showHistory ? "Ocultar" : "Ver todas as peças publicadas"}
+          </Button>
+        </div>
+        {showHistory && (
+          <div className="space-y-2">
+            {historyQ.isLoading && <Skeleton className="h-12 w-full" />}
+            {(historyQ.data ?? []).length === 0 && !historyQ.isLoading && (
+              <p className="text-sm text-muted-foreground italic">Nenhuma peça publicada ainda.</p>
+            )}
+            {(historyQ.data ?? []).map((it) => {
+              const score =
+                (it.performance_analysis as PerformanceAnalysis | null)?.o_que_funcionou?.length ?? null;
+              return (
+                <button
+                  key={it.id}
+                  onClick={() => onOpenPiece(it.id)}
+                  className="w-full text-left p-3 border rounded-md hover:border-accent transition-colors flex items-center justify-between gap-3"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium truncate">{it.title ?? "Sem título"}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {it.published_at
+                        ? new Date(it.published_at).toLocaleDateString("pt-BR")
+                        : "—"}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {energiaBadge(it.energia)}
+                    {score !== null && (
+                      <Badge variant="outline" className="text-[10px]">
+                        {score} ✓
+                      </Badge>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
