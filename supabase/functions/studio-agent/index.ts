@@ -24,6 +24,7 @@ type Action =
   | "phase4_derivatives"
   | "generate_captions"
   | "analyze_instagram_image"
+  | "suggest_stories"
   | "phase5_performance";
 
 const BLOCK_ROLES = ["Hook", "Contexto Emocional", "Microchoque", "Insight de Descoberta", "Resolução"];
