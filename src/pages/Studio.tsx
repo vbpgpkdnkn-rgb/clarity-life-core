@@ -1951,7 +1951,7 @@ function Phase4({
   pd: PhaseData;
   queue: (p: Record<string, unknown>) => void;
   flush: () => Promise<void>;
-  onAdvance: () => Promise<void>;
+  onAdvance: (publishedAt: string) => Promise<void>;
 }) {
   const qc = useQueryClient();
   const [sub, setSub] = useState<"editorial" | "gravacao" | "pos">("editorial");
