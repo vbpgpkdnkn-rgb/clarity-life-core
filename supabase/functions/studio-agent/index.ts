@@ -1,7 +1,7 @@
-// studio-agent v3 — Gemini 2.5 Flash — redeploy forçado
+// studio-agent v4 — Lovable AI Gateway (gemini-3-flash)
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
 const BASE_CONTEXT = `Você é o copiloto de uma psicóloga clínica (10+ anos, IBCT e Gottman, público mulheres 25-45) na criação de conteúdo sobre maturidade relacional.
 
@@ -23,7 +23,7 @@ function memoryBlock(ai_memory: unknown): string {
 }
 
 async function callGemini(prompt: string, imageBase64?: string, imageType?: string): Promise<string> {
-  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY ausente nos Secrets do Supabase");
+  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY ausente");
 
   let messages;
   if (imageBase64 && imageType) {
@@ -44,14 +44,14 @@ async function callGemini(prompt: string, imageBase64?: string, imageType?: stri
     ];
   }
 
-  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${GEMINI_API_KEY}`,
+      "Lovable-API-Key": LOVABLE_API_KEY,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "gemini-2.5-flash",
+      model: "google/gemini-3-flash-preview",
       messages,
       response_format: { type: "json_object" },
     }),
@@ -59,10 +59,10 @@ async function callGemini(prompt: string, imageBase64?: string, imageType?: stri
 
   if (!res.ok) {
     const errBody = await res.text();
-    console.error("studio-agent Gemini error", res.status, errBody);
+    console.error("studio-agent gateway error", res.status, errBody);
     if (res.status === 429) throw new Error("Muitas requisições. Aguarde alguns segundos.");
     if (res.status === 402) throw new Error("Créditos de IA esgotados.");
-    throw new Error(`Gemini ${res.status}: ${errBody.slice(0, 200)}`);
+    throw new Error(`AI ${res.status}: ${errBody.slice(0, 200)}`);
   }
 
   const data = await res.json();
