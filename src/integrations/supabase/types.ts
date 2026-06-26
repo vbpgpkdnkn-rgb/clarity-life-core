@@ -726,6 +726,7 @@ export type Database = {
           checklist: Json
           clinical_anchor: string | null
           created_at: string
+          creation_strategy: string | null
           cta: string | null
           cta_type: string | null
           energia: string | null
@@ -736,6 +737,8 @@ export type Database = {
           id: string
           idea_id: string | null
           notes: string | null
+          phase: number
+          phase_data: Json
           pipeline_stage: string
           planned_date: string | null
           platform: string | null
@@ -745,6 +748,8 @@ export type Database = {
           saves: number
           scope: Database["public"]["Enums"]["scope_type"]
           script: string | null
+          series_name: string | null
+          series_position: number | null
           status: Database["public"]["Enums"]["content_status"]
           target_publish_at: string | null
           theme: string | null
@@ -758,6 +763,7 @@ export type Database = {
           checklist?: Json
           clinical_anchor?: string | null
           created_at?: string
+          creation_strategy?: string | null
           cta?: string | null
           cta_type?: string | null
           energia?: string | null
@@ -768,6 +774,8 @@ export type Database = {
           id?: string
           idea_id?: string | null
           notes?: string | null
+          phase?: number
+          phase_data?: Json
           pipeline_stage?: string
           planned_date?: string | null
           platform?: string | null
@@ -777,6 +785,8 @@ export type Database = {
           saves?: number
           scope?: Database["public"]["Enums"]["scope_type"]
           script?: string | null
+          series_name?: string | null
+          series_position?: number | null
           status?: Database["public"]["Enums"]["content_status"]
           target_publish_at?: string | null
           theme?: string | null
@@ -790,6 +800,7 @@ export type Database = {
           checklist?: Json
           clinical_anchor?: string | null
           created_at?: string
+          creation_strategy?: string | null
           cta?: string | null
           cta_type?: string | null
           energia?: string | null
@@ -800,6 +811,8 @@ export type Database = {
           id?: string
           idea_id?: string | null
           notes?: string | null
+          phase?: number
+          phase_data?: Json
           pipeline_stage?: string
           planned_date?: string | null
           platform?: string | null
@@ -809,6 +822,8 @@ export type Database = {
           saves?: number
           scope?: Database["public"]["Enums"]["scope_type"]
           script?: string | null
+          series_name?: string | null
+          series_position?: number | null
           status?: Database["public"]["Enums"]["content_status"]
           target_publish_at?: string | null
           theme?: string | null
