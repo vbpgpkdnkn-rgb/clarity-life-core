@@ -20,6 +20,8 @@ import {
   Clapperboard,
   Film,
   Loader2,
+  Mic,
+  MicOff,
   Pencil,
   Play,
   Plus,
