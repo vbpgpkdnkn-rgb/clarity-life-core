@@ -269,6 +269,7 @@ Deno.serve(async (req) => {
       "phase3_review",
       "phase4_derivatives",
       "generate_captions",
+      "analyze_instagram_image",
       "phase5_performance",
     ];
     if (!action || !valid.includes(action)) {
