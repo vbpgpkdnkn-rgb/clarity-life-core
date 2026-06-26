@@ -91,6 +91,15 @@ type PhaseData = {
   analise_ajustes_ia?: { papeis_modificados?: string[]; sugestoes?: string; blocos_sugeridos?: ScriptBlock[] };
   sugestao_cortes?: { blocos?: ScriptBlock[]; target?: number };
   sugestoes_ponto_fraco?: Record<string, ScriptBlock[]>;
+  bullets_insights?: string[];
+  sugestao_faltou?: string;
+  topicos_rascunho?: string[];
+  sugestoes_inline?: Record<number, ScriptBlock | undefined>;
+  modelo_roteiro?: string;
+  insight_manual?: string;
+  sugestao_aplicada?: string;
+  conteudo?: string;
+  conteudo_audiencia?: string;
   [k: string]: unknown;
 };
 
