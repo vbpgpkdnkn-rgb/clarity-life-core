@@ -443,7 +443,7 @@ export default function Studio() {
               </div>
             )}
           </>
-        ) : (
+        ) : view === "foco" ? (
           <FocoView
             pieceId={activeId}
             onBack={() => {
@@ -451,6 +451,11 @@ export default function Studio() {
               setActiveId(null);
             }}
             onOpenPiece={(id) => setActiveId(id)}
+          />
+        ) : (
+          <StoriesView
+            pieces={piecesQ.data ?? []}
+            onBack={() => setView("biblioteca")}
           />
         )}
       </div>
