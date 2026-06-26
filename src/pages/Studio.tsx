@@ -22,13 +22,27 @@ import {
   Loader2,
   Mic,
   MicOff,
+  MoreVertical,
+  PenLine,
   Pencil,
   Play,
   Plus,
+  Scissors,
   Sparkles,
+  Trash2,
   Upload,
+  Video,
   X,
 } from "lucide-react";
+import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { TextareaWithMic } from "@/components/ui/textarea-with-mic";
+import { startOfWeekFor, weekDates, dayName, dayNumber, isToday } from "@/lib/week";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
