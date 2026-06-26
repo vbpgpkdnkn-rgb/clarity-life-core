@@ -2246,7 +2246,7 @@ function PostProductionSub({
   flush: () => Promise<void>;
   genLoading: boolean;
   setGenLoading: (v: boolean) => void;
-  onReady: () => Promise<void>;
+  onReady: (publishedAt: string) => Promise<void>;
 }) {
   const checklist =
     (piece.editing_checklist && piece.editing_checklist.length > 0
