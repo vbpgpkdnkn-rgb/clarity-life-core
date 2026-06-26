@@ -293,7 +293,7 @@ function useDebouncedSave(pieceId: string | null) {
 
 export default function Studio() {
   const qc = useQueryClient();
-  const [view, setView] = useState<"biblioteca" | "foco">("biblioteca");
+  const [view, setView] = useState<"biblioteca" | "foco" | "stories">("biblioteca");
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const piecesQ = useQuery({
@@ -357,10 +357,15 @@ export default function Studio() {
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">seu estúdio de conteúdo</p>
               </div>
-              <Button onClick={() => createMut.mutate()} disabled={createMut.isPending}>
-                <Plus className="h-4 w-4" />
-                Nova peça
-              </Button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button variant="outline" onClick={() => setView("stories")}>
+                  📱 Stories do dia
+                </Button>
+                <Button onClick={() => createMut.mutate()} disabled={createMut.isPending}>
+                  <Plus className="h-4 w-4" />
+                  Nova peça
+                </Button>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -438,7 +443,7 @@ export default function Studio() {
               </div>
             )}
           </>
-        ) : (
+        ) : view === "foco" ? (
           <FocoView
             pieceId={activeId}
             onBack={() => {
@@ -446,6 +451,11 @@ export default function Studio() {
               setActiveId(null);
             }}
             onOpenPiece={(id) => setActiveId(id)}
+          />
+        ) : (
+          <StoriesView
+            pieces={piecesQ.data ?? []}
+            onBack={() => setView("biblioteca")}
           />
         )}
       </div>
@@ -3269,3 +3279,301 @@ function Phase5({
   );
 }
 
+/* ================================================================== */
+/* STORIES VIEW                                                       */
+/* ================================================================== */
+
+const STORY_TYPES = [
+  "Bastidores",
+  "Rotina",
+  "Reflexão",
+  "Dica clínica",
+  "Pergunta para audiência",
+  "Teaser de conteúdo",
+  "Outro",
+];
+
+type StorySlot = { tipo: string; texto: string; done: boolean };
+
+const emptySlots = (): StorySlot[] =>
+  Array.from({ length: 5 }, () => ({ tipo: "Bastidores", texto: "", done: false }));
+
+function StoriesView({ pieces, onBack }: { pieces: Piece[]; onBack: () => void }) {
+  const qc = useQueryClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const todayLabel = new Date().toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+  });
+
+  const planQ = useQuery({
+    queryKey: ["story-plan", today],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("daily_story_plans")
+        .select("*")
+        .eq("date", today)
+        .maybeSingle();
+      if (error) throw error;
+      return data as unknown as { date: string; slots: StorySlot[] } | null;
+    },
+  });
+
+  const [slots, setSlots] = useState<StorySlot[]>(emptySlots());
+  useEffect(() => {
+    if (planQ.data?.slots && Array.isArray(planQ.data.slots) && planQ.data.slots.length === 5) {
+      setSlots(planQ.data.slots as StorySlot[]);
+    }
+  }, [planQ.data]);
+
+  const saveSlots = async (next: StorySlot[]) => {
+    setSlots(next);
+    await supabase
+      .from("daily_story_plans")
+      .upsert({ date: today, slots: next as unknown as never } as never, { onConflict: "date" });
+    qc.invalidateQueries({ queryKey: ["story-plan", today] });
+    qc.invalidateQueries({ queryKey: ["story-week"] });
+  };
+
+  // saveSlots wrapped with debounce for text changes
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const queueSave = (next: StorySlot[]) => {
+    setSlots(next);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      void saveSlots(next);
+    }, 600);
+  };
+
+  const updateSlot = (i: number, patch: Partial<StorySlot>, debounce = false) => {
+    const next = slots.map((s, idx) => (idx === i ? { ...s, ...patch } : s));
+    if (debounce) queueSave(next);
+    else void saveSlots(next);
+  };
+
+  // Suggest with AI
+  const [suggesting, setSuggesting] = useState(false);
+  const suggestStories = async () => {
+    setSuggesting(true);
+    try {
+      // Energia da semana: distribuição de energia das peças com planned_date nesta semana
+      const start = startOfWeekMondayLocal(new Date());
+      const end = new Date(start);
+      end.setDate(end.getDate() + 7);
+      const weekPieces = pieces.filter((p) => {
+        if (!p.planned_date) return false;
+        const d = new Date(p.planned_date);
+        return d >= start && d < end;
+      });
+      const energiaSemana = weekPieces.reduce<Record<string, number>>((acc, p) => {
+        const k = p.energia ?? "—";
+        acc[k] = (acc[k] ?? 0) + 1;
+        return acc;
+      }, {});
+      const ultimosTemas = weekPieces.slice(0, 3).map((p) => p.theme ?? p.title ?? "");
+
+      // Histórico stories últimos 7 dias
+      const sevenAgo = new Date();
+      sevenAgo.setDate(sevenAgo.getDate() - 7);
+      const sevenAgoStr = sevenAgo.toISOString().slice(0, 10);
+      const { data: histRows } = await supabase
+        .from("daily_story_plans")
+        .select("date,slots")
+        .gte("date", sevenAgoStr)
+        .order("date", { ascending: false });
+      const historicoStories = (histRows ?? []).map((r) => {
+        const sArr = (r.slots as unknown as StorySlot[]) ?? [];
+        return {
+          date: r.date,
+          done: sArr.filter((s) => s.done).map((s) => ({ tipo: s.tipo, texto: s.texto })),
+        };
+      });
+
+      const { data, error } = await supabase.functions.invoke("studio-agent", {
+        body: {
+          action: "suggest_stories",
+          payload: {
+            data: today,
+            energia_semana: energiaSemana,
+            ultimos_temas: ultimosTemas,
+            historico_stories: historicoStories,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const sugestoes = (data?.result?.sugestoes ?? []) as { slot: number; tipo: string; sugestao: string }[];
+      if (sugestoes.length === 0) throw new Error("IA não retornou sugestões");
+      const next = slots.map((s, i) => {
+        const sug = sugestoes.find((x) => x.slot === i + 1) ?? sugestoes[i];
+        if (!sug) return s;
+        return {
+          ...s,
+          tipo: STORY_TYPES.includes(sug.tipo) ? sug.tipo : s.tipo,
+          texto: s.texto || sug.sugestao,
+        };
+      });
+      await saveSlots(next);
+      toast.success("Sugestões aplicadas — ajuste à sua voz");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha");
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
+  // Week archive
+  const [showWeek, setShowWeek] = useState(false);
+  const weekQ = useQuery({
+    queryKey: ["story-week"],
+    enabled: showWeek,
+    queryFn: async () => {
+      const start = new Date();
+      start.setDate(start.getDate() - 6);
+      const startStr = start.toISOString().slice(0, 10);
+      const { data, error } = await supabase
+        .from("daily_story_plans")
+        .select("date,slots")
+        .gte("date", startStr)
+        .order("date", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as { date: string; slots: StorySlot[] }[];
+    },
+  });
+
+  const weekDays = useMemo(() => {
+    const days: { date: string; label: string; done: number; total: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const ymd = d.toISOString().slice(0, 10);
+      const row = (weekQ.data ?? []).find((r) => r.date === ymd);
+      const slotsArr = (row?.slots as unknown as StorySlot[]) ?? [];
+      const done = slotsArr.filter((s) => s.done).length;
+      const total = slotsArr.length || 5;
+      const label = d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }).replace(".", "");
+      days.push({ date: ymd, label, done, total });
+    }
+    return days;
+  }, [weekQ.data]);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3 flex-wrap">
+        <Button variant="ghost" size="sm" onClick={onBack}>
+          <ArrowLeft className="h-4 w-4" />
+          Voltar
+        </Button>
+        <h1 className="font-display text-2xl font-semibold tracking-tight">
+          📱 Stories — {todayLabel}
+        </h1>
+      </div>
+
+      <Card className="p-5 space-y-4">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h3 className="font-medium">Plano do dia</h3>
+          <Button variant="outline" size="sm" onClick={suggestStories} disabled={suggesting}>
+            {suggesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            Sugerir ideias de stories com IA
+          </Button>
+        </div>
+
+        <div className="space-y-3">
+          {slots.map((s, i) => (
+            <div
+              key={i}
+              className={cn(
+                "border rounded-lg p-3 space-y-2 transition-all relative",
+                s.done && "opacity-60 bg-muted/30",
+              )}
+            >
+              {s.done && (
+                <div className="absolute top-2 right-2">
+                  <Check className="h-4 w-4 text-emerald-500" />
+                </div>
+              )}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-semibold text-muted-foreground">#{i + 1}</span>
+                <Select value={s.tipo} onValueChange={(v) => updateSlot(i, { tipo: v })}>
+                  <SelectTrigger className="w-auto h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STORY_TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="relative">
+                <Textarea
+                  value={s.texto}
+                  onChange={(e) => updateSlot(i, { texto: e.target.value }, true)}
+                  placeholder="O que você quer mostrar/dizer neste story?"
+                  rows={2}
+                  className="pr-11"
+                />
+                <div className="absolute right-1.5 top-1.5">
+                  <MicButton
+                    value={s.texto}
+                    onChange={(v) => updateSlot(i, { texto: v })}
+                  />
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <Checkbox
+                  checked={s.done}
+                  onCheckedChange={(v) => updateSlot(i, { done: v === true })}
+                />
+                Feito
+              </label>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-medium">Arquivo de stories</h3>
+          <Button variant="ghost" size="sm" onClick={() => setShowWeek((s) => !s)}>
+            {showWeek ? "Ocultar" : "Ver semana"}
+          </Button>
+        </div>
+        {showWeek && (
+          <div className="space-y-2">
+            {weekQ.isLoading && <Skeleton className="h-12 w-full" />}
+            {!weekQ.isLoading &&
+              weekDays.map((d) => (
+                <div
+                  key={d.date}
+                  className="flex items-center justify-between p-3 border rounded-md text-sm"
+                >
+                  <span className="capitalize">{d.label}</span>
+                  <span
+                    className={cn(
+                      "font-medium",
+                      d.done === 0 && "text-muted-foreground",
+                      d.done > 0 && d.done < d.total && "text-amber-600",
+                      d.done >= d.total && "text-emerald-600",
+                    )}
+                  >
+                    {d.done}/{d.total} {d.done > 0 && "✓"}
+                  </span>
+                </div>
+              ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function startOfWeekMondayLocal(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  const day = x.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  x.setDate(x.getDate() + diff);
+  return x;
+}
