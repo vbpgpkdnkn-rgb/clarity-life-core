@@ -5156,3 +5156,413 @@ function startOfWeekMondayLocal(d: Date) {
   x.setDate(x.getDate() + diff);
   return x;
 }
+
+/* ------------------------------------------------------------------ */
+/* CALENDÁRIO EDITORIAL                                               */
+/* ------------------------------------------------------------------ */
+
+function CalendarioEditorial({
+  pieces,
+  seriesList,
+  onBack,
+  onOpenPiece,
+  onRefresh,
+}: {
+  pieces: Piece[];
+  seriesList: { id: string; name: string; total_episodes_planned: number | null }[];
+  onBack: () => void;
+  onOpenPiece: (id: string, phase?: number) => void;
+  onRefresh: () => void;
+}) {
+  const [refMonth, setRefMonth] = useState(() => {
+    const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); return d;
+  });
+  const [filterSeries, setFilterSeries] = useState<string>("todas");
+  const [filterStatus, setFilterStatus] = useState<string>("todos");
+  const [batchOpen, setBatchOpen] = useState(false);
+
+  const monthStart = new Date(refMonth);
+  const monthEnd = new Date(refMonth.getFullYear(), refMonth.getMonth() + 1, 0);
+  const monthLabel = refMonth.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const firstDow = (monthStart.getDay() + 6) % 7;
+  const totalDays = monthEnd.getDate();
+  const cells: (Date | null)[] = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= totalDays; d++) cells.push(new Date(refMonth.getFullYear(), refMonth.getMonth(), d));
+  while (cells.length % 7 !== 0) cells.push(null);
+  const DOWS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+
+  const monthPieces = pieces.filter((p) => {
+    const d = p.planned_date ?? p.published_at;
+    if (!d) return false;
+    if (d < ymd(monthStart) || d > ymd(monthEnd)) return false;
+    if (filterSeries === "__avulso") {
+      if (p.series_name) return false;
+    } else if (filterSeries !== "todas" && p.series_name !== filterSeries) {
+      return false;
+    }
+    if (filterStatus === "planejados" && p.status === "publicado") return false;
+    if (filterStatus === "publicados" && p.status !== "publicado") return false;
+    return true;
+  });
+
+  const byDay: Record<string, Piece[]> = {};
+  monthPieces.forEach((p) => {
+    const k = p.planned_date ?? p.published_at ?? "";
+    if (k) (byDay[k] ??= []).push(p);
+  });
+
+  const pieceBg = (p: Piece) => {
+    if (p.status === "publicado") return "bg-emerald-100 border-emerald-300 dark:bg-emerald-900/30";
+    if ((p.phase ?? 1) >= 4) return "bg-blue-100 border-blue-300 dark:bg-blue-900/30";
+    if ((p.phase ?? 1) === 3) return "bg-amber-100 border-amber-300 dark:bg-amber-900/30";
+    return "bg-muted border-border";
+  };
+  const phaseLabel = (p: Piece) => {
+    if (p.status === "publicado") return "✓";
+    if (p.pipeline_stage === "pronto_postar") return "📤";
+    if ((p.phase ?? 1) >= 4) return "🎬";
+    if ((p.phase ?? 1) === 3) return "📝";
+    return "💡";
+  };
+
+  const totalMes = monthPieces.length;
+  const publicados = monthPieces.filter(p => p.status === "publicado").length;
+  const planejados = monthPieces.filter(p => p.status !== "publicado").length;
+  const seriesAtivas = [...new Set(monthPieces.filter(p => p.series_name).map(p => p.series_name))];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 flex-wrap">
+        <Button variant="ghost" size="sm" onClick={onBack}>
+          <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
+        </Button>
+        <h1 className="text-xl font-bold flex-1">📅 Calendário editorial</h1>
+        <Button size="sm" variant="outline" onClick={() => setBatchOpen(true)}>
+          🗓 Planejar série em lote
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-4 gap-3">
+        <Card className="p-3 text-center">
+          <div className="text-2xl font-bold">{totalMes}</div>
+          <div className="text-xs text-muted-foreground">total</div>
+        </Card>
+        <Card className="p-3 text-center">
+          <div className="text-2xl font-bold text-emerald-600">{publicados}</div>
+          <div className="text-xs text-muted-foreground">publicados</div>
+        </Card>
+        <Card className="p-3 text-center">
+          <div className="text-2xl font-bold text-blue-600">{planejados}</div>
+          <div className="text-xs text-muted-foreground">planejados</div>
+        </Card>
+        <Card className="p-3 text-center">
+          <div className="text-2xl font-bold text-purple-600">{seriesAtivas.length}</div>
+          <div className="text-xs text-muted-foreground">séries ativas</div>
+        </Card>
+      </div>
+
+      <div className="flex gap-2 flex-wrap">
+        <Select value={filterSeries} onValueChange={setFilterSeries}>
+          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas as séries</SelectItem>
+            <SelectItem value="__avulso">Avulsos</SelectItem>
+            {seriesList.map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos</SelectItem>
+            <SelectItem value="publicados">Publicados</SelectItem>
+            <SelectItem value="planejados">Planejados</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Card className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="sm"
+            onClick={() => setRefMonth(new Date(refMonth.getFullYear(), refMonth.getMonth() - 1, 1))}>
+            ← Anterior
+          </Button>
+          <span className="text-sm font-semibold capitalize">{monthLabel}</span>
+          <Button variant="ghost" size="sm"
+            onClick={() => setRefMonth(new Date(refMonth.getFullYear(), refMonth.getMonth() + 1, 1))}>
+            Próximo →
+          </Button>
+        </div>
+
+        <div className="flex gap-3 text-[10px] flex-wrap">
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-300 inline-block" />Publicado</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-100 border border-blue-300 inline-block" />Produção/Pronto</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-100 border border-amber-300 inline-block" />Roteiro</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-muted border inline-block" />Planejado</span>
+        </div>
+
+        <div className="grid grid-cols-7 gap-0.5 text-[10px] text-muted-foreground text-center mb-1">
+          {DOWS.map(d => <div key={d} className="py-0.5 font-medium">{d}</div>)}
+        </div>
+        <div className="grid grid-cols-7 gap-0.5">
+          {cells.map((d, i) => {
+            if (!d) return <div key={i} className="min-h-[72px]" />;
+            const iso = ymd(d);
+            const dayItems = byDay[iso] ?? [];
+            const isTodayCell = iso === ymd(new Date());
+            return (
+              <div key={i} className={cn(
+                "min-h-[72px] rounded border p-1 space-y-0.5",
+                isTodayCell ? "border-accent bg-accent/10" : "border-border/50"
+              )}>
+                <div className={cn("text-[10px] font-medium", isTodayCell && "text-accent")}>
+                  {d.getDate()}
+                </div>
+                {dayItems.map(it => (
+                  <button
+                    key={it.id}
+                    type="button"
+                    onClick={() => onOpenPiece(it.id)}
+                    title={`${it.title} — ${it.status}`}
+                    className={cn(
+                      "w-full text-left text-[9px] rounded border px-0.5 py-0.5 truncate flex items-center gap-0.5",
+                      pieceBg(it)
+                    )}
+                  >
+                    <span>{phaseLabel(it)}</span>
+                    <span className="truncate">{it.title ?? "Sem título"}</span>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {batchOpen && (
+        <BatchSeriesPlanner
+          seriesList={seriesList}
+          onClose={() => setBatchOpen(false)}
+          onSaved={() => { onRefresh(); setBatchOpen(false); }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* BATCH SERIES PLANNER                                               */
+/* ------------------------------------------------------------------ */
+
+function BatchSeriesPlanner({
+  seriesList,
+  onClose,
+  onSaved,
+}: {
+  seriesList: { id: string; name: string; total_episodes_planned: number | null }[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const qc = useQueryClient();
+  const [seriesName, setSeriesName] = useState("");
+  const [startEp, setStartEp] = useState("1");
+  const [totalEps, setTotalEps] = useState("4");
+  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
+  const [weekdays, setWeekdays] = useState<number[]>([1]);
+  const [horario, setHorario] = useState("18:00");
+  const [energia, setEnergia] = useState("topo");
+  const [temas, setTemas] = useState<string[]>(Array(4).fill(""));
+  const [saving, setSaving] = useState(false);
+
+  const DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+  const toggleDay = (d: number) => {
+    setWeekdays(prev =>
+      prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort()
+    );
+  };
+
+  const calcDates = () => {
+    const dates: string[] = [];
+    const n = Number(totalEps);
+    if (!weekdays.length || !n) return dates;
+    const d = new Date(startDate + "T12:00:00");
+    let safety = 0;
+    while (dates.length < n && safety < n * 30) {
+      if (weekdays.includes(d.getDay())) {
+        dates.push(d.toISOString().slice(0, 10));
+      }
+      d.setDate(d.getDate() + 1);
+      safety++;
+    }
+    return dates;
+  };
+
+  const preview = calcDates();
+
+  const handleTotalChange = (v: string) => {
+    setTotalEps(v);
+    const n = Number(v) || 0;
+    setTemas(prev => {
+      const next = [...prev];
+      while (next.length < n) next.push("");
+      return next.slice(0, n);
+    });
+  };
+
+  const save = async () => {
+    if (!seriesName || preview.length === 0) return;
+    setSaving(true);
+    try {
+      const startEpNum = Number(startEp) || 1;
+      const inserts = preview.map((date, i) => ({
+        title: temas[i]?.trim() || `${seriesName} — Ep ${startEpNum + i}`,
+        theme: temas[i]?.trim() || null,
+        phase: 1,
+        status: "ideia",
+        scope: "profissional",
+        energia,
+        series_name: seriesName,
+        series_position: startEpNum + i,
+        planned_date: date,
+      }));
+      const { error } = await supabase.from("content_pieces").insert(inserts as never);
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["studio-pieces"] });
+      qc.invalidateQueries({ queryKey: ["studio-series-pieces"] });
+      toast.success(`${inserts.length} episódios criados no calendário`);
+      onSaved();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao criar episódios");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>🗓 Planejar série em lote</DialogTitle>
+          <p className="text-xs text-muted-foreground">
+            Crie múltiplos episódios de uma série com datas distribuídas automaticamente.
+          </p>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Série *</Label>
+            <Select value={seriesName} onValueChange={setSeriesName}>
+              <SelectTrigger><SelectValue placeholder="Selecione uma série" /></SelectTrigger>
+              <SelectContent>
+                {seriesList.map(s => (
+                  <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Episódio inicial</Label>
+              <Input type="number" min={1} value={startEp} onChange={e => setStartEp(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Quantidade de episódios</Label>
+              <Input type="number" min={1} max={52} value={totalEps} onChange={e => handleTotalChange(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Energia padrão</Label>
+              <Select value={energia} onValueChange={setEnergia}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="topo">Topo</SelectItem>
+                  <SelectItem value="meio">Meio</SelectItem>
+                  <SelectItem value="fundo">Fundo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Data do primeiro episódio</Label>
+              <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Horário de publicação</Label>
+              <Input type="time" value={horario} onChange={e => setHorario(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Dias da semana para publicar</Label>
+            <div className="flex gap-1.5 flex-wrap">
+              {DAYS.map((label, d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => toggleDay(d)}
+                  className={cn(
+                    "px-3 py-1.5 rounded border text-xs font-medium transition-colors",
+                    weekdays.includes(d)
+                      ? "bg-accent text-accent-foreground border-accent"
+                      : "bg-background border-border hover:bg-accent/10"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {temas.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-xs">Temas dos episódios (opcional — deixe em branco para gerar automaticamente)</Label>
+              <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-1">
+                {temas.map((t, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground w-16 shrink-0">
+                      Ep {Number(startEp) + i}
+                      {preview[i] ? ` · ${new Date(preview[i] + "T12:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}` : ""}
+                    </span>
+                    <Input
+                      value={t}
+                      onChange={e => setTemas(prev => prev.map((v, j) => j === i ? e.target.value : v))}
+                      placeholder="Tema deste episódio"
+                      className="text-xs h-8"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {preview.length > 0 && (
+            <div className="rounded border p-3 bg-muted/30 text-xs space-y-1">
+              <div className="font-medium">Preview de distribuição:</div>
+              <div className="flex flex-wrap gap-1.5">
+                {preview.map((d, i) => (
+                  <span key={i} className="bg-background border rounded px-1.5 py-0.5">
+                    Ep {Number(startEp) + i} · {new Date(d + "T12:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+            <Button
+              disabled={!seriesName || preview.length === 0 || saving}
+              onClick={save}
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Criar {preview.length} episódios
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
