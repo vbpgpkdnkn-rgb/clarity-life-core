@@ -648,6 +648,45 @@ export default function Studio() {
               </div>
             </section>
 
+            {/* SEÇÃO: Séries */}
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold">📺 Séries</h2>
+                  <Button size="sm" variant="ghost" onClick={() => setSeriesPanelOpen((v) => !v)}>
+                    {seriesPanelOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => setNewSeriesOpen(true)}>
+                  <Plus className="h-4 w-4" /> Nova série
+                </Button>
+              </div>
+
+              {seriesPanelOpen && (
+                <>
+                  {(seriesListQ.data ?? []).length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhuma série ainda. Crie uma para agrupar episódios e analisar resultados em conjunto.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {(seriesListQ.data ?? []).map((s) => (
+                        <SeriesCardItem
+                          key={s.id}
+                          serie={s}
+                          pieces={(seriesPiecesQ.data ?? []).filter((p) => p.series_name === s.name)}
+                          allUnlinked={items.filter((p) => !p.series_name)}
+                          onOpenPiece={openPiece}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </section>
+
+
+
             {/* SEÇÃO 2: Banco de ideias */}
             <section className="space-y-3">
               <div className="flex items-center justify-between gap-2 flex-wrap">
