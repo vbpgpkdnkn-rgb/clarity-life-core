@@ -2544,6 +2544,8 @@ function Phase3({
       energia: piece.energia,
       creation_strategy: piece.creation_strategy,
       objetivo: pd.objetivo,
+      conteudo: pd.conteudo,
+      insight_manual: pd.insight_manual ?? null,
       conteudo_audiencia: pd.conteudo_audiencia,
       ai_memory: piece.ai_memory,
       script_template: pd.template_selecionado ?? null,
@@ -2571,7 +2573,10 @@ function Phase3({
       tema: piece.theme,
       energia: piece.energia,
       objetivo: pd.objetivo,
-      insights_aprovados: aprovados,
+      conteudo: pd.conteudo,
+      insights_aprovados: pd.insight_manual
+        ? [...aprovados, { id: "manual", titulo_angulo: "Insight próprio", frase_semente: pd.insight_manual }]
+        : aprovados,
       script_template: pd.template_selecionado ?? null,
     });
     if (!result) return;
@@ -2906,6 +2911,12 @@ function Phase3({
                         )}
                         {ins.frase_semente && (
                           <div className="text-sm italic">"{ins.frase_semente}"</div>
+                        )}
+                        {(ins as unknown as { revelacao?: string }).revelacao && (
+                          <div className="text-xs mt-1">
+                            <span className="text-muted-foreground uppercase mr-1">Revelação:</span>
+                            {(ins as unknown as { revelacao?: string }).revelacao}
+                          </div>
                         )}
                       </div>
                     )}
