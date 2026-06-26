@@ -468,9 +468,20 @@ function FocoView({ pieceId, onBack }: { pieceId: string | null; onBack: () => v
       )}
 
       {currentPhase === 5 && (
-        <Card className="p-6 text-sm text-muted-foreground">
-          Fase 5 — em construção.
-        </Card>
+        <Phase5
+          piece={piece}
+          pd={pd}
+          queue={queue}
+          flush={flush}
+          onOpenPiece={(id) => {
+            // navigate to another piece in foco
+            qc.setQueryData(["studio-piece", id], undefined);
+            window.location.hash = "";
+            // simple swap via reload of view state by re-mount through parent
+            // we trigger via custom event handled by parent
+            window.dispatchEvent(new CustomEvent("studio:open-piece", { detail: { id } }));
+          }}
+        />
       )}
     </div>
   );
