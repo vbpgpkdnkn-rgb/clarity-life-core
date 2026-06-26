@@ -309,6 +309,462 @@ function useDebouncedSave(pieceId: string | null) {
   return { queue, flush };
 }
 
+/* ================================================================== */
+/* SÉRIES — Card e Dialogs                                            */
+/* ================================================================== */
+
+type SerieRow = {
+  id: string; name: string; description: string | null;
+  total_episodes_planned: number | null; instagram_url: string | null;
+  status: string; started_at: string | null;
+};
+type SeriePieceRow = Pick<Piece, "id"|"title"|"phase"|"status"|"energia"|"series_name"|"series_position"|"planned_date"|"published_at"|"pipeline_stage"> & { performance_analysis: unknown };
+type SeriesAnalysis = {
+  funcionando?: string;
+  mudar?: string;
+  proximos_episodios?: string;
+  vale_continuar?: "sim" | "talvez" | "nao";
+  recomendacao?: string;
+};
+
+function statusBadge(status: string) {
+  const map: Record<string, string> = {
+    ativa: "bg-emerald-100 text-emerald-800",
+    pausada: "bg-amber-100 text-amber-800",
+    encerrada: "bg-muted text-muted-foreground",
+  };
+  return (
+    <span className={cn("text-[10px] uppercase font-semibold px-2 py-0.5 rounded", map[status] ?? map.encerrada)}>
+      {status}
+    </span>
+  );
+}
+
+function phaseBadge(p: SeriePieceRow) {
+  if (p.status === "publicado" || (p.phase ?? 0) >= 5) {
+    return <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">Publicado</span>;
+  }
+  const ph = p.phase ?? 1;
+  if (ph <= 2) return <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Planejado</span>;
+  if (ph === 3) return <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">Roteiro</span>;
+  return <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">Em produção</span>;
+}
+
+function NewSeriesDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const qc = useQueryClient();
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [total, setTotal] = useState<string>("");
+  const [igUrl, setIgUrl] = useState("");
+  const [startedAt, setStartedAt] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [hasPrevious, setHasPrevious] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const reset = () => {
+    setName(""); setDescription(""); setTotal(""); setIgUrl("");
+    setStartedAt(new Date().toISOString().slice(0, 10)); setHasPrevious(false);
+  };
+
+  const save = async () => {
+    if (!name.trim()) return;
+    setSaving(true);
+    const { error } = await supabase.from("content_series").insert({
+      name: name.trim(),
+      description: description.trim() || null,
+      total_episodes_planned: total ? Number(total) : null,
+      instagram_url: igUrl.trim() || null,
+      started_at: startedAt || null,
+      status: "ativa",
+    } as never);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    qc.invalidateQueries({ queryKey: ["studio-series-list"] });
+    qc.invalidateQueries({ queryKey: ["studio-series"] });
+    toast.success("Série criada");
+    reset();
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) reset(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Nova série</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Nome da série *</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Comunicação não-violenta" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Descrição</Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="O que esta série vai explorar?"
+              rows={3}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Total de episódios planejados</Label>
+            <Input type="number" min={1} value={total} onChange={(e) => setTotal(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">URL no Instagram</Label>
+            <Input value={igUrl} onChange={(e) => setIgUrl(e.target.value)} placeholder="https://instagram.com/..." />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Data de início</Label>
+            <Input type="date" value={startedAt} onChange={(e) => setStartedAt(e.target.value)} />
+          </div>
+          <label className="flex items-start gap-2 text-xs cursor-pointer pt-1">
+            <Checkbox checked={hasPrevious} onCheckedChange={(v) => setHasPrevious(v === true)} className="mt-0.5" />
+            Esta série já tem episódios no Instagram que preciso registrar
+          </label>
+          {hasPrevious && (
+            <p className="text-xs text-muted-foreground border-l-2 border-accent pl-2">
+              Use "＋ Post espontâneo" na semana editorial para registrar os episódios anteriores,
+              ou "📥 Vincular peça existente" depois de criar a série.
+            </p>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button onClick={save} disabled={!name.trim() || saving}>
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              Criar série
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SeriesCardItem({
+  serie,
+  pieces,
+  allUnlinked,
+  onOpenPiece,
+}: {
+  serie: SerieRow;
+  pieces: SeriePieceRow[];
+  allUnlinked: Piece[];
+  onOpenPiece: (id: string) => void;
+}) {
+  const qc = useQueryClient();
+  const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [analysis, setAnalysis] = useState<SeriesAnalysis | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkSel, setLinkSel] = useState<Record<string, { checked: boolean; pos: string }>>({});
+  const [scheduleMap, setScheduleMap] = useState<Record<string, string>>({});
+
+  const sortedPieces = useMemo(
+    () => [...pieces].sort((a, b) => (a.series_position ?? 999) - (b.series_position ?? 999)),
+    [pieces],
+  );
+  const maxPos = sortedPieces.reduce((m, p) => Math.max(m, p.series_position ?? 0), 0);
+  const totalPieces = sortedPieces.length;
+  const publishedPieces = sortedPieces.filter((p) => p.status === "publicado");
+  const published = publishedPieces.length;
+  const denom = serie.total_episodes_planned ?? totalPieces ?? 1;
+  const pct = Math.min(100, Math.round((published / Math.max(1, denom)) * 100));
+
+  const createEpisode = async () => {
+    const nextPos = maxPos + 1;
+    const { data, error } = await supabase
+      .from("content_pieces")
+      .insert({
+        title: `${serie.name} — Ep ${nextPos}`,
+        phase: 1,
+        status: "ideia",
+        scope: "profissional",
+        series_name: serie.name,
+        series_position: nextPos,
+      } as never)
+      .select("id")
+      .single();
+    if (error) { toast.error(error.message); return; }
+    qc.invalidateQueries({ queryKey: ["studio-pieces"] });
+    qc.invalidateQueries({ queryKey: ["studio-series-pieces"] });
+    onOpenPiece((data as { id: string }).id);
+  };
+
+  const saveLinks = async () => {
+    const sel = Object.entries(linkSel).filter(([, v]) => v.checked);
+    if (sel.length === 0) { setLinkOpen(false); return; }
+    for (const [id, v] of sel) {
+      const pos = v.pos ? Number(v.pos) : null;
+      await supabase
+        .from("content_pieces")
+        .update({ series_name: serie.name, series_position: pos } as never)
+        .eq("id", id);
+    }
+    qc.invalidateQueries({ queryKey: ["studio-pieces"] });
+    qc.invalidateQueries({ queryKey: ["studio-series-pieces"] });
+    toast.success(`${sel.length} peça(s) vinculada(s)`);
+    setLinkSel({});
+    setLinkOpen(false);
+  };
+
+  const analisarSerie = async () => {
+    setAnalyzing(true);
+    try {
+      const episodios = publishedPieces.map((p) => {
+        const perf = (p.performance_analysis ?? null) as { memoria_entrada?: { views?: number; saves?: number; dms?: number; resultado?: string } } | null;
+        const mem = perf?.memoria_entrada ?? {};
+        return {
+          ep: p.series_position,
+          titulo: p.title,
+          views: mem.views,
+          saves: mem.saves,
+          dms: mem.dms,
+          resultado: mem.resultado,
+          energia: p.energia,
+        };
+      });
+      const { data, error } = await supabase.functions.invoke("studio-agent", {
+        body: {
+          action: "analyze_series",
+          payload: {
+            series_name: serie.name,
+            episodios,
+            total_planejado: serie.total_episodes_planned,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setAnalysis((data?.result ?? null) as SeriesAnalysis | null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const agendar = async (id: string) => {
+    const date = scheduleMap[id];
+    if (!date) return;
+    const { error } = await supabase
+      .from("content_pieces")
+      .update({ planned_date: date } as never)
+      .eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    qc.invalidateQueries({ queryKey: ["studio-pieces"] });
+    qc.invalidateQueries({ queryKey: ["studio-series-pieces"] });
+    toast.success("Episódio agendado");
+  };
+
+  const semDate = sortedPieces.filter((p) => !p.planned_date && p.status !== "publicado");
+
+  return (
+    <Card className="p-4 space-y-3">
+      <div className="flex items-start justify-between gap-2 flex-wrap">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold">{serie.name}</span>
+            {statusBadge(serie.status)}
+          </div>
+          {serie.description && (
+            <p className="text-xs text-muted-foreground">{serie.description}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-1">
+        <div className="text-xs text-muted-foreground">
+          ep {maxPos} de {serie.total_episodes_planned ?? "?"} · {published} publicado{published === 1 ? "" : "s"}
+        </div>
+        <div className="h-1.5 rounded bg-muted overflow-hidden">
+          <div className="h-full bg-accent transition-all" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+
+      {sortedPieces.length > 0 && (
+        <div className="space-y-1 border-t pt-2">
+          {sortedPieces.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => onOpenPiece(p.id)}
+              className="w-full flex items-center justify-between gap-2 text-left text-xs px-2 py-1.5 rounded hover:bg-accent/10"
+            >
+              <span className="truncate">
+                <span className="font-medium">Ep {p.series_position ?? "?"} —</span>{" "}
+                {p.title ?? "Sem título"}
+              </span>
+              {phaseBadge(p)}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-2 pt-1">
+        <Button size="sm" variant="outline" onClick={createEpisode}>
+          ＋ Novo episódio
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setLinkOpen(true)}>
+          📥 Vincular peça existente
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setAnalysisOpen((v) => !v)}>
+          📊 {analysisOpen ? "Fechar análise" : "Analisar série"}
+        </Button>
+      </div>
+
+      {analysisOpen && (
+        <div className="space-y-4 border-t pt-3">
+          {/* Tabela métricas */}
+          <div>
+            <div className="text-xs uppercase font-medium opacity-60 mb-1">Métricas dos episódios publicados</div>
+            {publishedPieces.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Nenhum episódio publicado ainda.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="text-muted-foreground">
+                    <tr className="text-left">
+                      <th className="py-1 pr-2">Ep</th>
+                      <th className="py-1 pr-2">Título</th>
+                      <th className="py-1 pr-2">Views</th>
+                      <th className="py-1 pr-2">Salv.</th>
+                      <th className="py-1 pr-2">DMs</th>
+                      <th className="py-1 pr-2">Resultado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {publishedPieces.map((p) => {
+                      const perf = (p.performance_analysis ?? null) as { memoria_entrada?: { views?: number; saves?: number; dms?: number; resultado?: string } } | null;
+                      const mem = perf?.memoria_entrada ?? {};
+                      return (
+                        <tr key={p.id} className="border-t">
+                          <td className="py-1 pr-2 tabular-nums">{p.series_position ?? "—"}</td>
+                          <td className="py-1 pr-2">{p.title}</td>
+                          <td className="py-1 pr-2 tabular-nums">{mem.views ?? "—"}</td>
+                          <td className="py-1 pr-2 tabular-nums">{mem.saves ?? "—"}</td>
+                          <td className="py-1 pr-2 tabular-nums">{mem.dms ?? "—"}</td>
+                          <td className="py-1 pr-2">{mem.resultado ?? "—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Análise IA */}
+          <div className="space-y-2">
+            <Button size="sm" variant="outline" onClick={analisarSerie} disabled={analyzing}>
+              {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              Avaliar esta série com IA
+            </Button>
+            {analysis && (
+              <div className="grid sm:grid-cols-2 gap-2">
+                {analysis.funcionando && (
+                  <Card className="p-3 bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200">
+                    <div className="text-[11px] uppercase font-semibold text-emerald-800 dark:text-emerald-300 mb-1">
+                      O que está funcionando
+                    </div>
+                    <p className="text-xs">{analysis.funcionando}</p>
+                  </Card>
+                )}
+                {analysis.mudar && (
+                  <Card className="p-3 bg-amber-50 dark:bg-amber-950/20 border-amber-200">
+                    <div className="text-[11px] uppercase font-semibold text-amber-800 dark:text-amber-300 mb-1">
+                      O que precisa mudar
+                    </div>
+                    <p className="text-xs">{analysis.mudar}</p>
+                  </Card>
+                )}
+                {analysis.proximos_episodios && (
+                  <Card className="p-3 bg-blue-50 dark:bg-blue-950/20 border-blue-200">
+                    <div className="text-[11px] uppercase font-semibold text-blue-800 dark:text-blue-300 mb-1">
+                      Sugestão para os próximos episódios
+                    </div>
+                    <p className="text-xs">{analysis.proximos_episodios}</p>
+                  </Card>
+                )}
+                {analysis.recomendacao && (
+                  <Card className="p-3 bg-purple-50 dark:bg-purple-950/20 border-purple-200">
+                    <div className="text-[11px] uppercase font-semibold text-purple-800 dark:text-purple-300 mb-1">
+                      Vale continuar? {analysis.vale_continuar && (
+                        <span className="ml-1 font-bold">[{analysis.vale_continuar.toUpperCase()}]</span>
+                      )}
+                    </div>
+                    <p className="text-xs">{analysis.recomendacao}</p>
+                  </Card>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Planejamento próximos episódios */}
+          {semDate.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-xs uppercase font-medium opacity-60">Agendar próximos episódios</div>
+              {semDate.map((p) => (
+                <div key={p.id} className="flex items-center gap-2 text-xs">
+                  <span className="flex-1 truncate">Ep {p.series_position ?? "?"} — {p.title}</span>
+                  <Input
+                    type="date"
+                    className="h-8 w-40"
+                    value={scheduleMap[p.id] ?? ""}
+                    onChange={(e) => setScheduleMap((m) => ({ ...m, [p.id]: e.target.value }))}
+                  />
+                  <Button size="sm" variant="outline" onClick={() => agendar(p.id)} disabled={!scheduleMap[p.id]}>
+                    Agendar
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Dialog vincular peças */}
+      <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Vincular peça a esta série</DialogTitle></DialogHeader>
+          {allUnlinked.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma peça avulsa disponível.</p>
+          ) : (
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {allUnlinked.map((p) => {
+                const cur = linkSel[p.id] ?? { checked: false, pos: "" };
+                return (
+                  <div key={p.id} className="flex items-center gap-2 border rounded p-2">
+                    <Checkbox
+                      checked={cur.checked}
+                      onCheckedChange={(v) =>
+                        setLinkSel((m) => ({ ...m, [p.id]: { ...cur, checked: v === true } }))
+                      }
+                    />
+                    <span className="flex-1 text-xs truncate">{p.title ?? "Sem título"}</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      placeholder="ep"
+                      className="h-8 w-16"
+                      value={cur.pos}
+                      onChange={(e) =>
+                        setLinkSel((m) => ({ ...m, [p.id]: { ...cur, pos: e.target.value } }))
+                      }
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => setLinkOpen(false)}>Cancelar</Button>
+            <Button onClick={saveLinks}>Vincular selecionadas</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
+
 export default function Studio() {
   const qc = useQueryClient();
   const [view, setView] = useState<"biblioteca" | "foco" | "stories">("biblioteca");
