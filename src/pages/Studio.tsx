@@ -66,6 +66,8 @@ type PhaseData = {
   papeis_modificados?: string[];
   instrucao_ajuste_livre?: string;
   ajustes_marcados?: string[];
+  roteiro_protegido?: boolean;
+  insights_multiconteudo?: Insight[];
   revisao_ia?: ReviewIA;
   [k: string]: unknown;
 };
