@@ -724,12 +724,17 @@ export type Database = {
           appointments_booked: number
           audience_context: string | null
           booked_appointment: boolean
+          caption: string | null
+          carousel_script: string | null
           checklist: Json
           clinical_anchor: string | null
           created_at: string
           creation_strategy: string | null
           cta: string | null
           cta_type: string | null
+          debate_caption: string | null
+          editing_checklist: Json
+          editing_notes: string | null
           energia: string | null
           format: Database["public"]["Enums"]["content_format"]
           generated_dms: number
@@ -743,6 +748,7 @@ export type Database = {
           pipeline_stage: string
           planned_date: string | null
           platform: string | null
+          pre_recording_notes: string | null
           priority: Database["public"]["Enums"]["task_priority"]
           production_notes: string | null
           published_at: string | null
@@ -752,9 +758,11 @@ export type Database = {
           series_name: string | null
           series_position: number | null
           status: Database["public"]["Enums"]["content_status"]
+          stories_script: string | null
           target_publish_at: string | null
           teleprompter_font_size: number
           theme: string | null
+          tiktok_script: string | null
           title: string
           updated_at: string
         }
@@ -763,12 +771,17 @@ export type Database = {
           appointments_booked?: number
           audience_context?: string | null
           booked_appointment?: boolean
+          caption?: string | null
+          carousel_script?: string | null
           checklist?: Json
           clinical_anchor?: string | null
           created_at?: string
           creation_strategy?: string | null
           cta?: string | null
           cta_type?: string | null
+          debate_caption?: string | null
+          editing_checklist?: Json
+          editing_notes?: string | null
           energia?: string | null
           format?: Database["public"]["Enums"]["content_format"]
           generated_dms?: number
@@ -782,6 +795,7 @@ export type Database = {
           pipeline_stage?: string
           planned_date?: string | null
           platform?: string | null
+          pre_recording_notes?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           production_notes?: string | null
           published_at?: string | null
@@ -791,9 +805,11 @@ export type Database = {
           series_name?: string | null
           series_position?: number | null
           status?: Database["public"]["Enums"]["content_status"]
+          stories_script?: string | null
           target_publish_at?: string | null
           teleprompter_font_size?: number
           theme?: string | null
+          tiktok_script?: string | null
           title: string
           updated_at?: string
         }
@@ -802,12 +818,17 @@ export type Database = {
           appointments_booked?: number
           audience_context?: string | null
           booked_appointment?: boolean
+          caption?: string | null
+          carousel_script?: string | null
           checklist?: Json
           clinical_anchor?: string | null
           created_at?: string
           creation_strategy?: string | null
           cta?: string | null
           cta_type?: string | null
+          debate_caption?: string | null
+          editing_checklist?: Json
+          editing_notes?: string | null
           energia?: string | null
           format?: Database["public"]["Enums"]["content_format"]
           generated_dms?: number
@@ -821,6 +842,7 @@ export type Database = {
           pipeline_stage?: string
           planned_date?: string | null
           platform?: string | null
+          pre_recording_notes?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           production_notes?: string | null
           published_at?: string | null
@@ -830,9 +852,11 @@ export type Database = {
           series_name?: string | null
           series_position?: number | null
           status?: Database["public"]["Enums"]["content_status"]
+          stories_script?: string | null
           target_publish_at?: string | null
           teleprompter_font_size?: number
           theme?: string | null
+          tiktok_script?: string | null
           title?: string
           updated_at?: string
         }
