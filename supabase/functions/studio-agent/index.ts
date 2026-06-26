@@ -199,6 +199,7 @@ Deno.serve(async (req) => {
       "phase3_draft",
       "phase3_adjust",
       "phase3_review",
+      "phase4_derivatives",
     ];
     if (!action || !valid.includes(action)) {
       return new Response(JSON.stringify({ error: "action inválida" }), {
