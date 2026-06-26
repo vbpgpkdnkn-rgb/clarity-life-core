@@ -1281,17 +1281,17 @@ function Phase3({
       script_template: pd.template_selecionado ?? null,
     });
     if (!result) return;
-    const blocos: ScriptBlock[] = (result as { blocos?: ScriptBlock[] }).blocos ?? [];
+    const blocos: ScriptBlock[] = withCta((result as { blocos?: ScriptBlock[] }).blocos ?? []);
     patchPD({ blocos_rascunho: blocos, blocos_editados: blocos });
     await flush();
   };
 
-  const blocosBase: ScriptBlock[] = pd.blocos_editados ?? pd.blocos_rascunho ?? [];
+  const blocosBase: ScriptBlock[] = withCta(pd.blocos_editados ?? pd.blocos_rascunho ?? []);
   const totalSeconds = blocosBase.reduce((acc, b) => acc + wordsAndSeconds(b.texto || "").seconds, 0);
   const tempoOk = totalSeconds >= 45 && totalSeconds <= 65;
 
   const editarBloco = (idx: number, texto: string) => {
-    const next = (pd.blocos_editados ?? pd.blocos_rascunho ?? []).map((b, i) =>
+    const next = withCta(pd.blocos_editados ?? pd.blocos_rascunho ?? []).map((b, i) =>
       i === idx ? { ...b, texto } : b,
     );
     patchPD({ blocos_editados: next });
@@ -1299,32 +1299,39 @@ function Phase3({
 
   /* ---------- 3c AJUSTES ---------- */
   const ajustes = pd.ajustes_marcados ?? [];
+  const protegido = pd.roteiro_protegido === true;
   const toggleAjuste = (a: string) => {
+    if (protegido) return;
     const next = ajustes.includes(a) ? ajustes.filter((x) => x !== a) : [...ajustes, a];
     patchPD({ ajustes_marcados: next });
   };
 
   const aplicarAjustes = async () => {
+    if (protegido) {
+      setSub("revisao");
+      return;
+    }
     const result = await callAI("phase3_adjust", {
-      blocos_atuais: pd.blocos_editados ?? pd.blocos_rascunho ?? [],
+      blocos_atuais: withCta(pd.blocos_editados ?? pd.blocos_rascunho ?? []),
       ajustes_marcados: ajustes,
       instrucao_livre: pd.instrucao_ajuste_livre ?? "",
     });
     if (!result) return;
     const r = result as { blocos_ajustados?: ScriptBlock[]; papeis_modificados?: string[] };
     patchPD({
-      blocos_ajustados: r.blocos_ajustados ?? [],
+      blocos_ajustados: withCta(r.blocos_ajustados ?? []),
       papeis_modificados: r.papeis_modificados ?? [],
     });
     await flush();
   };
 
   /* ---------- 3d REVISÃO ---------- */
-  const blocosFinais: ScriptBlock[] =
-    pd.blocos_ajustados ?? pd.blocos_editados ?? pd.blocos_rascunho ?? [];
+  const blocosFinais: ScriptBlock[] = withCta(
+    pd.blocos_ajustados ?? pd.blocos_editados ?? pd.blocos_rascunho ?? [],
+  );
 
   const editarBlocoFinal = (idx: number, texto: string) => {
-    const base = pd.blocos_ajustados ?? pd.blocos_editados ?? pd.blocos_rascunho ?? [];
+    const base = withCta(pd.blocos_ajustados ?? pd.blocos_editados ?? pd.blocos_rascunho ?? []);
     const next = base.map((b, i) => (i === idx ? { ...b, texto } : b));
     if (pd.blocos_ajustados) patchPD({ blocos_ajustados: next });
     else patchPD({ blocos_editados: next });
@@ -1340,7 +1347,17 @@ function Phase3({
       ai_memory: piece.ai_memory,
     });
     if (!result) return;
-    patchPD({ revisao_ia: result as ReviewIA });
+    // Ignorar qualquer tentativa da IA de reescrever blocos — apenas comentário.
+    const raw = result as Record<string, unknown>;
+    const safe: ReviewIA = {
+      score_retencao: raw.score_retencao as number | undefined,
+      estimativa: raw.estimativa as ReviewIA["estimativa"],
+      pontos_fortes: (raw.pontos_fortes as string[] | undefined) ?? [],
+      pontos_fracos: (raw.pontos_fracos as ReviewIA["pontos_fracos"]) ?? [],
+      alerta_posicionamento: raw.alerta_posicionamento as string | undefined,
+      comentario_final: raw.comentario_final as string | undefined,
+    } as ReviewIA;
+    patchPD({ revisao_ia: safe });
     await flush();
   };
 
@@ -1355,6 +1372,12 @@ function Phase3({
     qc.invalidateQueries({ queryKey: ["studio-pieces"] });
     await onAdvance();
   };
+
+  const salvarMulticonteudo = () => {
+    patchPD({ insights_multiconteudo: aprovados });
+    toast.success("Insights salvos para multiconteúdo");
+  };
+
 
   const fontSize = piece.teleprompter_font_size ?? 32;
   const fontTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
