@@ -185,8 +185,8 @@ JSON:
     "intencao": "string curta explicando o objetivo do debate"
   }
 }`;
-  }
-}`;
+
+
 
     case "phase5_performance":
       return `Analise o desempenho real desta peça publicada.
