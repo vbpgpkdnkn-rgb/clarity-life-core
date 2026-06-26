@@ -2576,7 +2576,19 @@ function BlockReadEdit({ block, onSave }: { block: ScriptBlock; onSave: (t: stri
   );
 }
 
-function ReviewCard({ r }: { r: ReviewIA }) {
+function ReviewCard({
+  r,
+  sugestoes,
+  loadingPonto,
+  onSugerirPonto,
+  onAprovarSugestao,
+}: {
+  r: ReviewIA;
+  sugestoes?: Record<string, ScriptBlock[]>;
+  loadingPonto?: boolean;
+  onSugerirPonto?: (ponto: string, correcao: string) => void | Promise<void>;
+  onAprovarSugestao?: (ponto: string) => void | Promise<void>;
+}) {
   return (
     <Card className="p-5 space-y-4">
       <div className="flex items-baseline gap-3">
@@ -2596,15 +2608,50 @@ function ReviewCard({ r }: { r: ReviewIA }) {
         </div>
       )}
       {r.pontos_fracos && r.pontos_fracos.length > 0 && (
-        <div className="space-y-1">
+        <div className="space-y-2">
           <div className="text-xs uppercase text-amber-600 font-medium">Pontos fracos</div>
-          <ul className="text-sm space-y-2">
-            {r.pontos_fracos.map((p, i) => (
-              <li key={i}>
-                <span className="font-medium">{p.ponto}</span>
-                <div className="text-xs text-muted-foreground">↳ {p.correcao}</div>
-              </li>
-            ))}
+          <ul className="text-sm space-y-3">
+            {r.pontos_fracos.map((p, i) => {
+              const sug = sugestoes?.[p.ponto];
+              return (
+                <li key={i} className="space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="font-medium">{p.ponto}</span>
+                      <div className="text-xs text-muted-foreground">↳ {p.correcao}</div>
+                    </div>
+                    {onSugerirPonto && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={loadingPonto}
+                        onClick={() => onSugerirPonto(p.ponto, p.correcao)}
+                      >
+                        Ver como ficaria →
+                      </Button>
+                    )}
+                  </div>
+                  {sug && sug.length > 0 && (
+                    <Card className="p-3 space-y-2 bg-accent/5 border-accent/40">
+                      <div className="text-[11px] uppercase opacity-60">Sugestão para este ponto</div>
+                      {sug.map((b, j) => (
+                        <div key={j} className="text-xs space-y-1">
+                          <Badge variant="outline" className="text-[9px]">
+                            {papelLabel(b.papel)}
+                          </Badge>
+                          <p className="whitespace-pre-wrap">{b.texto}</p>
+                        </div>
+                      ))}
+                      {onAprovarSugestao && (
+                        <Button size="sm" onClick={() => onAprovarSugestao(p.ponto)}>
+                          Aprovar esta sugestão
+                        </Button>
+                      )}
+                    </Card>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
