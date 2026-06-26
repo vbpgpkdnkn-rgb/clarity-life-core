@@ -1,7 +1,7 @@
-// studio-agent v3 — Gemini 2.5 Flash — redeploy forçado
+// studio-agent v4 — Lovable AI Gateway (gemini-3-flash)
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
 const BASE_CONTEXT = `Você é o copiloto de uma psicóloga clínica (10+ anos, IBCT e Gottman, público mulheres 25-45) na criação de conteúdo sobre maturidade relacional.
 
