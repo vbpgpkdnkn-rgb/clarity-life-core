@@ -1230,7 +1230,7 @@ function Phase1({
     }
   };
 
-  const leitura = pd.ia_leitura_fase1;
+  
 
   return (
     <div className="space-y-6">
