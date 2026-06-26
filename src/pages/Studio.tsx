@@ -1016,8 +1016,10 @@ function FocoView({
           queue={queue}
           flush={flush}
           onOpenPiece={onOpenPiece}
+          onBack={onBack}
         />
       )}
+
     </div>
   );
 }
