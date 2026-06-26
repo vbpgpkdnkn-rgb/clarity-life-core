@@ -281,6 +281,45 @@ Deno.serve(async (req) => {
 
     const userPrompt = promptFor(action as Action, payload ?? {});
 
+    let userContent: unknown = userPrompt;
+    if (action === "analyze_instagram_image") {
+      const imgB64 = (payload?.image_base64 as string) ?? "";
+      const imgType = (payload?.image_type as string) || "image/png";
+      if (!imgB64) {
+        return new Response(JSON.stringify({ error: "image_base64 ausente" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      userContent = [
+        {
+          type: "text",
+          text: `Esta é uma captura de tela do Instagram Insights (em português). Extraia os números visíveis para um post de Reel.
+
+Retorne APENAS JSON válido com os campos abaixo. Use null quando o campo não aparecer na imagem. Os números devem ser inteiros (interprete "1,2 mil" como 1200, "10K" como 10000, "1.5M" como 1500000).
+
+{
+  "visualizacoes": number | null,
+  "contas_alcancadas": number | null,
+  "seguidores_alcancados": number | null,
+  "nao_seguidores_alcancados": number | null,
+  "novos_seguidores": number | null,
+  "likes": number | null,
+  "comments": number | null,
+  "saves": number | null,
+  "shares": number | null,
+  "contas_engajamento": number | null,
+  "dms_recebidos": number | null,
+  "agendamentos": number | null
+}`,
+        },
+        {
+          type: "image_url",
+          image_url: { url: `data:${imgType};base64,${imgB64}` },
+        },
+      ];
+    }
+
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -291,7 +330,7 @@ Deno.serve(async (req) => {
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: BASE_CONTEXT },
-          { role: "user", content: userPrompt },
+          { role: "user", content: userContent },
         ],
         response_format: { type: "json_object" },
       }),
