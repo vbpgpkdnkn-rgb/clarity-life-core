@@ -1621,12 +1621,14 @@ function Phase3({
   queue,
   flush,
   onAdvance,
+  openTeleOnMount,
 }: {
   piece: Piece;
   pd: PhaseData;
   queue: (p: Record<string, unknown>) => void;
   flush: () => Promise<void>;
   onAdvance: () => Promise<void>;
+  openTeleOnMount?: boolean;
 }) {
   const qc = useQueryClient();
   const [sub, setSub] = useState<"insights" | "esboco" | "ajustes" | "revisao">("insights");
@@ -1634,6 +1636,11 @@ function Phase3({
   const [teleOpen, setTeleOpen] = useState(false);
   const [insightsExpanded, setInsightsExpanded] = useState<string[]>([]);
   const instrucaoRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (openTeleOnMount) setTeleOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const patchPD = (p: Partial<PhaseData>) => queue({ phase_data: { ...pd, ...p } });
 
