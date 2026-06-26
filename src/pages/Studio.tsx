@@ -1209,6 +1209,8 @@ function Phase3({
   const [sub, setSub] = useState<"insights" | "esboco" | "ajustes" | "revisao">("insights");
   const [loading, setLoading] = useState<string | null>(null);
   const [teleOpen, setTeleOpen] = useState(false);
+  const [insightsExpanded, setInsightsExpanded] = useState<string[]>([]);
+  const instrucaoRef = useRef<HTMLTextAreaElement>(null);
 
   const patchPD = (p: Partial<PhaseData>) => queue({ phase_data: { ...pd, ...p } });
 
