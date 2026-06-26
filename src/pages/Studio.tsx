@@ -96,11 +96,8 @@ type PhaseData = {
   topicos_rascunho?: string[];
   sugestoes_inline?: Record<number, ScriptBlock | undefined>;
   modelo_roteiro?: string;
-  insight_manual?: string;
+  modelo_roteiro?: string;
   sugestao_aplicada?: string;
-  conteudo?: string;
-  conteudo_audiencia?: string;
-  [k: string]: unknown;
 };
 
 type ScriptStructure = unknown;
