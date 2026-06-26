@@ -1196,7 +1196,23 @@ export default function Studio() {
 
             {/* SEÇÃO 3: Semana editorial */}
             <section className="space-y-3">
-              <h2 className="text-lg font-semibold">📅 Semana editorial</h2>
+              <div>
+                <h2 className="text-lg font-semibold">📅 Semana editorial</h2>
+                {(() => {
+                  const seriesThisWeek = [...new Set(
+                    Object.values(piecesByDay).flat()
+                      .filter((p) => p.series_name)
+                      .map((p) => p.series_name),
+                  )];
+                  return seriesThisWeek.length > 0 ? (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {seriesThisWeek.map((name) => (
+                        <span key={name as string} className="text-[10px] bg-accent/20 rounded px-1.5 py-0.5">📺 {name}</span>
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
+              </div>
               <div className="grid grid-cols-7 gap-2">
                 {weekDays.map((d) => {
                   const today = isToday(d);
