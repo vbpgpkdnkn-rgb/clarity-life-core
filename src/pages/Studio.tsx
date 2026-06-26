@@ -2429,7 +2429,88 @@ function Phase3({
             <Button onClick={aprovarRoteiro}>Roteiro aprovado — ir para Produção</Button>
           </div>
 
-          {pd.revisao_ia && <ReviewCard r={pd.revisao_ia} />}
+          {pd.revisao_ia && (
+            <ReviewCard
+              r={pd.revisao_ia}
+              sugestoes={pd.sugestoes_ponto_fraco ?? {}}
+              loadingPonto={loading === "phase3_adjust"}
+              onSugerirPonto={sugerirParaPontoFraco}
+              onAprovarSugestao={aprovarSugestaoPontoFraco}
+            />
+          )}
+
+          {pd.revisao_ia && (
+            <Card className="p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div>
+                  <div className="text-sm font-medium">Cortar por tempo</div>
+                  <div className="text-xs text-muted-foreground">
+                    Tempo atual estimado:{" "}
+                    <span className="font-semibold tabular-nums">{tempoFinalSeconds}s</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs whitespace-nowrap">Reduzir para</Label>
+                  <Input
+                    type="number"
+                    min={15}
+                    value={targetSeconds}
+                    onChange={(e) => setTargetSeconds(Number(e.target.value) || 0)}
+                    className="w-20"
+                  />
+                  <span className="text-xs text-muted-foreground">seg</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={sugerirCortes}
+                    disabled={loading === "phase3_adjust"}
+                  >
+                    {loading === "phase3_adjust" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                    Sugerir cortes
+                  </Button>
+                </div>
+              </div>
+
+              {pd.sugestao_cortes?.blocos && pd.sugestao_cortes.blocos.length > 0 && (
+                <div className="space-y-2 border-t pt-3">
+                  <div className="text-xs uppercase font-medium opacity-60">
+                    Original vs. com cortes (alvo {pd.sugestao_cortes.target}s)
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <div className="text-[11px] uppercase opacity-60">Original</div>
+                      {blocosFinais.map((b, i) => (
+                        <Card key={i} className="p-2 text-xs space-y-1">
+                          <Badge variant="outline" className="text-[9px]">
+                            {papelLabel(b.papel)}
+                          </Badge>
+                          <p className="whitespace-pre-wrap">{b.texto}</p>
+                        </Card>
+                      ))}
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-[11px] uppercase opacity-60">Com cortes sugeridos</div>
+                      {pd.sugestao_cortes.blocos.map((b, i) => (
+                        <Card key={i} className="p-2 text-xs space-y-1 border-accent/40">
+                          <Badge variant="outline" className="text-[9px]">
+                            {papelLabel(b.papel)}
+                          </Badge>
+                          <p className="whitespace-pre-wrap">{b.texto}</p>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                  <Button size="sm" onClick={usarVersaoCortada}>
+                    Usar versão com cortes
+                  </Button>
+                </div>
+              )}
+            </Card>
+          )}
         </div>
       )}
 
