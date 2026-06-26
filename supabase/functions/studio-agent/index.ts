@@ -1,3 +1,4 @@
+// studio-agent v3 — Gemini 2.5 Flash — redeploy forçado
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
