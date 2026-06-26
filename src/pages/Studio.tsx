@@ -78,6 +78,7 @@ type PhaseData = {
   insights_aprovados?: Insight[];
   blocos_rascunho?: ScriptBlock[];
   blocos_editados?: ScriptBlock[];
+  blocos_salvos_usuario?: ScriptBlock[];
   blocos_ajustados?: ScriptBlock[];
   papeis_modificados?: string[];
   instrucao_ajuste_livre?: string;
@@ -85,6 +86,9 @@ type PhaseData = {
   roteiro_protegido?: boolean;
   insights_multiconteudo?: Insight[];
   revisao_ia?: ReviewIA;
+  analise_ajustes_ia?: { papeis_modificados?: string[]; sugestoes?: string; blocos_sugeridos?: ScriptBlock[] };
+  sugestao_cortes?: { blocos?: ScriptBlock[]; target?: number };
+  sugestoes_ponto_fraco?: Record<string, ScriptBlock[]>;
   [k: string]: unknown;
 };
 
