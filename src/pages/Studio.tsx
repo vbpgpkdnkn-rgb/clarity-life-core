@@ -1614,7 +1614,27 @@ function Phase3({
       {/* 3c AJUSTES */}
       {sub === "ajustes" && (
         <div className="space-y-4">
-          <Card className="p-4 space-y-3">
+          <Card
+            className={cn(
+              "p-4 space-y-2 border",
+              protegido ? "border-emerald-500/50 bg-emerald-500/10" : "border-border",
+            )}
+          >
+            <label className="flex items-center justify-between gap-3 cursor-pointer">
+              <span className="text-sm font-medium">Manter roteiro exatamente como está</span>
+              <Checkbox
+                checked={protegido}
+                onCheckedChange={(v) => patchPD({ roteiro_protegido: v === true })}
+              />
+            </label>
+            {protegido && (
+              <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                Roteiro protegido. A IA não vai alterar nenhum bloco.
+              </p>
+            )}
+          </Card>
+
+          <Card className={cn("p-4 space-y-3", protegido && "opacity-50")}>
             <Label>O que ajustar?</Label>
             {AJUSTES_PRESET.map((a) => (
               <label key={a} className="flex items-start gap-2 text-sm cursor-pointer">
@@ -1622,19 +1642,34 @@ function Phase3({
                   checked={ajustes.includes(a)}
                   onCheckedChange={() => toggleAjuste(a)}
                   className="mt-0.5"
+                  disabled={protegido}
                 />
                 {a}
               </label>
             ))}
           </Card>
 
-          <Card className="p-4 space-y-2">
-            <Label>O que mais quer ajustar?</Label>
+          <Card className={cn("p-4 space-y-2", protegido && "opacity-50")}>
+            <div className="flex items-center justify-between">
+              <Label>O que mais quer ajustar?</Label>
+              <VoiceButton
+                onResult={(spoken) => {
+                  if (protegido) return;
+                  const el = instrucaoRef.current;
+                  const prev = el?.value ?? pd.instrucao_ajuste_livre ?? "";
+                  const next = prev ? `${prev} ${spoken}`.trim() : spoken;
+                  if (el) el.value = next;
+                  patchPD({ instrucao_ajuste_livre: next });
+                }}
+              />
+            </div>
             <Textarea
+              ref={instrucaoRef}
               defaultValue={pd.instrucao_ajuste_livre ?? ""}
               onChange={(e) => patchPD({ instrucao_ajuste_livre: e.target.value })}
               rows={3}
               placeholder="Instrução livre"
+              disabled={protegido}
             />
           </Card>
 
@@ -1645,7 +1680,7 @@ function Phase3({
               ) : (
                 <Sparkles className="h-4 w-4" />
               )}
-              Aplicar ajustes
+              {protegido ? "Ir para revisão" : "Aplicar ajustes"}
             </Button>
             <Button variant="outline" onClick={() => setSub("revisao")}>
               Revisar roteiro final
