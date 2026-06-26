@@ -7,6 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Slider } from "@/components/ui/slider";
 import {
   ArrowLeft,
   ChevronDown,
@@ -14,8 +19,11 @@ import {
   Clapperboard,
   Film,
   Loader2,
+  Pencil,
+  Play,
   Plus,
   Sparkles,
+  X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -40,7 +48,40 @@ type PhaseData = {
     comentario?: string;
     sugestao?: string | null;
   };
+  // Fase 3
+  template_selecionado?: ScriptStructure | null;
+  insights_gerados?: Insight[];
+  insights_aprovados?: Insight[];
+  blocos_rascunho?: ScriptBlock[];
+  blocos_editados?: ScriptBlock[];
+  blocos_ajustados?: ScriptBlock[];
+  papeis_modificados?: string[];
+  instrucao_ajuste_livre?: string;
+  ajustes_marcados?: string[];
+  revisao_ia?: ReviewIA;
   [k: string]: unknown;
+};
+
+type ScriptStructure = unknown;
+type Insight = {
+  id?: string;
+  titulo_angulo?: string;
+  tensao?: string;
+  frase_semente?: string;
+  energia_sugerida?: string;
+};
+type ScriptBlock = {
+  papel: string;
+  texto: string;
+  nota_gravacao?: string;
+};
+type ReviewIA = {
+  score_retencao?: number;
+  estimativa?: "baixa" | "moderada" | "alta";
+  pontos_fortes?: string[];
+  pontos_fracos?: { ponto: string; correcao: string }[];
+  alerta_posicionamento?: string | null;
+  comentario_final?: string;
 };
 
 type Piece = {
