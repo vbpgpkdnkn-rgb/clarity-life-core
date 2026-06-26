@@ -1903,11 +1903,21 @@ function Teleprompter({
 /* ================================================================== */
 
 const DEFAULT_EDIT_CHECKLIST: { label: string; done: boolean }[] = [
-  { label: "Corte inicial e final", done: false },
-  { label: "Ajuste de áudio", done: false },
+  { label: "Ambiente limpo e organizado no enquadramento", done: false },
+  { label: "Iluminação adequada (luz frontal, sem sombras no rosto)", done: false },
+  { label: "Câmera na altura dos olhos", done: false },
+  { label: "Roupa alinhada ao posicionamento (profissional/intencional)", done: false },
+  { label: "Teleprompter posicionado e fonte ajustada", done: false },
+  { label: "Áudio testado (sem eco, sem barulho de fundo)", done: false },
+  { label: "Roteiro revisado e memorizado nos pontos-chave", done: false },
+  { label: "Energia e presença: respirar fundo antes de começar", done: false },
+  { label: "Gravação: 3 takes mínimos", done: false },
+  { label: "Revisar take escolhido antes de ir para edição", done: false },
+  { label: "Corte inicial e final limpos", done: false },
+  { label: "Ajuste de áudio (volume, equalização)", done: false },
   { label: "Legendas adicionadas", done: false },
-  { label: "Revisão de ritmo e cortes", done: false },
-  { label: "Thumbnail definida", done: false },
+  { label: "Thumbnail ou capa definida", done: false },
+  { label: "Revisão final do conteúdo completo antes de postar", done: false },
 ];
 
 type Derivatives = {
