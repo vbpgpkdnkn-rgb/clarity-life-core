@@ -836,6 +836,9 @@ export default function Studio() {
               )}
             </section>
 
+            {/* Modal: nova série */}
+            <NewSeriesDialog open={newSeriesOpen} onOpenChange={setNewSeriesOpen} />
+
             {/* Modal: capturar ideia */}
             <Dialog open={ideaOpen} onOpenChange={setIdeaOpen}>
               <DialogContent>
