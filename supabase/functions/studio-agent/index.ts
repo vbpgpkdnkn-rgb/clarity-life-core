@@ -209,18 +209,31 @@ JSON:
 }`;
 
     case "generate_captions":
-      return `Crie 2 opções de legenda para Instagram.
+      return `Você é a psicóloga clínica autora deste conteúdo. Escreva 2 opções de legenda para este Reel do Instagram.
 
-- tema: ${payload.tema ?? "(vazio)"}
-- roteiro: ${payload.script ?? "(vazio)"}
-- energia: ${payload.energia ?? "(nenhuma)"}
-- estratégia: ${payload.creation_strategy ?? "(nenhuma)"}
-- memória: ${memoryBlock(payload.ai_memory)}
+CONTEXTO DO CONTEÚDO:
 
-JSON:
+- Tema: ${payload.tema ?? "(vazio)"}
+- Roteiro: ${payload.script ?? "(vazio)"}
+- Energia: ${payload.energia ?? "(nenhuma)"}
+- Estratégia: ${payload.creation_strategy ?? "(nenhuma)"}
+
+REGRAS ABSOLUTAS para a legenda:
+
+- Máximo 3 linhas de texto corrido
+- Linguagem de fala direta — como ela falaria para uma pessoa, não como se escrevesse um post
+- A primeira frase deve capturar a ideia central do vídeo em forma de insight ou pergunta
+- Sem emojis, sem hashtags, sem CTA de venda, sem "comenta aqui", sem "salva esse post"
+- Sem listas, sem tópicos, sem aspas
+- O objetivo é que quem lê sinta: "preciso assistir isso"
+- Se for série, mencionar discretamente o contexto (ex: "No episódio de hoje...")
+- Memória de comunicação anterior: ${memoryBlock(payload.ai_memory)}
+
+Retorne APENAS o JSON, sem markdown:
+
 {
-  "opcao_1": { "texto": "string", "estilo": "string" },
-  "opcao_2": { "texto": "string", "estilo": "string" }
+  "opcao_1": { "texto": "legenda completa aqui" },
+  "opcao_2": { "texto": "legenda completa aqui — abordagem diferente da primeira" }
 }`;
 
     case "analyze_instagram_image":
