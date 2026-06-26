@@ -2330,6 +2330,52 @@ function PostProductionSub({
     toast.success("Copiado");
   };
 
+  const [captionDraft, setCaptionDraft] = useState(piece.caption ?? "");
+  useEffect(() => {
+    setCaptionDraft(piece.caption ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [piece.id]);
+  const [captionOptions, setCaptionOptions] = useState<string[]>([]);
+  const [captionLoading, setCaptionLoading] = useState(false);
+
+  const generateCaptions = async () => {
+    setCaptionLoading(true);
+    try {
+      await flush();
+      const { data, error } = await supabase.functions.invoke("studio-agent", {
+        body: {
+          action: "generate_captions",
+          payload: {
+            tema: piece.theme,
+            script: piece.script,
+            energia: piece.energia,
+            creation_strategy: piece.creation_strategy,
+            ai_memory: piece.ai_memory,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const r = data?.result ?? {};
+      const opts: string[] = Array.isArray(r.opcoes)
+        ? r.opcoes.map((o: unknown) => (typeof o === "string" ? o : (o as { texto?: string })?.texto ?? "")).filter(Boolean)
+        : [];
+      if (opts.length === 0) throw new Error("IA não retornou opções");
+      setCaptionOptions(opts.slice(0, 2));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha");
+    } finally {
+      setCaptionLoading(false);
+    }
+  };
+
+  const [publishAt, setPublishAt] = useState(() => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  });
+  const [publishing, setPublishing] = useState(false);
+
   return (
     <div className="space-y-5">
       <Card className="p-5 space-y-3">
