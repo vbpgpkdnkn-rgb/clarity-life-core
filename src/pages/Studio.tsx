@@ -2399,21 +2399,68 @@ function PostProductionSub({
         />
       </Card>
 
-      <Card className="p-5 space-y-2">
-        <Label>Legenda do post</Label>
-        <Textarea
-          defaultValue={piece.caption ?? ""}
-          onChange={(e) => queue({ caption: e.target.value })}
-          rows={5}
-          placeholder="Escreva a legenda ou use o botão abaixo para gerar com IA"
-        />
+      <Card className="p-5 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <Label>Legenda do post</Label>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={generateCaptions}
+            disabled={captionLoading}
+          >
+            {captionLoading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5" />
+            )}
+            {captionOptions.length > 0 || piece.caption ? "Regerar legendas" : "Gerar 2 opções de legenda com IA"}
+          </Button>
+        </div>
+
+        {captionOptions.length > 0 && (
+          <div className="grid sm:grid-cols-2 gap-3">
+            {captionOptions.map((opt, i) => (
+              <div key={i} className="border rounded p-3 space-y-2 bg-muted/30">
+                <div className="text-xs text-muted-foreground">Opção {i + 1}</div>
+                <div className="text-sm whitespace-pre-wrap">{opt}</div>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setCaptionDraft(opt);
+                    queue({ caption: opt });
+                    setCaptionOptions([]);
+                    toast.success("Legenda aplicada — ajuste se quiser");
+                  }}
+                >
+                  Usar esta
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="relative">
+          <Textarea
+            value={captionDraft}
+            onChange={(e) => {
+              setCaptionDraft(e.target.value);
+              queue({ caption: e.target.value });
+            }}
+            rows={5}
+            placeholder="Escreva a legenda final ou gere opções com IA acima"
+            className="pr-11"
+          />
+          <div className="absolute right-1.5 top-1.5">
+            <MicButton value={captionDraft} onChange={(v) => { setCaptionDraft(v); queue({ caption: v }); }} />
+          </div>
+        </div>
       </Card>
 
       <Card className="p-5 space-y-3">
         <div>
           <div className="text-base font-semibold">Multiplicar conteúdo</div>
           <p className="text-xs text-muted-foreground">
-            Transforme este Reel em 4 formatos diferentes
+            Cada formato explora um ângulo diferente do mesmo tema — não uma repetição, mas uma conversa nova.
           </p>
         </div>
         <Button onClick={generateDerivatives} disabled={genLoading}>
