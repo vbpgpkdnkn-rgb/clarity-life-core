@@ -250,6 +250,29 @@ JSON:
   }
 }`;
 
+    case "suggest_stories":
+      return `Sugira 5 ideias de stories para o Instagram da Daniele HOJE.
+
+- data: ${payload.data ?? "(hoje)"}
+- distribuição de energia das peças desta semana: ${JSON.stringify(payload.energia_semana ?? {})}
+- últimos temas planejados nesta semana: ${JSON.stringify(payload.ultimos_temas ?? [])}
+- stories já feitos nos últimos 7 dias: ${JSON.stringify(payload.historico_stories ?? [])}
+
+Cada ideia ocupa um slot (1 a 5) e deve conversar com a semana — preparar o terreno para um post, dar bastidor de um já publicado, abrir reflexão sobre um tema recorrente, etc. Varie os tipos. Evite repetir tipos/temas já cobertos no histórico. Linguagem de fala, sem clichês, sem coachês.
+
+Tipos permitidos: "Bastidores" | "Rotina" | "Reflexão" | "Dica clínica" | "Pergunta para audiência" | "Teaser de conteúdo" | "Outro".
+
+JSON:
+{
+  "sugestoes": [
+    { "slot": 1, "tipo": "string", "sugestao": "texto curto da ideia, 1 a 2 frases" },
+    { "slot": 2, "tipo": "string", "sugestao": "..." },
+    { "slot": 3, "tipo": "string", "sugestao": "..." },
+    { "slot": 4, "tipo": "string", "sugestao": "..." },
+    { "slot": 5, "tipo": "string", "sugestao": "..." }
+  ]
+}`;
+
     case "analyze_instagram_image":
       // handled separately in Deno.serve as multimodal call
       return "";
