@@ -357,10 +357,15 @@ export default function Studio() {
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">seu estúdio de conteúdo</p>
               </div>
-              <Button onClick={() => createMut.mutate()} disabled={createMut.isPending}>
-                <Plus className="h-4 w-4" />
-                Nova peça
-              </Button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button variant="outline" onClick={() => setView("stories")}>
+                  📱 Stories do dia
+                </Button>
+                <Button onClick={() => createMut.mutate()} disabled={createMut.isPending}>
+                  <Plus className="h-4 w-4" />
+                  Nova peça
+                </Button>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
