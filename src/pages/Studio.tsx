@@ -2371,17 +2371,24 @@ function Phase4({
   queue,
   flush,
   onAdvance,
+  openTeleOnMount,
 }: {
   piece: Piece;
   pd: PhaseData;
   queue: (p: Record<string, unknown>) => void;
   flush: () => Promise<void>;
   onAdvance: (publishedAt: string) => Promise<void>;
+  openTeleOnMount?: boolean;
 }) {
   const qc = useQueryClient();
   const [sub, setSub] = useState<"editorial" | "gravacao" | "pos">("editorial");
   const [teleOpen, setTeleOpen] = useState(false);
   const [genLoading, setGenLoading] = useState(false);
+
+  useEffect(() => {
+    if (openTeleOnMount) setTeleOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const tabs: { v: typeof sub; label: string }[] = [
     { v: "editorial", label: "Editorial" },
