@@ -1164,10 +1164,26 @@ function Phase1({
 }) {
   const [loading, setLoading] = useState(false);
   const [seriesOpen, setSeriesOpen] = useState(!!piece.series_name);
+  const [seriesMode, setSeriesMode] = useState<"new" | "existing" | null>(
+    piece.series_name ? "existing" : null,
+  );
   const [audienceOpen, setAudienceOpen] = useState(!!pd.conteudo_audiencia);
   const temaRef = useRef<HTMLTextAreaElement>(null);
   const conteudoRef = useRef<HTMLTextAreaElement>(null);
   const audienciaRef = useRef<HTMLTextAreaElement>(null);
+
+  const seriesQ = useQuery({
+    queryKey: ["studio-series"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("content_pieces")
+        .select("series_name, series_position")
+        .not("series_name", "is", null)
+        .order("series_name");
+      const names = [...new Set((data ?? []).map((d) => d.series_name).filter(Boolean))];
+      return names as string[];
+    },
+  });
 
   const appendTo = (
     ref: React.RefObject<HTMLTextAreaElement>,
