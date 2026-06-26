@@ -1039,6 +1039,9 @@ export default function Studio() {
                 <Button variant="outline" onClick={() => setView("stories")}>
                   📱 Stories do dia
                 </Button>
+                <Button size="sm" variant="outline" onClick={() => setQuickPostOpen(true)}>
+                  ⚡ Post rápido
+                </Button>
                 <Button onClick={() => createMut.mutate()} disabled={createMut.isPending}>
                   <Plus className="h-4 w-4" />
                   Nova peça
