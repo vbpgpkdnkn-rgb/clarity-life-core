@@ -3391,23 +3391,23 @@ function ReviewCard({
                       </Button>
                     )}
                   </div>
-                  {sug && sug.length > 0 && (
-                    <Card className="p-3 space-y-2 bg-accent/5 border-accent/40">
-                      <div className="text-[11px] uppercase opacity-60">Sugestão para este ponto</div>
-                      {sug.map((b, j) => (
-                        <div key={j} className="text-xs space-y-1">
-                          <Badge variant="outline" className="text-[9px]">
-                            {papelLabel(b.papel)}
-                          </Badge>
-                          <p className="whitespace-pre-wrap">{b.texto}</p>
+                  {sugestoes?.[p.ponto] && (
+                    <div className="mt-2 p-3 rounded border bg-muted/30 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">Como ficaria:</p>
+                      {sugestoes[p.ponto].map((bloco, bi) => (
+                        <div key={bi} className="text-sm">
+                          <span className="text-xs uppercase text-muted-foreground mr-1">{bloco.papel}:</span>
+                          {bloco.texto}
                         </div>
                       ))}
-                      {onAprovarSugestao && (
-                        <Button size="sm" onClick={() => onAprovarSugestao(p.ponto)}>
-                          Aprovar esta sugestão
-                        </Button>
-                      )}
-                    </Card>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onAprovarSugestao?.(p.ponto)}
+                      >
+                        Aprovar esta sugestão
+                      </Button>
+                    </div>
                   )}
                 </li>
               );
