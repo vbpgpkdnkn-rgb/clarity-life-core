@@ -973,6 +973,7 @@ function FocoView({
           pd={pd}
           queue={queue}
           flush={flush}
+          openTeleOnMount={initialTeleOpen}
           onAdvance={async () => {
             await flush();
             await supabase.from("content_pieces").update({ phase: 4 } as never).eq("id", piece.id);
