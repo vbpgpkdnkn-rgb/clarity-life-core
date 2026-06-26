@@ -1016,8 +1016,10 @@ function FocoView({
           queue={queue}
           flush={flush}
           onOpenPiece={onOpenPiece}
+          onBack={onBack}
         />
       )}
+
     </div>
   );
 }
@@ -2283,37 +2285,68 @@ function Teleprompter({
   fontSize: number;
   onFontChange: (v: number) => void;
 }) {
+  const [mirrored, setMirrored] = useState(false);
+  const [vertical, setVertical] = useState(false);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-none w-screen h-screen p-0 bg-black text-white border-0 rounded-none flex flex-col"
+        className="p-0 bg-black text-white border-0 rounded-lg flex flex-col overflow-hidden"
+        style={{ width: "390px", height: "680px", maxWidth: "95vw", maxHeight: "95vh" }}
         onInteractOutside={(e) => e.preventDefault()}
       >
-        <div className="absolute top-3 right-3 z-10">
+        {/* Controles */}
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 shrink-0">
+          <span className="text-xs opacity-60 w-12 shrink-0">{fontSize}px</span>
+          <Slider
+            min={16}
+            max={56}
+            step={1}
+            value={[fontSize]}
+            onValueChange={(v) => onFontChange(v[0])}
+            className="flex-1"
+          />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setMirrored((v) => !v)}
+            className={`text-xs px-2 shrink-0 ${mirrored ? "text-yellow-400" : "text-white/60"}`}
+            title="Espelhar texto (para uso em teleprompter físico)"
+          >
+            ↔ Espelho
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setVertical((v) => !v)}
+            className={`text-xs px-2 shrink-0 ${vertical ? "text-yellow-400" : "text-white/60"}`}
+            title="Girar texto 90°"
+          >
+            ↻ Girar
+          </Button>
           <Button
             size="icon"
             variant="ghost"
             onClick={() => onOpenChange(false)}
-            className="text-white hover:bg-white/10"
+            className="text-white/60 hover:text-white shrink-0"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </Button>
         </div>
-        <div className="absolute top-3 left-3 right-16 z-10 flex items-center gap-3">
-          <span className="text-xs opacity-70 w-16">Fonte: {fontSize}px</span>
-          <Slider
-            min={20}
-            max={48}
-            step={1}
-            value={[fontSize]}
-            onValueChange={(v) => onFontChange(v[0])}
-            className="max-w-xs"
-          />
-        </div>
-        <div className="flex-1 overflow-y-auto p-10 pt-20">
+
+        {/* Texto */}
+        <div className="flex-1 overflow-y-auto p-6">
           <div
-            className="max-w-4xl mx-auto leading-relaxed whitespace-pre-wrap"
-            style={{ fontSize: `${fontSize}px` }}
+            className="leading-relaxed whitespace-pre-wrap"
+            style={{
+              fontSize: `${fontSize}px`,
+              transform: [
+                mirrored ? "scaleX(-1)" : "",
+                vertical ? "rotate(90deg)" : "",
+              ].filter(Boolean).join(" ") || "none",
+              transformOrigin: "center center",
+              display: "block",
+            }}
           >
             {text || "(roteiro vazio)"}
           </div>
@@ -2322,6 +2355,7 @@ function Teleprompter({
     </Dialog>
   );
 }
+
 
 /* ================================================================== */
 /* PHASE 4 — PRODUÇÃO                                                 */
@@ -3118,12 +3152,14 @@ function Phase5({
   queue,
   flush,
   onOpenPiece,
+  onBack,
 }: {
   piece: Piece;
   pd: PhaseData;
   queue: (patch: Record<string, unknown>) => void;
   flush: () => Promise<void>;
   onOpenPiece: (id: string) => void;
+  onBack: () => void;
 }) {
   const qc = useQueryClient();
   const today = new Date().toISOString().slice(0, 10);
@@ -3343,8 +3379,11 @@ function Phase5({
           },
         },
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message ?? "Erro na edge function");
+      if (!data) throw new Error("Sem resposta da IA");
+      if (data.error) throw new Error(data.error);
       const result = (data as { result: PerformanceAnalysis }).result;
+      if (!result) throw new Error("Resposta da IA inválida");
       const newMemory = Array.isArray(piece.ai_memory) ? [...piece.ai_memory] : [];
       if (result.memoria_entrada) newMemory.push(result.memoria_entrada);
       const trimmed = newMemory.slice(-20);
@@ -3640,6 +3679,19 @@ function Phase5({
           </div>
         )}
       </Card>
+
+      <div className="pt-6 border-t mt-6">
+        <Button
+          className="w-full"
+          onClick={async () => {
+            await flush();
+            toast.success("Desempenho salvo");
+            onBack();
+          }}
+        >
+          ✓ Salvar e voltar para o Studio
+        </Button>
+      </div>
 
       {/* Histórico */}
       <Card className="p-5 space-y-3">
