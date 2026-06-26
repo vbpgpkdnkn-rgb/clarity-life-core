@@ -100,6 +100,15 @@ type Piece = {
   ai_memory: unknown;
   teleprompter_font_size: number | null;
   script: string | null;
+  pipeline_stage: string | null;
+  pre_recording_notes: string | null;
+  editing_checklist: { label: string; done: boolean }[] | null;
+  editing_notes: string | null;
+  caption: string | null;
+  tiktok_script: string | null;
+  carousel_script: string | null;
+  stories_script: string | null;
+  debate_caption: string | null;
   updated_at: string;
 };
 
@@ -439,9 +448,28 @@ function FocoView({ pieceId, onBack }: { pieceId: string | null; onBack: () => v
         />
       )}
 
-      {currentPhase >= 4 && (
+      {currentPhase === 4 && (
+        <Phase4
+          piece={piece}
+          pd={pd}
+          queue={queue}
+          flush={flush}
+          onAdvance={async () => {
+            await flush();
+            await supabase
+              .from("content_pieces")
+              .update({ phase: 5, pipeline_stage: "pronto_postar" } as never)
+              .eq("id", piece.id);
+            qc.invalidateQueries({ queryKey: ["studio-piece", piece.id] });
+            qc.invalidateQueries({ queryKey: ["studio-pieces"] });
+            setCurrentPhase(5);
+          }}
+        />
+      )}
+
+      {currentPhase === 5 && (
         <Card className="p-6 text-sm text-muted-foreground">
-          Fase {currentPhase} — em construção.
+          Fase 5 — em construção.
         </Card>
       )}
     </div>
@@ -1495,5 +1523,600 @@ function Teleprompter({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/* ================================================================== */
+/* PHASE 4 — PRODUÇÃO                                                 */
+/* ================================================================== */
+
+const DEFAULT_EDIT_CHECKLIST: { label: string; done: boolean }[] = [
+  { label: "Corte inicial e final", done: false },
+  { label: "Ajuste de áudio", done: false },
+  { label: "Legendas adicionadas", done: false },
+  { label: "Revisão de ritmo e cortes", done: false },
+  { label: "Thumbnail definida", done: false },
+];
+
+type Derivatives = {
+  tiktok?: { script?: string; instrucao_gravacao?: string };
+  carousel?: { slides?: { n: number; titulo: string; corpo: string }[] };
+  stories?: { cards?: { n: number; tipo: string; texto: string; sugestao_visual?: string }[] };
+  debate?: { legenda?: string; intencao?: string };
+};
+
+function startOfWeekMonday(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  const day = x.getDay(); // 0=dom..6=sab
+  const diff = day === 0 ? -6 : 1 - day;
+  x.setDate(x.getDate() + diff);
+  return x;
+}
+
+function ymd(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function Phase4({
+  piece,
+  pd,
+  queue,
+  flush,
+  onAdvance,
+}: {
+  piece: Piece;
+  pd: PhaseData;
+  queue: (p: Record<string, unknown>) => void;
+  flush: () => Promise<void>;
+  onAdvance: () => Promise<void>;
+}) {
+  const qc = useQueryClient();
+  const [sub, setSub] = useState<"editorial" | "gravacao" | "pos">("editorial");
+  const [teleOpen, setTeleOpen] = useState(false);
+  const [genLoading, setGenLoading] = useState(false);
+
+  const tabs: { v: typeof sub; label: string }[] = [
+    { v: "editorial", label: "Editorial" },
+    { v: "gravacao", label: "Gravação" },
+    { v: "pos", label: "Pós-produção" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex gap-1 border-b">
+        {tabs.map((t) => (
+          <button
+            key={t.v}
+            onClick={() => setSub(t.v)}
+            className={cn(
+              "px-3 py-2 text-sm border-b-2 -mb-px transition-colors",
+              sub === t.v
+                ? "border-accent text-foreground font-medium"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {sub === "editorial" && (
+        <EditorialSub piece={piece} onAdvance={() => setSub("gravacao")} />
+      )}
+
+      {sub === "gravacao" && (
+        <div className="space-y-4">
+          <Card className="p-5 space-y-2">
+            <Label>Roteiro aprovado</Label>
+            <div className="text-sm whitespace-pre-wrap bg-muted/40 rounded p-3">
+              {piece.script || "(roteiro vazio)"}
+            </div>
+          </Card>
+
+          <Card className="p-5 space-y-2">
+            <Label>Anotações pré-gravação</Label>
+            <Textarea
+              defaultValue={piece.pre_recording_notes ?? ""}
+              onChange={(e) => queue({ pre_recording_notes: e.target.value })}
+              placeholder="O que precisa preparar antes de gravar? Ex: confirmar enquadramento, separar exemplo clínico X"
+              rows={4}
+            />
+          </Card>
+
+          <div className="flex flex-wrap gap-3">
+            <Button variant="outline" onClick={() => setTeleOpen(true)}>
+              <Play className="h-4 w-4" />
+              Abrir Teleprompter
+            </Button>
+            <Button
+              size="lg"
+              onClick={async () => {
+                await flush();
+                await supabase
+                  .from("content_pieces")
+                  .update({ pipeline_stage: "gravando" } as never)
+                  .eq("id", piece.id);
+                qc.invalidateQueries({ queryKey: ["studio-piece", piece.id] });
+                toast.success("Gravação registrada");
+                setSub("pos");
+              }}
+            >
+              ✓ Gravado
+            </Button>
+          </div>
+
+          <Teleprompter
+            open={teleOpen}
+            onOpenChange={setTeleOpen}
+            text={piece.script ?? ""}
+            fontSize={piece.teleprompter_font_size ?? 32}
+            onFontChange={(v) => queue({ teleprompter_font_size: v })}
+          />
+        </div>
+      )}
+
+      {sub === "pos" && (
+        <PostProductionSub
+          piece={piece}
+          pd={pd}
+          queue={queue}
+          flush={flush}
+          genLoading={genLoading}
+          setGenLoading={setGenLoading}
+          onReady={onAdvance}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ---------- 4a EDITORIAL ---------- */
+function EditorialSub({ piece, onAdvance }: { piece: Piece; onAdvance: () => void }) {
+  const [refMonth, setRefMonth] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+
+  const monthStart = new Date(refMonth);
+  const monthEnd = new Date(refMonth.getFullYear(), refMonth.getMonth() + 1, 0);
+
+  const pieces = useQuery({
+    queryKey: ["studio-pieces-month", refMonth.getFullYear(), refMonth.getMonth()],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("content_pieces")
+        .select("id,title,energia,planned_date,series_name")
+        .eq("scope", "profissional")
+        .gte("planned_date", ymd(monthStart))
+        .lte("planned_date", ymd(monthEnd));
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const pickDate = async (iso: string | null) => {
+    const { error } = await supabase
+      .from("content_pieces")
+      .update({ planned_date: iso } as never)
+      .eq("id", piece.id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(iso ? "Data agendada" : "Data removida");
+      pieces.refetch();
+    }
+  };
+
+  // Build calendar grid (Mon-Sun)
+  const firstDow = (monthStart.getDay() + 6) % 7; // 0..6 (0=Mon)
+  const totalDays = monthEnd.getDate();
+  const cells: (Date | null)[] = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= totalDays; d++) cells.push(new Date(refMonth.getFullYear(), refMonth.getMonth(), d));
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const piecesByDay: Record<string, typeof pieces.data> = {};
+  (pieces.data ?? []).forEach((p) => {
+    if (!p.planned_date) return;
+    (piecesByDay[p.planned_date] ??= []).push(p);
+  });
+
+  // Semana atual
+  const today = new Date();
+  const ws = startOfWeekMonday(today);
+  const we = new Date(ws);
+  we.setDate(ws.getDate() + 6);
+  const weekPieces = (pieces.data ?? []).filter((p) => {
+    if (!p.planned_date) return false;
+    return p.planned_date >= ymd(ws) && p.planned_date <= ymd(we);
+  });
+  const counts = { topo: 0, meio: 0, fundo: 0 } as Record<string, number>;
+  weekPieces.forEach((p) => {
+    const e = (p.energia ?? "").toLowerCase();
+    if (counts[e] != null) counts[e]++;
+  });
+
+  const monthLabel = refMonth.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const DOWS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() =>
+              setRefMonth(new Date(refMonth.getFullYear(), refMonth.getMonth() - 1, 1))
+            }
+          >
+            ← Mês anterior
+          </Button>
+          <div className="text-sm font-medium capitalize">{monthLabel}</div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() =>
+              setRefMonth(new Date(refMonth.getFullYear(), refMonth.getMonth() + 1, 1))
+            }
+          >
+            Próximo mês →
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 text-[11px] text-muted-foreground">
+          {DOWS.map((d) => (
+            <div key={d} className="text-center font-medium py-1">
+              {d}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {cells.map((d, i) => {
+            if (!d) return <div key={i} className="min-h-[80px]" />;
+            const iso = ymd(d);
+            const items = piecesByDay[iso] ?? [];
+            const isToday = ymd(today) === iso;
+            return (
+              <div
+                key={i}
+                className={cn(
+                  "min-h-[80px] rounded border p-1 text-[11px] space-y-1",
+                  isToday ? "border-accent/60 bg-accent/5" : "border-border",
+                )}
+              >
+                <div className="text-[10px] text-muted-foreground">{d.getDate()}</div>
+                {items.map((it) => {
+                  const isCurrent = it.id === piece.id;
+                  const hasSeries = !!it.series_name;
+                  return (
+                    <div
+                      key={it.id}
+                      className={cn(
+                        "rounded px-1 py-0.5 border bg-card truncate flex items-center gap-1",
+                        isCurrent && "border-accent ring-1 ring-accent",
+                        hasSeries && "border-dashed",
+                      )}
+                      title={it.title ?? ""}
+                    >
+                      {energiaBadge(it.energia)}
+                      <span className="truncate">{it.title ?? "Sem título"}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      <Card className="p-4 space-y-2">
+        <Label>Agendar esta peça para:</Label>
+        <Input
+          type="date"
+          defaultValue={piece.planned_date ?? ""}
+          onChange={(e) => pickDate(e.target.value || null)}
+          className="max-w-xs"
+        />
+      </Card>
+
+      <Card className="p-4 space-y-2">
+        <div className="text-sm font-medium">Semana atual</div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700">
+            {counts.topo} topo
+          </Badge>
+          <Badge variant="outline" className="bg-sky-500/10 text-sky-700">
+            {counts.meio} meio
+          </Badge>
+          <Badge variant="outline" className="bg-purple-500/10 text-purple-700">
+            {counts.fundo} fundo
+          </Badge>
+        </div>
+        {counts.fundo === 0 && (
+          <p className="text-xs text-muted-foreground">
+            Sem peças de fundo na semana — considere equilibrar com pelo menos uma.
+          </p>
+        )}
+      </Card>
+
+      <Button onClick={onAdvance}>Ir para Gravação</Button>
+    </div>
+  );
+}
+
+/* ---------- 4c PÓS-PRODUÇÃO ---------- */
+function PostProductionSub({
+  piece,
+  pd,
+  queue,
+  flush,
+  genLoading,
+  setGenLoading,
+  onReady,
+}: {
+  piece: Piece;
+  pd: PhaseData;
+  queue: (p: Record<string, unknown>) => void;
+  flush: () => Promise<void>;
+  genLoading: boolean;
+  setGenLoading: (v: boolean) => void;
+  onReady: () => Promise<void>;
+}) {
+  const checklist =
+    (piece.editing_checklist && piece.editing_checklist.length > 0
+      ? piece.editing_checklist
+      : DEFAULT_EDIT_CHECKLIST);
+
+  const toggleItem = (idx: number) => {
+    const next = checklist.map((it, i) => (i === idx ? { ...it, done: !it.done } : it));
+    queue({ editing_checklist: next });
+  };
+
+  const derivativesParsed: Derivatives = useMemo(() => {
+    const obj: Derivatives = {};
+    if (piece.tiktok_script) {
+      try {
+        obj.tiktok = JSON.parse(piece.tiktok_script);
+      } catch {
+        obj.tiktok = { script: piece.tiktok_script };
+      }
+    }
+    if (piece.carousel_script) {
+      try {
+        obj.carousel = JSON.parse(piece.carousel_script);
+      } catch {
+        obj.carousel = { slides: [] };
+      }
+    }
+    if (piece.stories_script) {
+      try {
+        obj.stories = JSON.parse(piece.stories_script);
+      } catch {
+        obj.stories = { cards: [] };
+      }
+    }
+    if (piece.debate_caption) {
+      try {
+        obj.debate = JSON.parse(piece.debate_caption);
+      } catch {
+        obj.debate = { legenda: piece.debate_caption };
+      }
+    }
+    return obj;
+  }, [piece.tiktok_script, piece.carousel_script, piece.stories_script, piece.debate_caption]);
+
+  const generateDerivatives = async () => {
+    setGenLoading(true);
+    try {
+      await flush();
+      const { data, error } = await supabase.functions.invoke("studio-agent", {
+        body: {
+          action: "phase4_derivatives",
+          payload: {
+            tema: piece.theme,
+            energia: piece.energia,
+            roteiro_final_texto: piece.script,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const r = (data?.result ?? {}) as Derivatives;
+      queue({
+        tiktok_script: r.tiktok ? JSON.stringify(r.tiktok) : null,
+        carousel_script: r.carousel ? JSON.stringify(r.carousel) : null,
+        stories_script: r.stories ? JSON.stringify(r.stories) : null,
+        debate_caption: r.debate ? JSON.stringify(r.debate) : null,
+      });
+      await flush();
+      toast.success("Derivados gerados");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha");
+    } finally {
+      setGenLoading(false);
+    }
+  };
+
+  const copy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copiado");
+  };
+
+  return (
+    <div className="space-y-5">
+      <Card className="p-5 space-y-3">
+        <Label>Checklist de edição</Label>
+        {checklist.map((it, i) => (
+          <label key={i} className="flex items-center gap-2 text-sm cursor-pointer">
+            <Checkbox checked={it.done} onCheckedChange={() => toggleItem(i)} />
+            <span className={cn(it.done && "line-through text-muted-foreground")}>
+              {it.label}
+            </span>
+          </label>
+        ))}
+      </Card>
+
+      <Card className="p-5 space-y-2">
+        <Label>Notas de edição</Label>
+        <Textarea
+          defaultValue={piece.editing_notes ?? ""}
+          onChange={(e) => queue({ editing_notes: e.target.value })}
+          rows={3}
+        />
+      </Card>
+
+      <Card className="p-5 space-y-2">
+        <Label>Legenda do post</Label>
+        <Textarea
+          defaultValue={piece.caption ?? ""}
+          onChange={(e) => queue({ caption: e.target.value })}
+          rows={5}
+          placeholder="Escreva a legenda ou use o botão abaixo para gerar com IA"
+        />
+      </Card>
+
+      <Card className="p-5 space-y-3">
+        <div>
+          <div className="text-base font-semibold">Multiplicar conteúdo</div>
+          <p className="text-xs text-muted-foreground">
+            Transforme este Reel em 4 formatos diferentes
+          </p>
+        </div>
+        <Button onClick={generateDerivatives} disabled={genLoading}>
+          {genLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          Gerar todos os derivados
+        </Button>
+
+        <DerivativeBlock title="TikTok" hasData={!!derivativesParsed.tiktok}>
+          {derivativesParsed.tiktok && (
+            <div className="space-y-2">
+              <div className="text-sm whitespace-pre-wrap">{derivativesParsed.tiktok.script}</div>
+              {derivativesParsed.tiktok.instrucao_gravacao && (
+                <div className="text-xs text-muted-foreground italic">
+                  ↳ {derivativesParsed.tiktok.instrucao_gravacao}
+                </div>
+              )}
+              <Button size="sm" variant="outline" onClick={() => copy(derivativesParsed.tiktok?.script ?? "")}>
+                Copiar script
+              </Button>
+            </div>
+          )}
+        </DerivativeBlock>
+
+        <DerivativeBlock title="Carrossel" hasData={!!derivativesParsed.carousel}>
+          {derivativesParsed.carousel?.slides && (
+            <div className="space-y-3">
+              {derivativesParsed.carousel.slides.map((s) => (
+                <div key={s.n} className="border rounded p-3">
+                  <div className="text-xs text-muted-foreground mb-1">Slide {s.n}</div>
+                  <div className="text-sm font-medium">{s.titulo}</div>
+                  <div className="text-sm whitespace-pre-wrap">{s.corpo}</div>
+                </div>
+              ))}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  copy(
+                    (derivativesParsed.carousel?.slides ?? [])
+                      .map((s) => `Slide ${s.n}\n${s.titulo}\n${s.corpo}`)
+                      .join("\n\n"),
+                  )
+                }
+              >
+                Copiar todos os slides
+              </Button>
+            </div>
+          )}
+        </DerivativeBlock>
+
+        <DerivativeBlock title="Stories" hasData={!!derivativesParsed.stories}>
+          {derivativesParsed.stories?.cards && (
+            <div className="space-y-3">
+              {derivativesParsed.stories.cards.map((c) => (
+                <div key={c.n} className="border rounded p-3 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px]">
+                      {c.n}
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px] uppercase">
+                      {c.tipo}
+                    </Badge>
+                  </div>
+                  <div className="text-sm whitespace-pre-wrap">{c.texto}</div>
+                  {c.sugestao_visual && (
+                    <div className="text-xs text-muted-foreground italic">
+                      visual: {c.sugestao_visual}
+                    </div>
+                  )}
+                </div>
+              ))}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  copy(
+                    (derivativesParsed.stories?.cards ?? [])
+                      .map((c) => `[${c.n} · ${c.tipo}] ${c.texto}`)
+                      .join("\n\n"),
+                  )
+                }
+              >
+                Copiar
+              </Button>
+            </div>
+          )}
+        </DerivativeBlock>
+
+        <DerivativeBlock title="Legenda de debate" hasData={!!derivativesParsed.debate}>
+          {derivativesParsed.debate && (
+            <div className="space-y-2">
+              <div className="text-sm whitespace-pre-wrap">{derivativesParsed.debate.legenda}</div>
+              {derivativesParsed.debate.intencao && (
+                <div className="text-xs text-muted-foreground italic">
+                  Intenção: {derivativesParsed.debate.intencao}
+                </div>
+              )}
+              <Button size="sm" variant="outline" onClick={() => copy(derivativesParsed.debate?.legenda ?? "")}>
+                Copiar
+              </Button>
+            </div>
+          )}
+        </DerivativeBlock>
+      </Card>
+
+      <Button size="lg" onClick={onReady}>
+        Pronto para postar
+      </Button>
+    </div>
+  );
+}
+
+function DerivativeBlock({
+  title,
+  hasData,
+  children,
+}: {
+  title: string;
+  hasData: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <div className={cn("border rounded", !hasData && "opacity-50")}>
+        <CollapsibleTrigger
+          disabled={!hasData}
+          className="w-full flex items-center justify-between p-3 text-left"
+        >
+          <span className="text-sm font-medium">{title}</span>
+          {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </CollapsibleTrigger>
+        <CollapsibleContent className="px-3 pb-3">{children}</CollapsibleContent>
+      </div>
+    </Collapsible>
   );
 }

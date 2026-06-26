@@ -20,7 +20,8 @@ type Action =
   | "phase3_insights"
   | "phase3_draft"
   | "phase3_adjust"
-  | "phase3_review";
+  | "phase3_review"
+  | "phase4_derivatives";
 
 const BLOCK_ROLES = ["Hook", "Contexto Emocional", "Microchoque", "Insight de Descoberta", "Resolução"];
 
@@ -154,6 +155,35 @@ JSON:
   "alerta_posicionamento": "string | null",
   "comentario_final": "string"
 }`;
+
+    case "phase4_derivatives":
+      return `Transforme o Reel abaixo em 4 formatos derivados. Mantenha a voz da autora (psicóloga clínica), linguagem de fala, sem clichês.
+
+- tema: ${payload.tema ?? "(vazio)"}
+- energia: ${payload.energia ?? "(nenhuma)"}
+- roteiro final (texto corrido): ${payload.roteiro_final_texto ?? "(vazio)"}
+
+JSON:
+{
+  "tiktok": {
+    "script": "string em linguagem de fala adaptada ao TikTok (mais direta, hook mais agressivo, ~30-45s)",
+    "instrucao_gravacao": "string curta com tom/ritmo/enquadramento"
+  },
+  "carousel": {
+    "slides": [
+      { "n": 1, "titulo": "string", "corpo": "string" }
+    ]
+  },
+  "stories": {
+    "cards": [
+      { "n": 1, "tipo": "abertura | enquete | quote | cta | reflexao", "texto": "string", "sugestao_visual": "string" }
+    ]
+  },
+  "debate": {
+    "legenda": "string para post de debate nos comentários",
+    "intencao": "string curta explicando o objetivo do debate"
+  }
+}`;
   }
 }
 
@@ -169,6 +199,7 @@ Deno.serve(async (req) => {
       "phase3_draft",
       "phase3_adjust",
       "phase3_review",
+      "phase4_derivatives",
     ];
     if (!action || !valid.includes(action)) {
       return new Response(JSON.stringify({ error: "action inválida" }), {
