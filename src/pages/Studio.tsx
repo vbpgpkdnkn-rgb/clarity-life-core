@@ -2259,6 +2259,50 @@ function Phase3({
       {/* 3c AJUSTES */}
       {sub === "ajustes" && (
         <div className="space-y-4">
+          <Card className="p-4 space-y-3 border-accent/40 bg-accent/5">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <div className="text-sm font-medium">Análise antes de ajustar</div>
+                <div className="text-xs text-muted-foreground">
+                  A IA aponta pontos a melhorar — você decide o que aplicar abaixo.
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={analisarAjustes}
+                disabled={loading === "phase3_adjust"}
+              >
+                {loading === "phase3_adjust" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                🔍 Analisar com IA
+              </Button>
+            </div>
+            {pd.analise_ajustes_ia && (
+              <div className="space-y-2 border-t pt-3">
+                {pd.analise_ajustes_ia.sugestoes && (
+                  <p className="text-sm leading-relaxed">{pd.analise_ajustes_ia.sugestoes}</p>
+                )}
+                {pd.analise_ajustes_ia.papeis_modificados &&
+                  pd.analise_ajustes_ia.papeis_modificados.length > 0 && (
+                    <div>
+                      <div className="text-xs uppercase opacity-60 mb-1">Sugestões por bloco</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {pd.analise_ajustes_ia.papeis_modificados.map((p) => (
+                          <Badge key={p} variant="outline" className="text-[10px]">
+                            {p}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+              </div>
+            )}
+          </Card>
+
           <Card
             className={cn(
               "p-4 space-y-2 border",
