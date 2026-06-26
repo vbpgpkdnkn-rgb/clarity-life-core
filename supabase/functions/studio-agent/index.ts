@@ -216,23 +216,30 @@ JSON:
 
 
     case "phase5_performance":
-      return `Analise o desempenho real desta peça publicada.
+      return `Analise o desempenho real desta peça publicada, comparando com posts anteriores.
 
 - tema: ${payload.tema ?? "(vazio)"}
 - energia: ${payload.energia ?? "(nenhuma)"}
 - objetivo: ${payload.objetivo ?? "(vazio)"}
+- série: ${payload.series_name ?? "(nenhuma)"} ${payload.series_position ? "ep " + payload.series_position : ""}
 - roteiro (texto): ${payload.roteiro_texto ?? "(vazio)"}
-- métricas: ${JSON.stringify(payload.metricas ?? {})}
+- métricas detalhadas: ${JSON.stringify(payload.metricas ?? {})}
 - comentários recebidos: ${payload.comentarios ?? "(nenhum)"}
+- últimos 3 posts publicados (resumo): ${JSON.stringify(payload.historico_resumo ?? [])}
 - memória de peças anteriores: ${memoryBlock(payload.ai_memory)}
 
-Avalie o resultado de forma honesta e clínica. Identifique o que funcionou, o que não funcionou, e o que aplicar nas próximas peças. Se houver um ângulo forte que merece nova exploração, sinalize.
+Avalie de forma honesta e clínica. Compare com o histórico (saves, alcance, DMs). Se há série, sugira o próximo episódio. Identifique comentários que pedem uma resposta em forma de novo conteúdo (extraia até 3, com tema sugerido para cada).
 
 JSON:
 {
   "o_que_funcionou": [{"ponto": "string", "razao": "string"}],
   "o_que_nao_funcionou": [{"ponto": "string", "hipotese": "string", "correcao": "string"}],
   "proximos_conteudos": "string com sugestão aplicável",
+  "comparacao_posts": "string comparando esta peça com as anteriores | null",
+  "serie_proxima_sugestao": "string com tema do próximo episódio da série | null",
+  "comentarios_para_conteudo": [
+    {"comentario": "string", "tema_sugerido": "string"}
+  ],
   "reuso_sugerido": boolean,
   "memoria_entrada": {
     "tema": "string",
@@ -241,6 +248,10 @@ JSON:
     "aprendizado": "string curta com lição central"
   }
 }`;
+
+    case "analyze_instagram_image":
+      // handled separately in Deno.serve as multimodal call
+      return "";
   }
 }
 
