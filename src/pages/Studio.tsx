@@ -474,14 +474,7 @@ function FocoView({ pieceId, onBack, onOpenPiece }: { pieceId: string | null; on
           pd={pd}
           queue={queue}
           flush={flush}
-          onOpenPiece={(id) => {
-            // navigate to another piece in foco
-            qc.setQueryData(["studio-piece", id], undefined);
-            window.location.hash = "";
-            // simple swap via reload of view state by re-mount through parent
-            // we trigger via custom event handled by parent
-            window.dispatchEvent(new CustomEvent("studio:open-piece", { detail: { id } }));
-          }}
+          onOpenPiece={onOpenPiece}
         />
       )}
     </div>
