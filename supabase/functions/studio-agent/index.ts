@@ -1,6 +1,6 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
 const BASE_CONTEXT = `Você é o copiloto de uma psicóloga clínica (10+ anos, IBCT e Gottman, público mulheres 25-45) na criação de conteúdo sobre maturidade relacional.
 
@@ -14,27 +14,69 @@ Energia do conteúdo:
 
 Responda SEMPRE em JSON válido conforme o schema pedido. Nada além do JSON.`;
 
-type Action =
-  | "phase1_read"
-  | "phase2_validate"
-  | "phase3_insights"
-  | "phase3_draft"
-  | "phase3_adjust"
-  | "phase3_review"
-  | "phase4_derivatives"
-  | "generate_captions"
-  | "analyze_instagram_image"
-  | "suggest_stories"
-  | "phase5_performance";
-
-const BLOCK_ROLES = ["Hook", "Contexto Emocional", "Microchoque", "Insight de Descoberta", "Resolução"];
+const BLOCK_ROLES = ["Hook", "Contexto Emocional", "Microchoque", "Insight de Descoberta", "Resolução / Transformação"];
 
 function memoryBlock(ai_memory: unknown): string {
   if (!Array.isArray(ai_memory) || ai_memory.length === 0) return "(sem histórico)";
   return JSON.stringify(ai_memory.slice(-10));
 }
 
-function promptFor(action: Action, payload: Record<string, unknown>): string {
+async function callGemini(prompt: string, imageBase64?: string, imageType?: string): Promise<string> {
+  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY ausente nos Secrets do Supabase");
+
+  let messages;
+  if (imageBase64 && imageType) {
+    messages = [
+      { role: "system", content: BASE_CONTEXT },
+      {
+        role: "user",
+        content: [
+          { type: "image_url", image_url: { url: `data:${imageType};base64,${imageBase64}` } },
+          { type: "text", text: prompt },
+        ],
+      },
+    ];
+  } else {
+    messages = [
+      { role: "system", content: BASE_CONTEXT },
+      { role: "user", content: prompt },
+    ];
+  }
+
+  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${GEMINI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gemini-2.5-flash",
+      messages,
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    console.error("studio-agent Gemini error", res.status, errBody);
+    if (res.status === 429) throw new Error("Muitas requisições. Aguarde alguns segundos.");
+    if (res.status === 402) throw new Error("Créditos de IA esgotados.");
+    throw new Error(`Gemini ${res.status}: ${errBody.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content ?? "{}";
+}
+
+function parseJSON(raw: string): unknown {
+  try { return JSON.parse(raw); }
+  catch {
+    const m = String(raw).match(/\{[\s\S]*\}/);
+    return m ? JSON.parse(m[0]) : { raw };
+  }
+}
+
+function buildPrompt(action: string, payload: Record<string, unknown>): string {
   switch (action) {
     case "phase1_read":
       return `Analise esta entrada bruta de tema e devolva uma leitura.
@@ -42,37 +84,32 @@ function promptFor(action: Action, payload: Record<string, unknown>): string {
 ENTRADA:
 - tema: ${payload.tema ?? "(vazio)"}
 - tipo_entrada: ${payload.tipo_entrada ?? "(não informado)"}
-- origem: ${payload.origem ?? "(não informado)"}
+- intencao_uso: ${payload.intencao_uso ?? "(não informado)"}
 - conteúdo bruto: ${payload.conteudo ?? "(vazio)"}
 - comentários da audiência: ${payload.conteudo_audiencia ?? "(nenhum)"}
 - série: ${payload.serie_nome ?? "(nenhuma)"} ${payload.serie_position ? "ep " + payload.serie_position : ""}
 
 JSON:
 {
-  "energia_sugerida": "topo" | "meio" | "fundo",
+  "energia_sugerida": "topo | meio | fundo",
   "observacao": "1 a 3 frases curtas",
   "padroes_audiencia": "string | null"
 }`;
 
     case "phase2_validate":
-      return `Valide se a estratégia desta peça está coerente e sugira metas de resultado realistas.
+      return `Valide se a estratégia desta peça está coerente e gere insights estratégicos.
 
 - tema: ${payload.tema ?? "(vazio)"}
 - energia escolhida: ${payload.energia ?? "(nenhuma)"}
 - estratégia de criação: ${payload.creation_strategy ?? "(nenhuma)"}
-- intenção de uso: ${payload.intencao_uso ?? "(nenhuma)"}
 - objetivo: ${payload.objetivo ?? "(vazio)"}
-- metas de resultado já marcadas: ${Array.isArray(payload.metas_resultado) && payload.metas_resultado.length ? payload.metas_resultado.join(", ") : "(nenhuma)"}
-
-Avalie alinhamento. Ex: energia "topo" com meta "agendar sessão" tem conflito.
-Em "metas_sugeridas" retorne 2 a 4 metas concretas e específicas para ESTE tema (não genéricas).
-Em "insights_estrategicos" retorne 2 a 4 bullets curtos sobre como tirar o melhor desta peça.
-Em "evitar" retorne 2 a 4 bullets curtos com armadilhas a não cometer.
+- metas de resultado: ${JSON.stringify(payload.metas_resultado ?? payload.meta_resultado ?? [])}
+- memória de peças anteriores: ${memoryBlock(payload.ai_memory)}
 
 JSON:
 {
-  "aprovado_para_roteiro": boolean,
-  "status": "alinhado" | "conflito",
+  "aprovado_para_roteiro": true,
+  "status": "alinhado | conflito",
   "comentario": "1 a 3 frases",
   "sugestao": "string | null",
   "metas_sugeridas": ["string"],
@@ -81,86 +118,74 @@ JSON:
 }`;
 
     case "phase3_insights":
-      return `Gere 4 insights distintos para roteiro de Reel a partir do material abaixo.
+      return `Gere 4 insights distintos para roteiro de Reel.
 
 - tema: ${payload.tema ?? "(vazio)"}
 - energia: ${payload.energia ?? "(nenhuma)"}
 - estratégia: ${payload.creation_strategy ?? "(nenhuma)"}
 - objetivo: ${payload.objetivo ?? "(vazio)"}
 - comentários da audiência: ${payload.conteudo_audiencia ?? "(nenhum)"}
-- memória de peças anteriores: ${memoryBlock(payload.ai_memory)}
-- template de roteiro escolhido: ${payload.script_template ? JSON.stringify(payload.script_template) : "(nenhum)"}
-
-Cada insight deve ser um ÂNGULO DIFERENTE para o mesmo tema, não variações da mesma frase. Evite repetir ângulos já usados na memória.
+- memória: ${memoryBlock(payload.ai_memory)}
+- template: ${payload.script_template ? JSON.stringify(payload.script_template) : "(nenhum)"}
 
 JSON:
 {
   "insights": [
     {
-      "id": "string curto único (ex: 'ang1')",
-      "titulo_angulo": "string curta",
-      "tensao": "frase única que captura a tensão clínica",
-      "frase_semente": "frase de abertura em linguagem de fala",
-      "energia_sugerida": "topo" | "meio" | "fundo"
+      "id": "string",
+      "titulo_angulo": "string",
+      "tensao": "string",
+      "frase_semente": "string",
+      "energia_sugerida": "topo | meio | fundo"
     }
   ]
 }`;
 
     case "phase3_draft":
-      return `Escreva o esboço do roteiro em 5 blocos narrativos.
+      return `Escreva o esboço do roteiro em 5 blocos: ${BLOCK_ROLES.join(" / ")}.
 
 - tema: ${payload.tema ?? "(vazio)"}
 - energia: ${payload.energia ?? "(nenhuma)"}
 - objetivo: ${payload.objetivo ?? "(vazio)"}
 - insights aprovados: ${JSON.stringify(payload.insights_aprovados ?? [])}
-- template: ${payload.script_template ? JSON.stringify(payload.script_template) : "(padrão de 5 blocos)"}
+- template: ${payload.script_template ? JSON.stringify(payload.script_template) : "(padrão)"}
 
-Os 5 papéis na ordem: ${BLOCK_ROLES.join(" / ")}.
-Cada bloco em LINGUAGEM DE FALA, curto, sem clichê. Total entre 45 e 65 segundos de fala (~110-170 palavras).
+Linguagem de fala. Total 45-65 segundos. NÃO inclua CTA.
 
 JSON:
 {
   "blocos": [
-    {
-      "papel": "Hook" | "Contexto Emocional" | "Microchoque" | "Insight de Descoberta" | "Resolução",
-      "texto": "string",
-      "nota_gravacao": "string curta com instrução de entrega"
-    }
+    { "papel": "string", "texto": "string", "nota_gravacao": "string" }
   ]
 }`;
 
     case "phase3_adjust":
-      return `Ajuste APENAS os blocos que precisam de correção. Mantenha os demais idênticos.
+      return `Ajuste APENAS os blocos necessários. Se ajustes_marcados e instrucao_livre estiverem vazios, retorne os blocos EXATAMENTE como estão.
 
 BLOCOS ATUAIS: ${JSON.stringify(payload.blocos_atuais ?? [])}
-
-AJUSTES MARCADOS: ${JSON.stringify(payload.ajustes_marcados ?? [])}
-INSTRUÇÃO LIVRE: ${payload.instrucao_livre ?? "(nenhuma)"}
+AJUSTES: ${JSON.stringify(payload.ajustes_marcados ?? [])}
+INSTRUÇÃO: ${payload.instrucao_livre ?? "(nenhuma)"}
 
 JSON:
 {
-  "blocos_ajustados": [
-    { "papel": "string", "texto": "string", "nota_gravacao": "string" }
-  ],
-  "papeis_modificados": ["lista dos papéis que você alterou"]
+  "blocos_ajustados": [{ "papel": "string", "texto": "string", "nota_gravacao": "string" }],
+  "papeis_modificados": ["string"]
 }`;
 
     case "phase3_review":
-      return `Faça a análise crítica do roteiro final.
+      return `Análise crítica do roteiro. NÃO reescreva blocos. Apenas comente.
 
 - tema: ${payload.tema ?? "(vazio)"}
 - energia: ${payload.energia ?? "(nenhuma)"}
 - estratégia: ${payload.creation_strategy ?? "(nenhuma)"}
 - objetivo: ${payload.objetivo ?? "(vazio)"}
-- blocos finais: ${JSON.stringify(payload.blocos_finais ?? [])}
+- blocos: ${JSON.stringify(payload.blocos_finais ?? [])}
 - memória: ${memoryBlock(payload.ai_memory)}
-
-Avalie retenção, ritmo, posicionamento, ausência de coachês.
 
 JSON:
 {
-  "score_retencao": número de 0 a 100,
-  "estimativa": "baixa" | "moderada" | "alta",
+  "score_retencao": 0,
+  "estimativa": "baixa | moderada | alta",
   "pontos_fortes": ["string"],
   "pontos_fracos": [{"ponto": "string", "correcao": "string"}],
   "alerta_posicionamento": "string | null",
@@ -168,229 +193,116 @@ JSON:
 }`;
 
     case "phase4_derivatives":
-      return `Transforme o Reel abaixo em 4 formatos derivados. Mantenha a voz da autora (psicóloga clínica), linguagem de fala, sem clichês.
+      return `Transforme em 4 formatos com ÂNGULOS DIFERENTES — não repetição.
 
 - tema: ${payload.tema ?? "(vazio)"}
 - energia: ${payload.energia ?? "(nenhuma)"}
-- roteiro final (texto corrido): ${payload.roteiro_final_texto ?? "(vazio)"}
+- roteiro: ${payload.roteiro_final_texto ?? "(vazio)"}
+- insights para multiconteúdo: ${JSON.stringify(payload.insights_multiconteudo ?? [])}
 
 JSON:
 {
-  "tiktok": {
-    "script": "string em linguagem de fala adaptada ao TikTok (mais direta, hook mais agressivo, ~30-45s)",
-    "instrucao_gravacao": "string curta com tom/ritmo/enquadramento"
-  },
-  "carousel": {
-    "slides": [
-      { "n": 1, "titulo": "string", "corpo": "string" }
-    ]
-  },
-  "stories": {
-    "cards": [
-      { "n": 1, "tipo": "abertura | enquete | quote | cta | reflexao", "texto": "string", "sugestao_visual": "string" }
-    ]
-  },
-  "debate": {
-    "legenda": "string para post de debate nos comentários",
-    "intencao": "string curta explicando o objetivo do debate"
-  }
+  "tiktok": { "angulo": "string", "script": "string", "instrucao_gravacao": "string" },
+  "carousel": { "angulo": "string", "slides": [{ "n": 1, "titulo": "string", "corpo": "string" }] },
+  "stories": { "angulo": "string", "cards": [{ "n": 1, "tipo": "string", "texto": "string", "sugestao_visual": "string" }] },
+  "debate": { "angulo": "string", "legenda": "string", "intencao": "string" }
 }`;
 
     case "generate_captions":
-      return `Gere 2 OPÇÕES distintas de legenda para o post desta peça.
+      return `Crie 2 opções de legenda para Instagram.
 
 - tema: ${payload.tema ?? "(vazio)"}
-- energia: ${payload.energia ?? "(nenhuma)"}
-- estratégia de criação: ${payload.creation_strategy ?? "(nenhuma)"}
 - roteiro: ${payload.script ?? "(vazio)"}
-- memória de peças anteriores: ${memoryBlock(payload.ai_memory)}
-
-Cada opção deve ter ABORDAGEM DIFERENTE (ex: uma mais provocativa, outra mais reflexiva). Linguagem de fala, sem clichês, sem coachês. 3 a 6 linhas. Pode incluir 1 pergunta no final para gerar comentário, mas nunca CTA de venda.
+- energia: ${payload.energia ?? "(nenhuma)"}
+- estratégia: ${payload.creation_strategy ?? "(nenhuma)"}
+- memória: ${memoryBlock(payload.ai_memory)}
 
 JSON:
 {
-  "opcoes": [
-    { "texto": "string", "abordagem": "string curta descrevendo o ângulo" },
-    { "texto": "string", "abordagem": "string curta descrevendo o ângulo" }
-  ]
+  "opcao_1": { "texto": "string", "estilo": "string" },
+  "opcao_2": { "texto": "string", "estilo": "string" }
 }`;
 
+    case "analyze_instagram_image":
+      return `Extraia os números das métricas do Instagram Insights desta imagem. Para campos não visíveis use null.
+
+JSON:
+{
+  "visualizacoes": null, "contas_alcancadas": null, "seguidores_alcancados": null,
+  "nao_seguidores_alcancados": null, "novos_seguidores": null,
+  "likes": null, "comments": null, "saves": null, "shares": null,
+  "contas_engajamento": null, "dms_recebidos": null, "agendamentos": null
+}`;
 
     case "phase5_performance":
-      return `Analise o desempenho real desta peça publicada, comparando com posts anteriores.
+      return `Analise o desempenho desta peça publicada.
 
 - tema: ${payload.tema ?? "(vazio)"}
 - energia: ${payload.energia ?? "(nenhuma)"}
 - objetivo: ${payload.objetivo ?? "(vazio)"}
-- série: ${payload.series_name ?? "(nenhuma)"} ${payload.series_position ? "ep " + payload.series_position : ""}
-- roteiro (texto): ${payload.roteiro_texto ?? "(vazio)"}
-- métricas detalhadas: ${JSON.stringify(payload.metricas ?? {})}
-- comentários recebidos: ${payload.comentarios ?? "(nenhum)"}
-- últimos 3 posts publicados (resumo): ${JSON.stringify(payload.historico_resumo ?? [])}
-- memória de peças anteriores: ${memoryBlock(payload.ai_memory)}
-
-Avalie de forma honesta e clínica. Compare com o histórico (saves, alcance, DMs). Se há série, sugira o próximo episódio. Identifique comentários que pedem uma resposta em forma de novo conteúdo (extraia até 3, com tema sugerido para cada).
+- roteiro: ${payload.roteiro_texto ?? "(vazio)"}
+- métricas: ${JSON.stringify(payload.metricas ?? {})}
+- comentários: ${payload.comentarios ?? "(nenhum)"}
+- memória: ${memoryBlock(payload.ai_memory)}
+- série: ${payload.series_name ? `${payload.series_name} ep ${payload.series_position}` : "não"}
+- histórico recente: ${JSON.stringify(payload.historico_resumo ?? [])}
 
 JSON:
 {
   "o_que_funcionou": [{"ponto": "string", "razao": "string"}],
   "o_que_nao_funcionou": [{"ponto": "string", "hipotese": "string", "correcao": "string"}],
-  "proximos_conteudos": "string com sugestão aplicável",
-  "comparacao_posts": "string comparando esta peça com as anteriores | null",
-  "serie_proxima_sugestao": "string com tema do próximo episódio da série | null",
-  "comentarios_para_conteudo": [
-    {"comentario": "string", "tema_sugerido": "string"}
-  ],
-  "reuso_sugerido": boolean,
-  "memoria_entrada": {
-    "tema": "string",
-    "energia": "string",
-    "resultado": "alto | médio | baixo",
-    "aprendizado": "string curta com lição central"
-  }
+  "proximos_conteudos": "string",
+  "comparacao_posts": "string | null",
+  "serie_proxima_sugestao": "string | null",
+  "comentarios_para_conteudo": [{"comentario": "string", "tema_sugerido": "string"}],
+  "reuso_sugerido": false,
+  "memoria_entrada": { "tema": "string", "energia": "string", "resultado": "alto | médio | baixo", "aprendizado": "string" }
 }`;
 
     case "suggest_stories":
-      return `Sugira 5 ideias de stories para o Instagram da Daniele HOJE.
+      return `Sugira 5 ideias de stories para hoje.
 
-- data: ${payload.data ?? "(hoje)"}
-- distribuição de energia das peças desta semana: ${JSON.stringify(payload.energia_semana ?? {})}
-- últimos temas planejados nesta semana: ${JSON.stringify(payload.ultimos_temas ?? [])}
-- stories já feitos nos últimos 7 dias: ${JSON.stringify(payload.historico_stories ?? [])}
+- data: ${payload.data ?? "hoje"}
+- energia dos posts da semana: ${JSON.stringify(payload.energia_semana ?? {})}
+- últimos temas: ${JSON.stringify(payload.ultimos_temas ?? [])}
+- histórico de stories: ${JSON.stringify(payload.historico_stories ?? [])}
 
-Cada ideia ocupa um slot (1 a 5) e deve conversar com a semana — preparar o terreno para um post, dar bastidor de um já publicado, abrir reflexão sobre um tema recorrente, etc. Varie os tipos. Evite repetir tipos/temas já cobertos no histórico. Linguagem de fala, sem clichês, sem coachês.
-
-Tipos permitidos: "Bastidores" | "Rotina" | "Reflexão" | "Dica clínica" | "Pergunta para audiência" | "Teaser de conteúdo" | "Outro".
+Tipos: bastidores | rotina | reflexao | dica_clinica | pergunta_audiencia | teaser_conteudo | outro
 
 JSON:
 {
   "sugestoes": [
-    { "slot": 1, "tipo": "string", "sugestao": "texto curto da ideia, 1 a 2 frases" },
-    { "slot": 2, "tipo": "string", "sugestao": "..." },
-    { "slot": 3, "tipo": "string", "sugestao": "..." },
-    { "slot": 4, "tipo": "string", "sugestao": "..." },
-    { "slot": 5, "tipo": "string", "sugestao": "..." }
+    { "slot": 1, "tipo": "string", "sugestao": "string" }
   ]
 }`;
 
-    case "analyze_instagram_image":
-      // handled separately in Deno.serve as multimodal call
-      return "";
+    default:
+      throw new Error(`action desconhecida: ${action}`);
   }
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY ausente");
     const { action, payload } = await req.json();
-    const valid: Action[] = [
-      "phase1_read",
-      "phase2_validate",
-      "phase3_insights",
-      "phase3_draft",
-      "phase3_adjust",
-      "phase3_review",
-      "phase4_derivatives",
-      "generate_captions",
-      "analyze_instagram_image",
-      "suggest_stories",
-      "phase5_performance",
-    ];
-    if (!action || !valid.includes(action)) {
-      return new Response(JSON.stringify({ error: "action inválida" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    if (!action) {
+      return new Response(JSON.stringify({ error: "campo 'action' obrigatório" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const userPrompt = promptFor(action as Action, payload ?? {});
-
-    let userContent: unknown = userPrompt;
-    if (action === "analyze_instagram_image") {
-      const imgB64 = (payload?.image_base64 as string) ?? "";
-      const imgType = (payload?.image_type as string) || "image/png";
-      if (!imgB64) {
-        return new Response(JSON.stringify({ error: "image_base64 ausente" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      userContent = [
-        {
-          type: "text",
-          text: `Esta é uma captura de tela do Instagram Insights (em português). Extraia os números visíveis para um post de Reel.
-
-Retorne APENAS JSON válido com os campos abaixo. Use null quando o campo não aparecer na imagem. Os números devem ser inteiros (interprete "1,2 mil" como 1200, "10K" como 10000, "1.5M" como 1500000).
-
-{
-  "visualizacoes": number | null,
-  "contas_alcancadas": number | null,
-  "seguidores_alcancados": number | null,
-  "nao_seguidores_alcancados": number | null,
-  "novos_seguidores": number | null,
-  "likes": number | null,
-  "comments": number | null,
-  "saves": number | null,
-  "shares": number | null,
-  "contas_engajamento": number | null,
-  "dms_recebidos": number | null,
-  "agendamentos": number | null
-}`,
-        },
-        {
-          type: "image_url",
-          image_url: { url: `data:${imgType};base64,${imgB64}` },
-        },
-      ];
-    }
-
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: BASE_CONTEXT },
-          { role: "user", content: userContent },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
-
-    if (!res.ok) {
-      const errBody = await res.text();
-      console.error("studio-agent AI error", res.status, errBody);
-      let message = "Falha ao consultar a IA. Tente novamente.";
-      if (res.status === 429) message = "Muitas requisições. Aguarde alguns segundos.";
-      else if (res.status === 402) message = "Créditos de IA esgotados no workspace.";
-      return new Response(JSON.stringify({ error: message, status: res.status }), {
-        status: res.status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const data = await res.json();
-    const raw = data.choices?.[0]?.message?.content ?? "{}";
-    let parsed: unknown = {};
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      const m = String(raw).match(/\{[\s\S]*\}/);
-      parsed = m ? JSON.parse(m[0]) : { raw };
-    }
-
+    const prompt = buildPrompt(action, payload ?? {});
+    const imageBase64 = action === "analyze_instagram_image" ? (payload as Record<string, unknown>)?.image_base64 as string : undefined;
+    const imageType = action === "analyze_instagram_image" ? (payload as Record<string, unknown>)?.image_type as string : undefined;
+    const raw = await callGemini(prompt, imageBase64, imageType);
+    const parsed = parseJSON(raw);
     return new Response(JSON.stringify({ result: parsed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    console.error("[studio-agent]", msg);
     return new Response(JSON.stringify({ error: msg }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
