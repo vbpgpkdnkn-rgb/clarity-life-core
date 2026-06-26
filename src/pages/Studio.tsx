@@ -1178,6 +1178,20 @@ const wordsAndSeconds = (text: string) => {
   return { words, seconds };
 };
 
+const papelLabel = (papel: string) => {
+  const p = (papel ?? "").toLowerCase();
+  if (p === "resolucao" || p === "resolução") return "Resolução / Transformação";
+  if (p === "cta") return "CTA";
+  return papel;
+};
+
+const withCta = (blocks: ScriptBlock[]): ScriptBlock[] => {
+  if (!blocks || blocks.length === 0) return blocks;
+  const hasCta = blocks.some((b) => (b.papel ?? "").toLowerCase() === "cta");
+  if (hasCta) return blocks;
+  return [...blocks, { papel: "cta", texto: "" }];
+};
+
 function Phase3({
   piece,
   pd,
