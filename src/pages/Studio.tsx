@@ -990,6 +990,7 @@ function FocoView({
           pd={pd}
           queue={queue}
           flush={flush}
+          openTeleOnMount={initialTeleOpen}
           onAdvance={async (publishedAt: string) => {
             await flush();
             await supabase
