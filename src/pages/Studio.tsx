@@ -2185,8 +2185,24 @@ function Phase3({
               )}
               {blocosBase.length > 0 ? "Regerar esboço" : "Gerar esboço"}
             </Button>
-            <Button variant="outline" disabled={blocosBase.length === 0} onClick={() => setSub("ajustes")}>
-              Ir para ajustes
+            <Button
+              variant="outline"
+              disabled={blocosBase.length === 0}
+              onClick={async () => {
+                await salvarEsboco();
+                toast.success("Esboço salvo");
+              }}
+            >
+              Salvar rascunho
+            </Button>
+            <Button
+              disabled={blocosBase.length === 0}
+              onClick={async () => {
+                await salvarEsboco();
+                setSub("ajustes");
+              }}
+            >
+              Salvar esboço e ir para ajustes
             </Button>
           </div>
 
