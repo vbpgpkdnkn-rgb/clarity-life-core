@@ -734,6 +734,21 @@ function Phase1({
   const [loading, setLoading] = useState(false);
   const [seriesOpen, setSeriesOpen] = useState(!!piece.series_name);
   const [audienceOpen, setAudienceOpen] = useState(!!pd.conteudo_audiencia);
+  const temaRef = useRef<HTMLTextAreaElement>(null);
+  const conteudoRef = useRef<HTMLTextAreaElement>(null);
+  const audienciaRef = useRef<HTMLTextAreaElement>(null);
+
+  const appendTo = (
+    ref: React.RefObject<HTMLTextAreaElement>,
+    apply: (text: string) => void,
+  ) => (spoken: string) => {
+    const el = ref.current;
+    if (!el) return;
+    const prev = el.value ?? "";
+    const next = prev ? `${prev} ${spoken}`.trim() : spoken;
+    el.value = next;
+    apply(next);
+  };
 
   const patchPD = (p: Partial<PhaseData>) => queue({ phase_data: { ...pd, ...p } });
 
