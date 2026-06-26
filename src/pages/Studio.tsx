@@ -2663,6 +2663,28 @@ type MetricsRow = {
   agendamentos: number;
 };
 
+type MetricsExtras = {
+  visualizacoes?: number;
+  seguidores_alcancados?: number;
+  nao_seguidores_alcancados?: number;
+  novos_seguidores?: number;
+  contas_engajamento?: number;
+};
+
+type MetricKey =
+  | "views"
+  | "reach"
+  | "seguidores_alcancados"
+  | "nao_seguidores_alcancados"
+  | "novos_seguidores"
+  | "likes"
+  | "comments"
+  | "saves"
+  | "shares"
+  | "contas_engajamento"
+  | "dms_recebidos"
+  | "agendamentos";
+
 function Phase5({
   piece,
   pd,
@@ -2705,10 +2727,33 @@ function Phase5({
     dms_recebidos: 0,
     agendamentos: 0,
   });
+  const [extras, setExtras] = useState<MetricsExtras>(
+    (pd.metricas_extras as MetricsExtras) ?? {},
+  );
+  const [autoFilled, setAutoFilled] = useState<Set<MetricKey>>(new Set());
 
   useEffect(() => {
     if (metricsQ.data) setM({ ...metricsQ.data });
   }, [metricsQ.data?.id]);
+
+  const updateM = (key: keyof MetricsRow, value: number) => {
+    setM((prev) => ({ ...prev, [key]: value }));
+    setAutoFilled((prev) => {
+      if (!prev.has(key as MetricKey)) return prev;
+      const next = new Set(prev);
+      next.delete(key as MetricKey);
+      return next;
+    });
+  };
+  const updateExtra = (key: keyof MetricsExtras, value: number) => {
+    setExtras((prev) => ({ ...prev, [key]: value }));
+    setAutoFilled((prev) => {
+      if (!prev.has(key as MetricKey)) return prev;
+      const next = new Set(prev);
+      next.delete(key as MetricKey);
+      return next;
+    });
+  };
 
   const [savingMetrics, setSavingMetrics] = useState(false);
   const saveMetrics = async () => {
@@ -2727,6 +2772,8 @@ function Phase5({
         if (error) throw error;
         setM((prev) => ({ ...prev, id: (data as { id: string }).id }));
       }
+      queue({ phase_data: { ...pd, metricas_extras: extras } });
+      await flush();
       toast.success("Métricas salvas");
       qc.invalidateQueries({ queryKey: ["studio-metrics", piece.id] });
     } catch (e) {
@@ -2736,13 +2783,112 @@ function Phase5({
     }
   };
 
+  // Upload image and analyze
+  const [imageAnalyzing, setImageAnalyzing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const handleImageUpload = async (file: File) => {
+    setImageAnalyzing(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          // strip data:...;base64, prefix
+          const idx = result.indexOf(",");
+          resolve(idx >= 0 ? result.slice(idx + 1) : result);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const { data, error } = await supabase.functions.invoke("studio-agent", {
+        body: {
+          action: "analyze_instagram_image",
+          payload: { image_base64: base64, image_type: file.type },
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const r = (data?.result ?? {}) as Record<string, number | undefined>;
+      const filled = new Set<MetricKey>();
+      const num = (v: unknown): number | undefined =>
+        typeof v === "number" && !Number.isNaN(v) ? v : undefined;
+
+      setM((prev) => {
+        const next = { ...prev };
+        const mapDb: [keyof MetricsRow, string][] = [
+          ["views", "visualizacoes"],
+          ["reach", "contas_alcancadas"],
+          ["likes", "likes"],
+          ["comments", "comments"],
+          ["saves", "saves"],
+          ["shares", "shares"],
+          ["dms_recebidos", "dms_recebidos"],
+          ["agendamentos", "agendamentos"],
+        ];
+        for (const [dbKey, apiKey] of mapDb) {
+          const v = num(r[apiKey]);
+          if (v !== undefined) {
+            next[dbKey] = v;
+            filled.add(dbKey as MetricKey);
+          }
+        }
+        return next;
+      });
+      setExtras((prev) => {
+        const next = { ...prev };
+        const mapEx: (keyof MetricsExtras)[] = [
+          "visualizacoes",
+          "seguidores_alcancados",
+          "nao_seguidores_alcancados",
+          "novos_seguidores",
+          "contas_engajamento",
+        ];
+        for (const k of mapEx) {
+          const v = num(r[k]);
+          if (v !== undefined) {
+            next[k] = v;
+            filled.add(k as MetricKey);
+          }
+        }
+        return next;
+      });
+      setAutoFilled(filled);
+      toast.success(`${filled.size} métricas preenchidas via imagem`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao analisar imagem");
+    } finally {
+      setImageAnalyzing(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const comentarios = (pd.comentarios_recebidos as string) ?? "";
+
+  const [showHistory, setShowHistory] = useState(false);
+  const historyQ = useQuery({
+    queryKey: ["studio-published-history"],
+    enabled: true,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("content_pieces")
+        .select("id,title,published_at,energia,series_name,series_position,performance_analysis")
+        .eq("status", "publicado")
+        .not("published_at", "is", null)
+        .order("published_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as (Pick<Piece, "id" | "title" | "published_at" | "energia" | "series_name" | "series_position" | "performance_analysis">)[];
+    },
+  });
 
   const [analyzing, setAnalyzing] = useState(false);
   const runAnalysis = async () => {
     setAnalyzing(true);
     try {
       await flush();
+      const last3 = (historyQ.data ?? [])
+        .filter((h) => h.id !== piece.id)
+        .slice(0, 3)
+        .map((h) => ({ title: h.title, energia: h.energia }));
       const { data, error } = await supabase.functions.invoke("studio-agent", {
         body: {
           action: "phase5_performance",
@@ -2751,6 +2897,8 @@ function Phase5({
             energia: piece.energia,
             objetivo: pd.objetivo,
             roteiro_texto: piece.script,
+            series_name: piece.series_name,
+            series_position: piece.series_position,
             metricas: {
               views: m.views,
               likes: m.likes,
@@ -2760,7 +2908,9 @@ function Phase5({
               reach: m.reach,
               dms: m.dms_recebidos,
               appointments: m.agendamentos,
+              ...extras,
             },
+            historico_resumo: last3,
             comentarios,
             ai_memory: piece.ai_memory,
           },
@@ -2787,12 +2937,12 @@ function Phase5({
   const analysis = piece.performance_analysis;
 
   const createReuseMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (override?: { theme?: string; title?: string }) => {
       const { data, error } = await supabase
         .from("content_pieces")
         .insert({
-          title: (piece.title ?? "Nova peça") + " (novo ângulo)",
-          theme: (piece.theme ?? "") + " (novo ângulo)",
+          title: override?.title ?? ((piece.title ?? "Nova peça") + " (novo ângulo)"),
+          theme: override?.theme ?? ((piece.theme ?? "") + " (novo ângulo)"),
           phase: 1,
           status: "ideia",
           scope: "profissional",
@@ -2810,31 +2960,44 @@ function Phase5({
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
-  const markPublished = async () => {
-    await supabase
-      .from("content_pieces")
-      .update({ published_at: today, status: "publicado" } as never)
-      .eq("id", piece.id);
-    qc.invalidateQueries({ queryKey: ["studio-piece", piece.id] });
-    qc.invalidateQueries({ queryKey: ["studio-pieces"] });
-    toast.success("Peça marcada como publicada");
-  };
-
-  const [showHistory, setShowHistory] = useState(false);
-  const historyQ = useQuery({
-    queryKey: ["studio-published-history"],
-    enabled: showHistory,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("content_pieces")
-        .select("id,title,published_at,energia,performance_analysis")
-        .eq("status", "publicado")
-        .not("published_at", "is", null)
-        .order("published_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as unknown as Pick<Piece, "id" | "title" | "published_at" | "energia" | "performance_analysis">[];
+  const SECTIONS: { title: string; fields: { key: MetricKey; label: string; source: "db" | "extra"; highlight?: boolean }[] }[] = [
+    {
+      title: "Alcance e visualizações",
+      fields: [
+        { key: "views", label: "Visualizações", source: "db" },
+        { key: "reach", label: "Contas alcançadas", source: "db" },
+        { key: "seguidores_alcancados", label: "Seguidores alcançados", source: "extra" },
+        { key: "nao_seguidores_alcancados", label: "Não seguidores alcançados", source: "extra" },
+        { key: "novos_seguidores", label: "Novos seguidores", source: "extra" },
+      ],
     },
-  });
+    {
+      title: "Engajamento",
+      fields: [
+        { key: "likes", label: "Curtidas", source: "db" },
+        { key: "comments", label: "Comentários", source: "db" },
+        { key: "saves", label: "Salvamentos", source: "db" },
+        { key: "shares", label: "Compartilhamentos", source: "db" },
+        { key: "contas_engajamento", label: "Contas com engajamento", source: "extra" },
+      ],
+    },
+    {
+      title: "Conversão (mais valiosas)",
+      fields: [
+        { key: "dms_recebidos", label: "DMs recebidos", source: "db", highlight: true },
+        { key: "agendamentos", label: "Agendamentos realizados", source: "db", highlight: true },
+      ],
+    },
+  ];
+
+  const getValue = (f: { key: MetricKey; source: "db" | "extra" }): number => {
+    if (f.source === "db") return (m[f.key as keyof MetricsRow] as number) ?? 0;
+    return (extras[f.key as keyof MetricsExtras] as number) ?? 0;
+  };
+  const setValue = (f: { key: MetricKey; source: "db" | "extra" }, v: number) => {
+    if (f.source === "db") updateM(f.key as keyof MetricsRow, v);
+    else updateExtra(f.key as keyof MetricsExtras, v);
+  };
 
   return (
     <div className="space-y-6">
@@ -2845,7 +3008,7 @@ function Phase5({
             <h3 className="font-medium text-base">{piece.title ?? "Sem título"}</h3>
             <p className="text-xs text-muted-foreground mt-1">
               {piece.published_at
-                ? `publicado em ${new Date(piece.published_at).toLocaleDateString("pt-BR")}`
+                ? `publicado em ${new Date(piece.published_at).toLocaleString("pt-BR")}`
                 : "ainda não publicado"}
             </p>
           </div>
@@ -2856,42 +3019,84 @@ function Phase5({
                 {piece.creation_strategy}
               </Badge>
             )}
+            {piece.series_name && (
+              <Badge variant="outline" className="text-[10px]">
+                {piece.series_name}
+                {piece.series_position ? ` · ep ${piece.series_position}` : ""}
+              </Badge>
+            )}
           </div>
         </div>
-        {!piece.published_at && (
-          <Button size="sm" variant="outline" onClick={markPublished}>
-            Marcar como publicado
-          </Button>
-        )}
       </Card>
 
       {/* Métricas */}
       <Card className="p-5 space-y-4">
         <h3 className="font-medium">Registrar métricas</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {([
-            ["views", "Views"],
-            ["likes", "Curtidas"],
-            ["comments", "Comentários"],
-            ["shares", "Compartilhamentos"],
-            ["saves", "Salvamentos"],
-            ["reach", "Alcance"],
-            ["dms_recebidos", "DMs recebidos"],
-            ["agendamentos", "Agendamentos"],
-          ] as const).map(([key, label]) => (
-            <div key={key} className="space-y-1">
-              <Label className="text-xs">{label}</Label>
-              <Input
-                type="number"
-                min={0}
-                value={m[key] ?? 0}
-                onChange={(e) =>
-                  setM((prev) => ({ ...prev, [key]: Number(e.target.value) || 0 }))
-                }
-              />
-            </div>
-          ))}
+
+        {/* Upload */}
+        <div className="border-2 border-dashed rounded-lg p-4 space-y-2 bg-muted/20">
+          <div className="text-sm font-medium">Envie o print do Instagram Insights</div>
+          <p className="text-xs text-muted-foreground">
+            A IA lê a imagem e preenche os campos abaixo automaticamente.
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleImageUpload(f);
+            }}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            disabled={imageAnalyzing}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {imageAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {imageAnalyzing ? "Analisando imagem…" : "Enviar print do Insights"}
+          </Button>
         </div>
+
+        {SECTIONS.map((sec) => (
+          <div key={sec.title} className="space-y-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {sec.title}
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {sec.fields.map((f) => {
+                const filled = autoFilled.has(f.key);
+                return (
+                  <div
+                    key={f.key}
+                    className={cn(
+                      "space-y-1 rounded-md",
+                      f.highlight && "border-2 border-accent p-2",
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="text-xs">{f.label}</Label>
+                      {filled && (
+                        <Badge variant="outline" className="text-[9px] px-1 py-0">
+                          via imagem
+                        </Badge>
+                      )}
+                    </div>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={getValue(f)}
+                      onChange={(e) => setValue(f, Number(e.target.value) || 0)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
         <Button onClick={saveMetrics} disabled={savingMetrics}>
           {savingMetrics && <Loader2 className="h-4 w-4 animate-spin" />}
           Salvar métricas
@@ -2956,10 +3161,49 @@ function Phase5({
                 <p className="text-sm">{analysis.proximos_conteudos}</p>
               </Card>
             )}
+            {analysis.comparacao_posts && (
+              <Card className="p-4 bg-muted/40 space-y-1">
+                <h4 className="text-sm font-medium">Comparando com posts anteriores</h4>
+                <p className="text-sm">{analysis.comparacao_posts}</p>
+              </Card>
+            )}
+            {analysis.serie_proxima_sugestao && (
+              <Card className="p-4 border-purple-500/40 bg-purple-500/5 space-y-1">
+                <h4 className="text-sm font-medium text-purple-700 dark:text-purple-400">Próximo episódio sugerido</h4>
+                <p className="text-sm">{analysis.serie_proxima_sugestao}</p>
+              </Card>
+            )}
+            {analysis.comentarios_para_conteudo && analysis.comentarios_para_conteudo.length > 0 && (
+              <Card className="p-4 space-y-2">
+                <h4 className="text-sm font-medium">Comentários que pedem conteúdo de resposta</h4>
+                <ul className="space-y-2 text-sm">
+                  {analysis.comentarios_para_conteudo.map((c, i) => (
+                    <li key={i}>
+                      <button
+                        onClick={() =>
+                          createReuseMut.mutate({
+                            theme: c.tema_sugerido,
+                            title: c.tema_sugerido,
+                          })
+                        }
+                        disabled={createReuseMut.isPending}
+                        className="w-full text-left p-2 border rounded hover:border-accent transition-colors"
+                      >
+                        <div className="italic text-muted-foreground text-xs">"{c.comentario}"</div>
+                        <div className="text-sm font-medium mt-1 flex items-center gap-1">
+                          <Plus className="h-3 w-3" />
+                          Criar peça: {c.tema_sugerido}
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
             {analysis.reuso_sugerido && (
               <Button
                 variant="outline"
-                onClick={() => createReuseMut.mutate()}
+                onClick={() => createReuseMut.mutate(undefined)}
                 disabled={createReuseMut.isPending}
               >
                 <Plus className="h-4 w-4" />
@@ -2975,7 +3219,7 @@ function Phase5({
         <div className="flex items-center justify-between">
           <h3 className="font-medium">Histórico de peças</h3>
           <Button variant="ghost" size="sm" onClick={() => setShowHistory((s) => !s)}>
-            {showHistory ? "Ocultar" : "Ver todas as peças publicadas"}
+            {showHistory ? "Ocultar" : "Arquivo — todos os posts publicados"}
           </Button>
         </div>
         {showHistory && (
@@ -2985,8 +3229,8 @@ function Phase5({
               <p className="text-sm text-muted-foreground italic">Nenhuma peça publicada ainda.</p>
             )}
             {(historyQ.data ?? []).map((it) => {
-              const score =
-                (it.performance_analysis as PerformanceAnalysis | null)?.o_que_funcionou?.length ?? null;
+              const pa = it.performance_analysis as PerformanceAnalysis | null;
+              const score = pa?.o_que_funcionou?.length ?? null;
               return (
                 <button
                   key={it.id}
@@ -2997,15 +3241,21 @@ function Phase5({
                     <div className="text-sm font-medium truncate">{it.title ?? "Sem título"}</div>
                     <div className="text-xs text-muted-foreground">
                       {it.published_at
-                        ? new Date(it.published_at).toLocaleDateString("pt-BR")
+                        ? new Date(it.published_at).toLocaleString("pt-BR")
                         : "—"}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
                     {energiaBadge(it.energia)}
+                    {it.series_name && (
+                      <Badge variant="outline" className="text-[10px]">
+                        {it.series_name}
+                        {it.series_position ? ` · ep ${it.series_position}` : ""}
+                      </Badge>
+                    )}
                     {score !== null && (
                       <Badge variant="outline" className="text-[10px]">
-                        {score} ✓
+                        score {score}
                       </Badge>
                     )}
                   </div>
