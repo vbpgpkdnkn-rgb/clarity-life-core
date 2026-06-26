@@ -78,6 +78,7 @@ type PhaseData = {
   insights_aprovados?: Insight[];
   blocos_rascunho?: ScriptBlock[];
   blocos_editados?: ScriptBlock[];
+  blocos_salvos_usuario?: ScriptBlock[];
   blocos_ajustados?: ScriptBlock[];
   papeis_modificados?: string[];
   instrucao_ajuste_livre?: string;
@@ -85,6 +86,9 @@ type PhaseData = {
   roteiro_protegido?: boolean;
   insights_multiconteudo?: Insight[];
   revisao_ia?: ReviewIA;
+  analise_ajustes_ia?: { papeis_modificados?: string[]; sugestoes?: string; blocos_sugeridos?: ScriptBlock[] };
+  sugestao_cortes?: { blocos?: ScriptBlock[]; target?: number };
+  sugestoes_ponto_fraco?: Record<string, ScriptBlock[]>;
   [k: string]: unknown;
 };
 
@@ -1160,10 +1164,26 @@ function Phase1({
 }) {
   const [loading, setLoading] = useState(false);
   const [seriesOpen, setSeriesOpen] = useState(!!piece.series_name);
+  const [seriesMode, setSeriesMode] = useState<"new" | "existing" | null>(
+    piece.series_name ? "existing" : null,
+  );
   const [audienceOpen, setAudienceOpen] = useState(!!pd.conteudo_audiencia);
   const temaRef = useRef<HTMLTextAreaElement>(null);
   const conteudoRef = useRef<HTMLTextAreaElement>(null);
   const audienciaRef = useRef<HTMLTextAreaElement>(null);
+
+  const seriesQ = useQuery({
+    queryKey: ["studio-series"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("content_pieces")
+        .select("series_name, series_position")
+        .not("series_name", "is", null)
+        .order("series_name");
+      const names = [...new Set((data ?? []).map((d) => d.series_name).filter(Boolean))];
+      return names as string[];
+    },
+  });
 
   const appendTo = (
     ref: React.RefObject<HTMLTextAreaElement>,
@@ -1210,7 +1230,7 @@ function Phase1({
     }
   };
 
-  const leitura = pd.ia_leitura_fase1;
+  
 
   return (
     <div className="space-y-6">
@@ -1298,23 +1318,101 @@ function Phase1({
             {seriesOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </CollapsibleTrigger>
           <CollapsibleContent className="px-4 pb-4 space-y-3">
-            <div className="space-y-2">
-              <Label>Nome da série</Label>
-              <Input
-                defaultValue={piece.series_name ?? ""}
-                onChange={(e) => queue({ series_name: e.target.value || null })}
-              />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setSeriesMode("new")}
+                className={cn(
+                  "flex-1 p-3 rounded-md border text-sm font-medium transition-colors",
+                  seriesMode === "new"
+                    ? "border-accent bg-accent/10"
+                    : "border-border hover:border-accent/50",
+                )}
+              >
+                ＋ Nova série
+              </button>
+              <button
+                type="button"
+                onClick={() => setSeriesMode("existing")}
+                className={cn(
+                  "flex-1 p-3 rounded-md border text-sm font-medium transition-colors",
+                  seriesMode === "existing"
+                    ? "border-accent bg-accent/10"
+                    : "border-border hover:border-accent/50",
+                )}
+              >
+                → Continuar série existente
+              </button>
             </div>
-            <div className="space-y-2">
-              <Label>Episódio nº</Label>
-              <Input
-                type="number"
-                defaultValue={piece.series_position ?? ""}
-                onChange={(e) =>
-                  queue({ series_position: e.target.value ? Number(e.target.value) : null })
-                }
-              />
-            </div>
+
+            {seriesMode === "new" && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>Nome da série</Label>
+                  <Input
+                    defaultValue={piece.series_name ?? ""}
+                    onChange={(e) => queue({ series_name: e.target.value || null })}
+                    placeholder="Ex: Comunicação não-violenta"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Total de episódios planejados</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    defaultValue={pd.serie_total_episodios as number | undefined ?? ""}
+                    onChange={(e) =>
+                      patchPD({ serie_total_episodios: e.target.value ? Number(e.target.value) : undefined })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Número deste episódio</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    defaultValue={piece.series_position ?? ""}
+                    onChange={(e) =>
+                      queue({ series_position: e.target.value ? Number(e.target.value) : null })
+                    }
+                  />
+                </div>
+              </div>
+            )}
+
+            {seriesMode === "existing" && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>Série existente</Label>
+                  <Select
+                    value={piece.series_name ?? ""}
+                    onValueChange={(v) => queue({ series_name: v || null })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Escolha uma série" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(seriesQ.data ?? []).map((n) => (
+                        <SelectItem key={n} value={n}>
+                          {n}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Número deste episódio</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    defaultValue={piece.series_position ?? ""}
+                    onChange={(e) =>
+                      queue({ series_position: e.target.value ? Number(e.target.value) : null })
+                    }
+                  />
+                </div>
+              </div>
+            )}
           </CollapsibleContent>
         </Card>
       </Collapsible>
@@ -1327,20 +1425,33 @@ function Phase1({
         <Button onClick={onAdvance}>Avançar para Estratégia</Button>
       </div>
 
-      {leitura && (
-        <Card className="p-5 space-y-3 border-accent/40">
+      {pd.ia_leitura_fase1 && (
+        <div className="rounded-lg border p-4 bg-muted/30 space-y-3">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Energia sugerida:</span>
-            {energiaBadge(leitura.energia_sugerida)}
+            <span className="text-xs font-medium uppercase tracking-wide opacity-60">Energia sugerida</span>
+            <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+              pd.ia_leitura_fase1.energia_sugerida === "topo" ? "bg-green-100 text-green-800" :
+              pd.ia_leitura_fase1.energia_sugerida === "meio" ? "bg-blue-100 text-blue-800" :
+              "bg-purple-100 text-purple-800"
+            }`}>
+              {pd.ia_leitura_fase1.energia_sugerida === "topo" ? "TOPO — identificação" :
+               pd.ia_leitura_fase1.energia_sugerida === "meio" ? "MEIO — confiança clínica" :
+               "FUNDO — reduzir resistência"}
+            </span>
           </div>
-          {leitura.observacao && <p className="text-sm">{leitura.observacao}</p>}
-          {leitura.padroes_audiencia && (
-            <div className="text-sm border-t pt-3">
-              <div className="text-xs uppercase text-muted-foreground mb-1">Padrões da audiência</div>
-              {leitura.padroes_audiencia}
+          {pd.ia_leitura_fase1.observacao && (
+            <div>
+              <span className="text-xs font-medium opacity-60 block mb-1">O que este tema revela</span>
+              <p className="text-sm leading-relaxed">{pd.ia_leitura_fase1.observacao}</p>
             </div>
           )}
-        </Card>
+          {pd.ia_leitura_fase1.padroes_audiencia && (
+            <div>
+              <span className="text-xs font-medium opacity-60 block mb-1">Padrão da audiência</span>
+              <p className="text-sm leading-relaxed">{pd.ia_leitura_fase1.padroes_audiencia}</p>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
@@ -1731,6 +1842,12 @@ function Phase3({
     patchPD({ blocos_editados: next });
   };
 
+  const salvarEsboco = async () => {
+    const blocosLocais = withCta(pd.blocos_editados ?? pd.blocos_rascunho ?? []);
+    patchPD({ blocos_salvos_usuario: blocosLocais });
+    await flush();
+  };
+
   /* ---------- 3c AJUSTES ---------- */
   const ajustes = pd.ajustes_marcados ?? [];
   const protegido = pd.roteiro_protegido === true;
@@ -1740,13 +1857,36 @@ function Phase3({
     patchPD({ ajustes_marcados: next });
   };
 
+  // Base de ajustes: SEMPRE blocos_salvos_usuario quando existir.
+  const baseParaAjustes = (): ScriptBlock[] =>
+    withCta(pd.blocos_salvos_usuario ?? pd.blocos_editados ?? pd.blocos_rascunho ?? []);
+
+  const analisarAjustes = async () => {
+    const result = await callAI("phase3_adjust", {
+      blocos_atuais: baseParaAjustes(),
+      ajustes_marcados: [],
+      instrucao_livre:
+        "Faça uma análise dos pontos que poderiam ser melhorados neste roteiro, sem alterar nada ainda.",
+    });
+    if (!result) return;
+    const r = result as { blocos_ajustados?: ScriptBlock[]; papeis_modificados?: string[]; comentario?: string };
+    patchPD({
+      analise_ajustes_ia: {
+        papeis_modificados: r.papeis_modificados ?? [],
+        sugestoes: r.comentario ?? "",
+        blocos_sugeridos: r.blocos_ajustados ?? [],
+      },
+    });
+    await flush();
+  };
+
   const aplicarAjustes = async () => {
     if (protegido) {
       setSub("revisao");
       return;
     }
     const result = await callAI("phase3_adjust", {
-      blocos_atuais: withCta(pd.blocos_editados ?? pd.blocos_rascunho ?? []),
+      blocos_atuais: baseParaAjustes(),
       ajustes_marcados: ajustes,
       instrucao_livre: pd.instrucao_ajuste_livre ?? "",
     });
@@ -1761,14 +1901,71 @@ function Phase3({
 
   /* ---------- 3d REVISÃO ---------- */
   const blocosFinais: ScriptBlock[] = withCta(
-    pd.blocos_ajustados ?? pd.blocos_editados ?? pd.blocos_rascunho ?? [],
+    pd.blocos_salvos_usuario ?? pd.blocos_ajustados ?? pd.blocos_editados ?? pd.blocos_rascunho ?? [],
+  );
+  const tempoFinalSeconds = blocosFinais.reduce(
+    (acc, b) => acc + wordsAndSeconds(b.texto || "").seconds,
+    0,
   );
 
   const editarBlocoFinal = (idx: number, texto: string) => {
-    const base = withCta(pd.blocos_ajustados ?? pd.blocos_editados ?? pd.blocos_rascunho ?? []);
+    const base = blocosFinais;
     const next = base.map((b, i) => (i === idx ? { ...b, texto } : b));
-    if (pd.blocos_ajustados) patchPD({ blocos_ajustados: next });
-    else patchPD({ blocos_editados: next });
+    patchPD({ blocos_salvos_usuario: next });
+  };
+
+  const [targetSeconds, setTargetSeconds] = useState<number>(90);
+  const sugerirCortes = async () => {
+    const result = await callAI("phase3_adjust", {
+      blocos_atuais: blocosFinais,
+      ajustes_marcados: [],
+      instrucao_livre: `Sugira quais trechos cortar para reduzir o roteiro para ${targetSeconds} segundos. Não reescreva — apenas indique exatamente qual parte de cada bloco pode ser removida, mostrando o texto resultante.`,
+    });
+    if (!result) return;
+    const r = result as { blocos_ajustados?: ScriptBlock[] };
+    patchPD({ sugestao_cortes: { blocos: withCta(r.blocos_ajustados ?? []), target: targetSeconds } });
+    await flush();
+  };
+
+  const usarVersaoCortada = async () => {
+    const cortes = pd.sugestao_cortes?.blocos;
+    if (!cortes) return;
+    patchPD({ blocos_salvos_usuario: cortes, blocos_ajustados: cortes, sugestao_cortes: undefined });
+    await flush();
+    toast.success("Versão com cortes aplicada");
+  };
+
+  const sugerirParaPontoFraco = async (ponto: string, correcao: string) => {
+    const result = await callAI("phase3_adjust", {
+      blocos_atuais: blocosFinais,
+      ajustes_marcados: [ponto],
+      instrucao_livre: correcao,
+    });
+    if (!result) return;
+    const r = result as { blocos_ajustados?: ScriptBlock[] };
+    const blocos = withCta(r.blocos_ajustados ?? []);
+    patchPD({
+      sugestoes_ponto_fraco: {
+        ...(pd.sugestoes_ponto_fraco ?? {}),
+        [ponto]: blocos,
+      },
+    });
+    await flush();
+  };
+
+  const aprovarSugestaoPontoFraco = async (ponto: string) => {
+    const sugestao = pd.sugestoes_ponto_fraco?.[ponto];
+    if (!sugestao || sugestao.length === 0) return;
+    // Aplica apenas os blocos cujo papel foi modificado pela sugestão
+    const papeisModificados = new Set(sugestao.map((b) => b.papel));
+    const next = blocosFinais.map((b) => {
+      if (!papeisModificados.has(b.papel)) return b;
+      const nova = sugestao.find((s) => s.papel === b.papel);
+      return nova ? { ...b, texto: nova.texto } : b;
+    });
+    patchPD({ blocos_salvos_usuario: next });
+    await flush();
+    toast.success("Sugestão aprovada");
   };
 
   const analisarRoteiro = async () => {
@@ -1988,8 +2185,24 @@ function Phase3({
               )}
               {blocosBase.length > 0 ? "Regerar esboço" : "Gerar esboço"}
             </Button>
-            <Button variant="outline" disabled={blocosBase.length === 0} onClick={() => setSub("ajustes")}>
-              Ir para ajustes
+            <Button
+              variant="outline"
+              disabled={blocosBase.length === 0}
+              onClick={async () => {
+                await salvarEsboco();
+                toast.success("Esboço salvo");
+              }}
+            >
+              Salvar rascunho
+            </Button>
+            <Button
+              disabled={blocosBase.length === 0}
+              onClick={async () => {
+                await salvarEsboco();
+                setSub("ajustes");
+              }}
+            >
+              Salvar esboço e ir para ajustes
             </Button>
           </div>
 
@@ -2046,6 +2259,50 @@ function Phase3({
       {/* 3c AJUSTES */}
       {sub === "ajustes" && (
         <div className="space-y-4">
+          <Card className="p-4 space-y-3 border-accent/40 bg-accent/5">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <div className="text-sm font-medium">Análise antes de ajustar</div>
+                <div className="text-xs text-muted-foreground">
+                  A IA aponta pontos a melhorar — você decide o que aplicar abaixo.
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={analisarAjustes}
+                disabled={loading === "phase3_adjust"}
+              >
+                {loading === "phase3_adjust" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                🔍 Analisar com IA
+              </Button>
+            </div>
+            {pd.analise_ajustes_ia && (
+              <div className="space-y-2 border-t pt-3">
+                {pd.analise_ajustes_ia.sugestoes && (
+                  <p className="text-sm leading-relaxed">{pd.analise_ajustes_ia.sugestoes}</p>
+                )}
+                {pd.analise_ajustes_ia.papeis_modificados &&
+                  pd.analise_ajustes_ia.papeis_modificados.length > 0 && (
+                    <div>
+                      <div className="text-xs uppercase opacity-60 mb-1">Sugestões por bloco</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {pd.analise_ajustes_ia.papeis_modificados.map((p) => (
+                          <Badge key={p} variant="outline" className="text-[10px]">
+                            {p}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+              </div>
+            )}
+          </Card>
+
           <Card
             className={cn(
               "p-4 space-y-2 border",
@@ -2114,8 +2371,17 @@ function Phase3({
               )}
               {protegido ? "Ir para revisão" : "Aplicar ajustes"}
             </Button>
-            <Button variant="outline" onClick={() => setSub("revisao")}>
-              Revisar roteiro final
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (pd.blocos_ajustados && pd.blocos_ajustados.length > 0) {
+                  patchPD({ blocos_salvos_usuario: withCta(pd.blocos_ajustados) });
+                  await flush();
+                }
+                setSub("revisao");
+              }}
+            >
+              Salvar ajustes e ir para Revisão
             </Button>
           </div>
 
@@ -2163,7 +2429,88 @@ function Phase3({
             <Button onClick={aprovarRoteiro}>Roteiro aprovado — ir para Produção</Button>
           </div>
 
-          {pd.revisao_ia && <ReviewCard r={pd.revisao_ia} />}
+          {pd.revisao_ia && (
+            <ReviewCard
+              r={pd.revisao_ia}
+              sugestoes={pd.sugestoes_ponto_fraco ?? {}}
+              loadingPonto={loading === "phase3_adjust"}
+              onSugerirPonto={sugerirParaPontoFraco}
+              onAprovarSugestao={aprovarSugestaoPontoFraco}
+            />
+          )}
+
+          {pd.revisao_ia && (
+            <Card className="p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div>
+                  <div className="text-sm font-medium">Cortar por tempo</div>
+                  <div className="text-xs text-muted-foreground">
+                    Tempo atual estimado:{" "}
+                    <span className="font-semibold tabular-nums">{tempoFinalSeconds}s</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs whitespace-nowrap">Reduzir para</Label>
+                  <Input
+                    type="number"
+                    min={15}
+                    value={targetSeconds}
+                    onChange={(e) => setTargetSeconds(Number(e.target.value) || 0)}
+                    className="w-20"
+                  />
+                  <span className="text-xs text-muted-foreground">seg</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={sugerirCortes}
+                    disabled={loading === "phase3_adjust"}
+                  >
+                    {loading === "phase3_adjust" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                    Sugerir cortes
+                  </Button>
+                </div>
+              </div>
+
+              {pd.sugestao_cortes?.blocos && pd.sugestao_cortes.blocos.length > 0 && (
+                <div className="space-y-2 border-t pt-3">
+                  <div className="text-xs uppercase font-medium opacity-60">
+                    Original vs. com cortes (alvo {pd.sugestao_cortes.target}s)
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <div className="text-[11px] uppercase opacity-60">Original</div>
+                      {blocosFinais.map((b, i) => (
+                        <Card key={i} className="p-2 text-xs space-y-1">
+                          <Badge variant="outline" className="text-[9px]">
+                            {papelLabel(b.papel)}
+                          </Badge>
+                          <p className="whitespace-pre-wrap">{b.texto}</p>
+                        </Card>
+                      ))}
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-[11px] uppercase opacity-60">Com cortes sugeridos</div>
+                      {pd.sugestao_cortes.blocos.map((b, i) => (
+                        <Card key={i} className="p-2 text-xs space-y-1 border-accent/40">
+                          <Badge variant="outline" className="text-[9px]">
+                            {papelLabel(b.papel)}
+                          </Badge>
+                          <p className="whitespace-pre-wrap">{b.texto}</p>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                  <Button size="sm" onClick={usarVersaoCortada}>
+                    Usar versão com cortes
+                  </Button>
+                </div>
+              )}
+            </Card>
+          )}
         </div>
       )}
 
@@ -2229,7 +2576,19 @@ function BlockReadEdit({ block, onSave }: { block: ScriptBlock; onSave: (t: stri
   );
 }
 
-function ReviewCard({ r }: { r: ReviewIA }) {
+function ReviewCard({
+  r,
+  sugestoes,
+  loadingPonto,
+  onSugerirPonto,
+  onAprovarSugestao,
+}: {
+  r: ReviewIA;
+  sugestoes?: Record<string, ScriptBlock[]>;
+  loadingPonto?: boolean;
+  onSugerirPonto?: (ponto: string, correcao: string) => void | Promise<void>;
+  onAprovarSugestao?: (ponto: string) => void | Promise<void>;
+}) {
   return (
     <Card className="p-5 space-y-4">
       <div className="flex items-baseline gap-3">
@@ -2249,15 +2608,50 @@ function ReviewCard({ r }: { r: ReviewIA }) {
         </div>
       )}
       {r.pontos_fracos && r.pontos_fracos.length > 0 && (
-        <div className="space-y-1">
+        <div className="space-y-2">
           <div className="text-xs uppercase text-amber-600 font-medium">Pontos fracos</div>
-          <ul className="text-sm space-y-2">
-            {r.pontos_fracos.map((p, i) => (
-              <li key={i}>
-                <span className="font-medium">{p.ponto}</span>
-                <div className="text-xs text-muted-foreground">↳ {p.correcao}</div>
-              </li>
-            ))}
+          <ul className="text-sm space-y-3">
+            {r.pontos_fracos.map((p, i) => {
+              const sug = sugestoes?.[p.ponto];
+              return (
+                <li key={i} className="space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="font-medium">{p.ponto}</span>
+                      <div className="text-xs text-muted-foreground">↳ {p.correcao}</div>
+                    </div>
+                    {onSugerirPonto && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={loadingPonto}
+                        onClick={() => onSugerirPonto(p.ponto, p.correcao)}
+                      >
+                        Ver como ficaria →
+                      </Button>
+                    )}
+                  </div>
+                  {sug && sug.length > 0 && (
+                    <Card className="p-3 space-y-2 bg-accent/5 border-accent/40">
+                      <div className="text-[11px] uppercase opacity-60">Sugestão para este ponto</div>
+                      {sug.map((b, j) => (
+                        <div key={j} className="text-xs space-y-1">
+                          <Badge variant="outline" className="text-[9px]">
+                            {papelLabel(b.papel)}
+                          </Badge>
+                          <p className="whitespace-pre-wrap">{b.texto}</p>
+                        </div>
+                      ))}
+                      {onAprovarSugestao && (
+                        <Button size="sm" onClick={() => onAprovarSugestao(p.ponto)}>
+                          Aprovar esta sugestão
+                        </Button>
+                      )}
+                    </Card>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
