@@ -132,6 +132,9 @@ type PerformanceAnalysis = {
   proximos_conteudos?: string;
   reuso_sugerido?: boolean;
   memoria_entrada?: Record<string, unknown>;
+  comparacao_posts?: string;
+  serie_proxima_sugestao?: string;
+  comentarios_para_conteudo?: { comentario: string; tema_sugerido: string }[];
 };
 
 const PHASES = [
