@@ -97,6 +97,9 @@ type Piece = {
   series_name: string | null;
   series_position: number | null;
   phase_data: PhaseData | null;
+  ai_memory: unknown;
+  teleprompter_font_size: number | null;
+  script: string | null;
   updated_at: string;
 };
 
