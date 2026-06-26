@@ -23,6 +23,7 @@ type Action =
   | "phase3_review"
   | "phase4_derivatives"
   | "generate_captions"
+  | "analyze_instagram_image"
   | "phase5_performance";
 
 const BLOCK_ROLES = ["Hook", "Contexto Emocional", "Microchoque", "Insight de Descoberta", "Resolução"];
@@ -215,23 +216,30 @@ JSON:
 
 
     case "phase5_performance":
-      return `Analise o desempenho real desta peça publicada.
+      return `Analise o desempenho real desta peça publicada, comparando com posts anteriores.
 
 - tema: ${payload.tema ?? "(vazio)"}
 - energia: ${payload.energia ?? "(nenhuma)"}
 - objetivo: ${payload.objetivo ?? "(vazio)"}
+- série: ${payload.series_name ?? "(nenhuma)"} ${payload.series_position ? "ep " + payload.series_position : ""}
 - roteiro (texto): ${payload.roteiro_texto ?? "(vazio)"}
-- métricas: ${JSON.stringify(payload.metricas ?? {})}
+- métricas detalhadas: ${JSON.stringify(payload.metricas ?? {})}
 - comentários recebidos: ${payload.comentarios ?? "(nenhum)"}
+- últimos 3 posts publicados (resumo): ${JSON.stringify(payload.historico_resumo ?? [])}
 - memória de peças anteriores: ${memoryBlock(payload.ai_memory)}
 
-Avalie o resultado de forma honesta e clínica. Identifique o que funcionou, o que não funcionou, e o que aplicar nas próximas peças. Se houver um ângulo forte que merece nova exploração, sinalize.
+Avalie de forma honesta e clínica. Compare com o histórico (saves, alcance, DMs). Se há série, sugira o próximo episódio. Identifique comentários que pedem uma resposta em forma de novo conteúdo (extraia até 3, com tema sugerido para cada).
 
 JSON:
 {
   "o_que_funcionou": [{"ponto": "string", "razao": "string"}],
   "o_que_nao_funcionou": [{"ponto": "string", "hipotese": "string", "correcao": "string"}],
   "proximos_conteudos": "string com sugestão aplicável",
+  "comparacao_posts": "string comparando esta peça com as anteriores | null",
+  "serie_proxima_sugestao": "string com tema do próximo episódio da série | null",
+  "comentarios_para_conteudo": [
+    {"comentario": "string", "tema_sugerido": "string"}
+  ],
   "reuso_sugerido": boolean,
   "memoria_entrada": {
     "tema": "string",
@@ -240,6 +248,10 @@ JSON:
     "aprendizado": "string curta com lição central"
   }
 }`;
+
+    case "analyze_instagram_image":
+      // handled separately in Deno.serve as multimodal call
+      return "";
   }
 }
 
@@ -257,6 +269,7 @@ Deno.serve(async (req) => {
       "phase3_review",
       "phase4_derivatives",
       "generate_captions",
+      "analyze_instagram_image",
       "phase5_performance",
     ];
     if (!action || !valid.includes(action)) {
@@ -268,6 +281,45 @@ Deno.serve(async (req) => {
 
     const userPrompt = promptFor(action as Action, payload ?? {});
 
+    let userContent: unknown = userPrompt;
+    if (action === "analyze_instagram_image") {
+      const imgB64 = (payload?.image_base64 as string) ?? "";
+      const imgType = (payload?.image_type as string) || "image/png";
+      if (!imgB64) {
+        return new Response(JSON.stringify({ error: "image_base64 ausente" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      userContent = [
+        {
+          type: "text",
+          text: `Esta é uma captura de tela do Instagram Insights (em português). Extraia os números visíveis para um post de Reel.
+
+Retorne APENAS JSON válido com os campos abaixo. Use null quando o campo não aparecer na imagem. Os números devem ser inteiros (interprete "1,2 mil" como 1200, "10K" como 10000, "1.5M" como 1500000).
+
+{
+  "visualizacoes": number | null,
+  "contas_alcancadas": number | null,
+  "seguidores_alcancados": number | null,
+  "nao_seguidores_alcancados": number | null,
+  "novos_seguidores": number | null,
+  "likes": number | null,
+  "comments": number | null,
+  "saves": number | null,
+  "shares": number | null,
+  "contas_engajamento": number | null,
+  "dms_recebidos": number | null,
+  "agendamentos": number | null
+}`,
+        },
+        {
+          type: "image_url",
+          image_url: { url: `data:${imgType};base64,${imgB64}` },
+        },
+      ];
+    }
+
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -278,7 +330,7 @@ Deno.serve(async (req) => {
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: BASE_CONTEXT },
-          { role: "user", content: userPrompt },
+          { role: "user", content: userContent },
         ],
         response_format: { type: "json_object" },
       }),
