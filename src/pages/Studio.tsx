@@ -2493,31 +2493,17 @@ function Phase3({
   openTeleOnMount?: boolean;
 }) {
   const qc = useQueryClient();
-  const [sub, setSub] = useState<"insights" | "esboco" | "ajustes" | "revisao">("insights");
+  const [sub, setSub] = useState<"insights" | "topicos" | "roteiro" | "revisao">("insights");
   const [loading, setLoading] = useState<string | null>(null);
   const [teleOpen, setTeleOpen] = useState(false);
-  const [insightsExpanded, setInsightsExpanded] = useState<string[]>([]);
   const instrucaoRef = useRef<HTMLTextAreaElement>(null);
+  const [targetSeconds, setTargetSeconds] = useState(90);
 
   useEffect(() => {
     if (openTeleOnMount) setTeleOpen(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const patchPD = (p: Partial<PhaseData>) => queue({ phase_data: { ...pd, ...p } });
-
-  const templatesQ = useQuery({
-    queryKey: ["script-templates"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("script_templates")
-        .select("id,name,description,structure")
-        .eq("is_active", true)
-        .order("name");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
 
   const callAI = async (action: string, payload: Record<string, unknown>) => {
     setLoading(action);
@@ -2537,7 +2523,19 @@ function Phase3({
     }
   };
 
-  /* ---------- 3a INSIGHTS ---------- */
+  const templatesQ = useQuery({
+    queryKey: ["script-templates"],
+    queryFn: async () => {
+      const { data } = await supabase.from("script_templates").select("id,name,description,structure").eq("is_active", true).order("name");
+      return data ?? [];
+    },
+  });
+
+  // ── ETAPA 1: INSIGHTS ──
+  const insights: Insight[] = pd.insights_gerados ?? [];
+  const aprovados: Insight[] = pd.insights_aprovados ?? [];
+  const isSelected = (id: string) => aprovados.some((i) => i.id === id);
+
   const gerarInsights = async () => {
     const result = await callAI("phase3_insights", {
       tema: piece.theme,
@@ -2551,14 +2549,11 @@ function Phase3({
       script_template: pd.template_selecionado ?? null,
     });
     if (!result) return;
-    const insights: Insight[] = (result as { insights?: Insight[] }).insights ?? [];
-    patchPD({ insights_gerados: insights });
+    const ins: Insight[] = (result as { insights?: Insight[] }).insights ?? [];
+    patchPD({ insights_gerados: ins });
     await flush();
   };
 
-  const insights = pd.insights_gerados ?? [];
-  const aprovados = pd.insights_aprovados ?? [];
-  const isSelected = (id: string) => aprovados.some((i) => i.id === id);
   const toggleInsight = (ins: Insight) => {
     if (!ins.id) return;
     const next = isSelected(ins.id)
@@ -2567,159 +2562,93 @@ function Phase3({
     patchPD({ insights_aprovados: next });
   };
 
-  /* ---------- 3b ESBOÇO ---------- */
-  const gerarEsboco = async () => {
+  // ── ETAPA 2: TÓPICOS ──
+  const topicos: string[] = pd.topicos_rascunho ?? [];
+
+  const gerarTopicos = async () => {
+    const result = await callAI("phase3_insights", {
+      tema: piece.theme,
+      energia: piece.energia,
+      creation_strategy: piece.creation_strategy,
+      objetivo: pd.objetivo,
+      conteudo: pd.conteudo,
+      insight_manual: pd.insight_manual ?? null,
+      insights_aprovados: aprovados,
+      conteudo_audiencia: pd.conteudo_audiencia,
+      ai_memory: piece.ai_memory,
+      modo: "topicos",
+    });
+    if (!result) return;
+    const ins = (result as { insights?: Insight[] }).insights ?? [];
+    const topics = ins.map((i) => i.frase_semente ?? i.titulo_angulo ?? "").filter(Boolean);
+    patchPD({ topicos_rascunho: topics.length > 0 ? topics : aprovados.map((i) => i.frase_semente ?? i.titulo_angulo ?? "") });
+    await flush();
+    toast.success("Tópicos gerados — edite antes de ir para o roteiro");
+  };
+
+  const atualizarTopico = (idx: number, valor: string) => {
+    const next = [...topicos];
+    next[idx] = valor;
+    patchPD({ topicos_rascunho: next });
+  };
+  const adicionarTopico = () => patchPD({ topicos_rascunho: [...topicos, ""] });
+  const removerTopico = (idx: number) => {
+    const next = topicos.filter((_, i) => i !== idx);
+    patchPD({ topicos_rascunho: next });
+  };
+
+  // ── ETAPA 3: ROTEIRO ──
+  const withCta = (blocos: ScriptBlock[]): ScriptBlock[] => {
+    if (blocos.some((b) => (b.papel ?? "").toLowerCase().includes("cta"))) return blocos;
+    return [...blocos, { papel: "CTA", texto: "", nota_gravacao: "Chamada para ação — escreva manualmente" }];
+  };
+
+  const blocosRoteiro: ScriptBlock[] = withCta(pd.blocos_salvos_usuario ?? pd.blocos_editados ?? pd.blocos_rascunho ?? []);
+  const totalSeconds = blocosRoteiro.reduce((acc, b) => acc + wordsAndSeconds(b.texto || "").seconds, 0);
+  const tempoOk = totalSeconds >= 75 && totalSeconds <= 105;
+
+  const gerarRoteiro = async () => {
     const result = await callAI("phase3_draft", {
       tema: piece.theme,
       energia: piece.energia,
       objetivo: pd.objetivo,
       conteudo: pd.conteudo,
-      insights_aprovados: pd.insight_manual
-        ? [...aprovados, { id: "manual", titulo_angulo: "Insight próprio", frase_semente: pd.insight_manual }]
-        : aprovados,
+      topicos_para_abordar: topicos,
+      insights_aprovados: aprovados,
       script_template: pd.template_selecionado ?? null,
     });
     if (!result) return;
     const blocos: ScriptBlock[] = withCta((result as { blocos?: ScriptBlock[] }).blocos ?? []);
-    patchPD({ blocos_rascunho: blocos, blocos_editados: blocos });
+    patchPD({ blocos_rascunho: blocos, blocos_editados: blocos, blocos_salvos_usuario: blocos });
     await flush();
   };
-
-  const blocosBase: ScriptBlock[] = withCta(pd.blocos_editados ?? pd.blocos_rascunho ?? []);
-  const totalSeconds = blocosBase.reduce((acc, b) => acc + wordsAndSeconds(b.texto || "").seconds, 0);
-  const tempoOk = totalSeconds >= 45 && totalSeconds <= 65;
 
   const editarBloco = (idx: number, texto: string) => {
-    const next = withCta(pd.blocos_editados ?? pd.blocos_rascunho ?? []).map((b, i) =>
-      i === idx ? { ...b, texto } : b,
-    );
-    patchPD({ blocos_editados: next });
+    const next = withCta([...blocosRoteiro]);
+    next[idx] = { ...next[idx], texto };
+    patchPD({ blocos_editados: next, blocos_salvos_usuario: next });
   };
 
-  const salvarEsboco = async () => {
-    const blocosLocais = withCta(pd.blocos_editados ?? pd.blocos_rascunho ?? []);
-    patchPD({ blocos_salvos_usuario: blocosLocais });
+  const salvarRoteiro = async () => {
+    patchPD({ blocos_salvos_usuario: blocosRoteiro });
     await flush();
+    toast.success("Roteiro salvo");
   };
 
-  /* ---------- 3c AJUSTES ---------- */
-  const ajustes = pd.ajustes_marcados ?? [];
-  const protegido = pd.roteiro_protegido === true;
-  const toggleAjuste = (a: string) => {
-    if (protegido) return;
-    const next = ajustes.includes(a) ? ajustes.filter((x) => x !== a) : [...ajustes, a];
-    patchPD({ ajustes_marcados: next });
-  };
-
-  // Base de ajustes: SEMPRE blocos_salvos_usuario quando existir.
-  const baseParaAjustes = (): ScriptBlock[] =>
-    withCta(pd.blocos_salvos_usuario ?? pd.blocos_editados ?? pd.blocos_rascunho ?? []);
-
-  const analisarAjustes = async () => {
-    const result = await callAI("phase3_adjust", {
-      blocos_atuais: baseParaAjustes(),
-      ajustes_marcados: [],
-      instrucao_livre:
-        "Faça uma análise dos pontos que poderiam ser melhorados neste roteiro, sem alterar nada ainda.",
-    });
-    if (!result) return;
-    const r = result as { blocos_ajustados?: ScriptBlock[]; papeis_modificados?: string[]; comentario?: string };
-    patchPD({
-      analise_ajustes_ia: {
-        papeis_modificados: r.papeis_modificados ?? [],
-        sugestoes: r.comentario ?? "",
-        blocos_sugeridos: r.blocos_ajustados ?? [],
-      },
-    });
-    await flush();
-  };
-
-  const aplicarAjustes = async () => {
-    if (protegido) {
-      setSub("revisao");
-      return;
-    }
-    const result = await callAI("phase3_adjust", {
-      blocos_atuais: baseParaAjustes(),
-      ajustes_marcados: ajustes,
-      instrucao_livre: pd.instrucao_ajuste_livre ?? "",
-    });
-    if (!result) return;
-    const r = result as { blocos_ajustados?: ScriptBlock[]; papeis_modificados?: string[] };
-    patchPD({
-      blocos_ajustados: withCta(r.blocos_ajustados ?? []),
-      papeis_modificados: r.papeis_modificados ?? [],
-    });
-    await flush();
-  };
-
-  /* ---------- 3d REVISÃO ---------- */
-  const blocosFinais: ScriptBlock[] = withCta(
-    pd.blocos_salvos_usuario ?? pd.blocos_ajustados ?? pd.blocos_editados ?? pd.blocos_rascunho ?? [],
-  );
-  const tempoFinalSeconds = blocosFinais.reduce(
-    (acc, b) => acc + wordsAndSeconds(b.texto || "").seconds,
-    0,
-  );
+  // ── ETAPA 4: REVISÃO ──
+  const blocosFinais: ScriptBlock[] = withCta(pd.blocos_salvos_usuario ?? pd.blocos_editados ?? pd.blocos_rascunho ?? []);
+  const tempoFinalSeconds = blocosFinais.reduce((acc, b) => acc + wordsAndSeconds(b.texto || "").seconds, 0);
 
   const editarBlocoFinal = (idx: number, texto: string) => {
-    const base = blocosFinais;
-    const next = base.map((b, i) => (i === idx ? { ...b, texto } : b));
-    patchPD({ blocos_salvos_usuario: next });
+    const base = [...blocosFinais];
+    base[idx] = { ...base[idx], texto };
+    patchPD({ blocos_salvos_usuario: base });
   };
 
-  const [targetSeconds, setTargetSeconds] = useState<number>(90);
-  const sugerirCortes = async () => {
-    const result = await callAI("phase3_adjust", {
-      blocos_atuais: blocosFinais,
-      ajustes_marcados: [],
-      instrucao_livre: `Sugira quais trechos cortar para reduzir o roteiro para ${targetSeconds} segundos. Não reescreva — apenas indique exatamente qual parte de cada bloco pode ser removida, mostrando o texto resultante.`,
-    });
-    if (!result) return;
-    const r = result as { blocos_ajustados?: ScriptBlock[] };
-    patchPD({ sugestao_cortes: { blocos: withCta(r.blocos_ajustados ?? []), target: targetSeconds } });
+  const salvarBlocoFinal = async () => {
+    patchPD({ blocos_salvos_usuario: blocosFinais });
     await flush();
-  };
-
-  const usarVersaoCortada = async () => {
-    const cortes = pd.sugestao_cortes?.blocos;
-    if (!cortes) return;
-    patchPD({ blocos_salvos_usuario: cortes, blocos_ajustados: cortes, sugestao_cortes: undefined });
-    await flush();
-    toast.success("Versão com cortes aplicada");
-  };
-
-  const sugerirParaPontoFraco = async (ponto: string, correcao: string) => {
-    const result = await callAI("phase3_adjust", {
-      blocos_atuais: blocosFinais,
-      ajustes_marcados: [ponto],
-      instrucao_livre: correcao,
-    });
-    if (!result) return;
-    const r = result as { blocos_ajustados?: ScriptBlock[] };
-    const blocos = withCta(r.blocos_ajustados ?? []);
-    patchPD({
-      sugestoes_ponto_fraco: {
-        ...(pd.sugestoes_ponto_fraco ?? {}),
-        [ponto]: blocos,
-      },
-    });
-    await flush();
-  };
-
-  const aprovarSugestaoPontoFraco = async (ponto: string) => {
-    const sugestao = pd.sugestoes_ponto_fraco?.[ponto];
-    if (!sugestao || sugestao.length === 0) return;
-    // Aplica apenas os blocos cujo papel foi modificado pela sugestão
-    const papeisModificados = new Set(sugestao.map((b) => b.papel));
-    const next = blocosFinais.map((b) => {
-      if (!papeisModificados.has(b.papel)) return b;
-      const nova = sugestao.find((s) => s.papel === b.papel);
-      return nova ? { ...b, texto: nova.texto } : b;
-    });
-    patchPD({ blocos_salvos_usuario: next });
-    await flush();
-    toast.success("Sugestão aprovada");
+    toast.success("Roteiro salvo");
   };
 
   const analisarRoteiro = async () => {
@@ -2732,10 +2661,9 @@ function Phase3({
       ai_memory: piece.ai_memory,
     });
     if (!result) return;
-    // Ignorar qualquer tentativa da IA de reescrever blocos — apenas comentário.
     const raw = result as Record<string, unknown>;
     const safe: ReviewIA = {
-      score_retencao: raw.score_retencao as number | undefined,
+      score_retencao: typeof raw.score_retencao === "number" ? raw.score_retencao : undefined,
       estimativa: raw.estimativa as ReviewIA["estimativa"],
       pontos_fortes: (raw.pontos_fortes as string[] | undefined) ?? [],
       pontos_fracos: (raw.pontos_fracos as ReviewIA["pontos_fracos"]) ?? [],
@@ -2746,13 +2674,57 @@ function Phase3({
     await flush();
   };
 
+  const sugerirCortes = async () => {
+    const result = await callAI("phase3_adjust", {
+      blocos_atuais: blocosFinais,
+      ajustes_marcados: [],
+      instrucao_livre: `Sugira quais trechos cortar para reduzir o roteiro para ${targetSeconds} segundos. Não reescreva — apenas mostre o texto resultante de cada bloco com os cortes aplicados.`,
+    });
+    if (!result) return;
+    const r = result as { blocos_ajustados?: ScriptBlock[] };
+    patchPD({ sugestao_cortes: { blocos: withCta(r.blocos_ajustados ?? []), target: targetSeconds } });
+    await flush();
+  };
+
+  const usarVersaoCortada = async () => {
+    const cortes = pd.sugestao_cortes?.blocos;
+    if (!cortes) return;
+    patchPD({ blocos_salvos_usuario: cortes, sugestao_cortes: undefined });
+    await flush();
+    toast.success("Versão com cortes salva");
+  };
+
+  const sugerirParaPontoFraco = async (ponto: string, correcao: string) => {
+    const result = await callAI("phase3_adjust", {
+      blocos_atuais: blocosFinais,
+      ajustes_marcados: [ponto],
+      instrucao_livre: correcao,
+    });
+    if (!result) return;
+    const r = result as { blocos_ajustados?: ScriptBlock[] };
+    patchPD({
+      sugestoes_ponto_fraco: { ...(pd.sugestoes_ponto_fraco ?? {}), [ponto]: withCta(r.blocos_ajustados ?? []) },
+    });
+    await flush();
+  };
+
+  const aprovarSugestaoPontoFraco = async (ponto: string) => {
+    const sugestao = pd.sugestoes_ponto_fraco?.[ponto];
+    if (!sugestao?.length) return;
+    const papeisModificados = new Set(sugestao.map((b) => b.papel));
+    const next = blocosFinais.map((b) => {
+      if (!papeisModificados.has(b.papel)) return b;
+      return sugestao.find((s) => s.papel === b.papel) ?? b;
+    });
+    patchPD({ blocos_salvos_usuario: next });
+    await flush();
+    toast.success("Sugestão aprovada");
+  };
+
   const aprovarRoteiro = async () => {
     const corrido = blocosFinais.map((b) => b.texto).join("\n\n");
     await flush();
-    await supabase
-      .from("content_pieces")
-      .update({ phase: 4, script: corrido } as never)
-      .eq("id", piece.id);
+    await supabase.from("content_pieces").update({ phase: 4, script: corrido } as never).eq("id", piece.id);
     qc.invalidateQueries({ queryKey: ["studio-piece", piece.id] });
     qc.invalidateQueries({ queryKey: ["studio-pieces"] });
     await onAdvance();
@@ -2763,7 +2735,6 @@ function Phase3({
     toast.success("Insights salvos para multiconteúdo");
   };
 
-
   const fontSize = piece.teleprompter_font_size ?? 32;
   const fontTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const setFont = (v: number) => {
@@ -2772,25 +2743,33 @@ function Phase3({
     fontTimer.current = setTimeout(flush, 500);
   };
 
-  const subTabs: { v: typeof sub; label: string }[] = [
-    { v: "insights", label: "Insights" },
-    { v: "esboco", label: "Esboço" },
-    { v: "ajustes", label: "Ajustes" },
-    { v: "revisao", label: "Revisão final" },
+  const subTabs = [
+    { v: "insights" as const, label: "1. Insights" },
+    { v: "topicos" as const, label: "2. Tópicos" },
+    { v: "roteiro" as const, label: "3. Roteiro" },
+    { v: "revisao" as const, label: "4. Revisão" },
+  ];
+
+  const ESTRUTURA_ROTEIRO = [
+    { papel: "Hook", desc: "Frase que para — por ser verdadeira, não dramática" },
+    { papel: "Contexto Emocional", desc: "Situar o que acontece. Emoção antes de informação." },
+    { papel: "Microchoque", desc: "Virada que quebra o previsível. Desloca perspectiva." },
+    { papel: "Insight de Descoberta", desc: "Percepção nova. Não é dica — é reconhecimento." },
+    { papel: "Resolução / Transformação", desc: "Abre direção. Conecta à tese da série." },
+    { papel: "CTA", desc: "Gera comentários — nunca venda direta." },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-1 border-b">
+      {/* Tabs */}
+      <div className="flex gap-1 border-b overflow-x-auto">
         {subTabs.map((t) => (
           <button
             key={t.v}
             onClick={() => setSub(t.v)}
             className={cn(
-              "px-3 py-2 text-sm border-b-2 -mb-px transition-colors",
-              sub === t.v
-                ? "border-accent text-foreground font-medium"
-                : "border-transparent text-muted-foreground hover:text-foreground",
+              "px-3 py-2 text-sm border-b-2 -mb-px transition-colors whitespace-nowrap",
+              sub === t.v ? "border-accent text-foreground font-medium" : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
             {t.label}
@@ -2798,32 +2777,21 @@ function Phase3({
         ))}
       </div>
 
-      {/* 3a INSIGHTS */}
+      {/* ── 1. INSIGHTS ── */}
       {sub === "insights" && (
         <div className="space-y-4">
           {(templatesQ.data ?? []).length > 0 && (
             <Card className="p-4 space-y-2">
-              <Label>Usar um modelo de roteiro?</Label>
+              <Label className="text-xs">Usar modelo de roteiro como referência?</Label>
               <Select
-                value={
-                  pd.template_selecionado
-                    ? JSON.stringify(pd.template_selecionado)
-                    : "__none__"
-                }
-                onValueChange={(v) => {
-                  if (v === "__none__") patchPD({ template_selecionado: null });
-                  else patchPD({ template_selecionado: JSON.parse(v) });
-                }}
+                value={pd.template_selecionado ? JSON.stringify(pd.template_selecionado) : "__none__"}
+                onValueChange={(v) => patchPD({ template_selecionado: v === "__none__" ? null : JSON.parse(v) })}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Nenhum" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Nenhum</SelectItem>
                   {(templatesQ.data ?? []).map((t: { id: string; name: string; structure: unknown }) => (
-                    <SelectItem key={t.id} value={JSON.stringify(t.structure)}>
-                      {t.name}
-                    </SelectItem>
+                    <SelectItem key={t.id} value={JSON.stringify(t.structure)}>{t.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -2832,37 +2800,28 @@ function Phase3({
 
           <div className="flex gap-3 flex-wrap">
             <Button onClick={gerarInsights} disabled={loading === "phase3_insights"}>
-              {loading === "phase3_insights" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
+              {loading === "phase3_insights" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               {insights.length > 0 ? "Regerar insights" : "Gerar insights"}
             </Button>
-            <Button
-              variant="outline"
-              disabled={aprovados.length === 0}
-              onClick={() => setSub("esboco")}
-            >
-              Gerar esboço com estes insights
-            </Button>
-            <Button
-              variant="outline"
-              disabled={aprovados.length === 0}
-              onClick={salvarMulticonteudo}
-            >
-              Salvar insights para multiconteúdo
-            </Button>
+            {aprovados.length > 0 && (
+              <Button variant="outline" onClick={() => setSub("topicos")}>
+                Continuar com {aprovados.length} insight{aprovados.length > 1 ? "s" : ""} →
+              </Button>
+            )}
+            {aprovados.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={salvarMulticonteudo}>
+                Salvar para multiconteúdo
+              </Button>
+            )}
           </div>
 
           {loading === "phase3_insights" && (
             <div className="grid md:grid-cols-2 gap-3">
-              {[1, 2, 3, 4].map((i) => (
-                <Card key={i} className="p-4 space-y-3">
+              {[1,2,3,4].map((i) => (
+                <Card key={i} className="p-4 space-y-2">
                   <Skeleton className="h-4 w-2/3" />
                   <Skeleton className="h-3 w-full" />
-                  <Skeleton className="h-3 w-5/6" />
-                  <Skeleton className="h-3 w-1/3" />
+                  <Skeleton className="h-3 w-4/5" />
                 </Card>
               ))}
             </div>
@@ -2873,56 +2832,23 @@ function Phase3({
               {insights.map((ins, idx) => {
                 const id = ins.id ?? String(idx);
                 const sel = isSelected(id);
-                const open = insightsExpanded.includes(id);
+                const insExt = ins as unknown as { revelacao?: string };
                 return (
-                  <Card
-                    key={id}
-                    className={cn(
-                      "p-4 space-y-3 transition-colors",
-                      sel ? "border-accent bg-accent/5" : "hover:border-accent/40",
-                    )}
-                  >
-                    <button
-                      type="button"
-                      className="w-full flex items-start justify-between gap-2 text-left"
-                      onClick={() =>
-                        setInsightsExpanded((cur) =>
-                          cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id],
-                        )
-                      }
-                    >
-                      <div className="flex items-center gap-2">
-                        {open ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
-                        <div className="font-medium text-sm">{ins.titulo_angulo}</div>
-                      </div>
+                  <Card key={id} className={cn("p-4 space-y-3 cursor-pointer transition-colors", sel ? "border-accent bg-accent/5" : "hover:border-accent/40")}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="font-medium text-sm flex-1">{ins.titulo_angulo}</div>
                       {energiaBadge(ins.energia_sugerida)}
-                    </button>
-                    {open && (
-                      <div className="space-y-2 pl-6">
-                        {ins.tensao && (
-                          <div className="text-xs">
-                            <span className="text-muted-foreground uppercase mr-1">Tensão:</span>
-                            {ins.tensao}
-                          </div>
-                        )}
-                        {ins.frase_semente && (
-                          <div className="text-sm italic">"{ins.frase_semente}"</div>
-                        )}
-                        {(ins as unknown as { revelacao?: string }).revelacao && (
-                          <div className="text-xs mt-1">
-                            <span className="text-muted-foreground uppercase mr-1">Revelação:</span>
-                            {(ins as unknown as { revelacao?: string }).revelacao}
-                          </div>
-                        )}
+                    </div>
+                    {ins.tensao && <p className="text-xs text-muted-foreground">{ins.tensao}</p>}
+                    {ins.frase_semente && <p className="text-sm italic border-l-2 border-accent/40 pl-2">"{ins.frase_semente}"</p>}
+                    {insExt.revelacao && (
+                      <div className="text-xs bg-muted/50 rounded p-2">
+                        <span className="font-medium">Revelação: </span>{insExt.revelacao}
                       </div>
                     )}
                     <label className="flex items-center gap-2 text-xs cursor-pointer pt-2 border-t">
                       <Checkbox checked={sel} onCheckedChange={() => toggleInsight({ ...ins, id })} />
-                      Selecionar este insight
+                      {sel ? "Selecionado ✓" : "Selecionar este insight"}
                     </label>
                   </Card>
                 );
@@ -2932,261 +2858,188 @@ function Phase3({
         </div>
       )}
 
-
-      {/* 3b ESBOÇO */}
-      {sub === "esboco" && (
+      {/* ── 2. TÓPICOS ── */}
+      {sub === "topicos" && (
         <div className="space-y-4">
+          <Card className="p-4 space-y-2 bg-muted/20">
+            <p className="text-sm text-muted-foreground">
+              Estes são os tópicos que precisam ser abordados no conteúdo — não o roteiro ainda. Edite, reordene, adicione ou remova antes de gerar o roteiro.
+            </p>
+            {aprovados.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <span className="text-xs text-muted-foreground">Insights aprovados:</span>
+                {aprovados.map((i) => (
+                  <Badge key={i.id} variant="outline" className="text-[10px]">{i.titulo_angulo}</Badge>
+                ))}
+              </div>
+            )}
+          </Card>
+
           <div className="flex gap-3 flex-wrap">
-            <Button onClick={gerarEsboco} disabled={loading === "phase3_draft"}>
-              {loading === "phase3_draft" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              {blocosBase.length > 0 ? "Regerar esboço" : "Gerar esboço"}
+            <Button variant="outline" onClick={gerarTopicos} disabled={loading === "phase3_insights"}>
+              {loading === "phase3_insights" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {topicos.length > 0 ? "Regerar tópicos" : "Gerar tópicos da IA"}
             </Button>
-            <Button
-              variant="outline"
-              disabled={blocosBase.length === 0}
-              onClick={async () => {
-                await salvarEsboco();
-                toast.success("Esboço salvo");
-              }}
-            >
-              Salvar rascunho
-            </Button>
-            <Button
-              disabled={blocosBase.length === 0}
-              onClick={async () => {
-                await salvarEsboco();
-                setSub("ajustes");
-              }}
-            >
-              Salvar esboço e ir para ajustes
+            <Button variant="ghost" size="sm" onClick={adicionarTopico}>
+              + Adicionar tópico manualmente
             </Button>
           </div>
 
-          {blocosBase.length > 0 && (
-            <Card className="p-4 space-y-2">
+          {topicos.length > 0 && (
+            <div className="space-y-2">
+              {topicos.map((t, idx) => (
+                <div key={idx} className="flex gap-2 items-start">
+                  <span className="text-xs text-muted-foreground pt-2.5 w-5 shrink-0">{idx + 1}.</span>
+                  <Textarea
+                    value={t}
+                    onChange={(e) => atualizarTopico(idx, e.target.value)}
+                    rows={2}
+                    placeholder={`Tópico ${idx + 1}...`}
+                    className="flex-1 text-sm"
+                  />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="shrink-0 mt-1 text-muted-foreground hover:text-destructive"
+                    onClick={() => removerTopico(idx)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {topicos.length === 0 && !loading && (
+            <Card className="p-6 text-center text-sm text-muted-foreground">
+              Clique em "Gerar tópicos" ou adicione manualmente o que precisa ser dito neste conteúdo.
+            </Card>
+          )}
+
+          {topicos.length > 0 && (
+            <div className="flex gap-3 pt-2">
+              <Button
+                onClick={async () => {
+                  patchPD({ topicos_rascunho: topicos });
+                  await flush();
+                  setSub("roteiro");
+                }}
+              >
+                Ir para o roteiro →
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── 3. ROTEIRO ── */}
+      {sub === "roteiro" && (
+        <div className="space-y-4">
+          <Card className="p-4 space-y-2 bg-muted/20">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Estrutura do roteiro</p>
+            <div className="grid sm:grid-cols-2 gap-1.5">
+              {ESTRUTURA_ROTEIRO.map((e) => (
+                <div key={e.papel} className="text-xs">
+                  <span className="font-medium">{e.papel}: </span>
+                  <span className="text-muted-foreground">{e.desc}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <div className="flex gap-3 flex-wrap">
+            <Button onClick={gerarRoteiro} disabled={loading === "phase3_draft"}>
+              {loading === "phase3_draft" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {blocosRoteiro.filter(b => b.texto).length > 0 ? "Regerar roteiro" : "Gerar roteiro"}
+            </Button>
+            {blocosRoteiro.filter(b => b.texto).length > 0 && (
+              <Button variant="outline" onClick={salvarRoteiro}>
+                Salvar roteiro
+              </Button>
+            )}
+          </div>
+
+          {blocosRoteiro.filter(b => b.texto).length > 0 && (
+            <Card className="p-3 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span>Tempo total estimado</span>
-                <span className={cn("font-semibold", tempoOk ? "text-emerald-600" : "text-red-500")}>
-                  {totalSeconds}s {tempoOk ? "✓" : "(ideal 45–65s)"}
+                <span className={cn("font-semibold tabular-nums", tempoOk ? "text-emerald-600" : "text-amber-600")}>
+                  {totalSeconds}s {tempoOk ? "✓ (~90s)" : "(ideal: 75-105s)"}
                 </span>
               </div>
-              <div className="h-2 rounded bg-muted overflow-hidden">
-                <div
-                  className={cn("h-full transition-all", tempoOk ? "bg-emerald-500" : "bg-red-500")}
-                  style={{ width: `${Math.min(100, (totalSeconds / 65) * 100)}%` }}
-                />
+              <div className="h-1.5 rounded bg-muted overflow-hidden">
+                <div className={cn("h-full transition-all", tempoOk ? "bg-emerald-500" : "bg-amber-500")} style={{ width: `${Math.min(100, (totalSeconds / 105) * 100)}%` }} />
               </div>
             </Card>
           )}
 
           <div className="space-y-3">
-            {blocosBase.map((b, idx) => {
+            {blocosRoteiro.map((b, idx) => {
               const { words, seconds } = wordsAndSeconds(b.texto || "");
+              const estrutura = ESTRUTURA_ROTEIRO.find(e => e.papel === b.papel);
               return (
                 <Card key={idx} className="p-4 space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <Badge variant="outline" className="text-[10px] uppercase">
-                      {papelLabel(b.papel)}
-                    </Badge>
-                    <div className="text-[11px] text-muted-foreground tabular-nums">
-                      {words} palavras · ~{seconds}s
+                    <div>
+                      <Badge variant="outline" className="text-[10px] uppercase">{papelLabel(b.papel)}</Badge>
+                      {estrutura && <span className="text-[10px] text-muted-foreground ml-2">{estrutura.desc}</span>}
                     </div>
+                    {b.texto && (
+                      <div className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+                        {words}p · ~{seconds}s
+                      </div>
+                    )}
                   </div>
                   <Textarea
                     value={b.texto}
                     onChange={(e) => editarBloco(idx, e.target.value)}
-                    rows={3}
-                    placeholder={
-                      (b.papel ?? "").toLowerCase() === "cta"
-                        ? "Escreva aqui a chamada para ação"
-                        : undefined
-                    }
+                    rows={b.papel === "CTA" ? 2 : 3}
+                    placeholder={(b.papel ?? "").toLowerCase() === "cta" ? "Escreva a chamada para ação — não use venda direta" : `Escreva o ${b.papel}...`}
                   />
-                  {b.nota_gravacao && (
+                  {b.nota_gravacao && b.papel !== "CTA" && (
                     <p className="text-[11px] text-muted-foreground italic">↳ {b.nota_gravacao}</p>
                   )}
                 </Card>
               );
             })}
           </div>
-        </div>
-      )}
 
-      {/* 3c AJUSTES */}
-      {sub === "ajustes" && (
-        <div className="space-y-4">
-          <Card className="p-4 space-y-3 border-accent/40 bg-accent/5">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <div className="text-sm font-medium">Análise antes de ajustar</div>
-                <div className="text-xs text-muted-foreground">
-                  A IA aponta pontos a melhorar — você decide o que aplicar abaixo.
-                </div>
-              </div>
+          {blocosRoteiro.filter(b => b.texto).length > 0 && (
+            <div className="flex gap-3 pt-2">
               <Button
-                size="sm"
-                variant="outline"
-                onClick={analisarAjustes}
-                disabled={loading === "phase3_adjust"}
+                onClick={async () => {
+                  await salvarRoteiro();
+                  setSub("revisao");
+                }}
               >
-                {loading === "phase3_adjust" ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4" />
-                )}
-                🔍 Analisar com IA
+                Salvar e ir para revisão →
               </Button>
             </div>
-            {pd.analise_ajustes_ia && (
-              <div className="space-y-2 border-t pt-3">
-                {pd.analise_ajustes_ia.sugestoes && (
-                  <p className="text-sm leading-relaxed">{pd.analise_ajustes_ia.sugestoes}</p>
-                )}
-                {pd.analise_ajustes_ia.papeis_modificados &&
-                  pd.analise_ajustes_ia.papeis_modificados.length > 0 && (
-                    <div>
-                      <div className="text-xs uppercase opacity-60 mb-1">Sugestões por bloco</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {pd.analise_ajustes_ia.papeis_modificados.map((p) => (
-                          <Badge key={p} variant="outline" className="text-[10px]">
-                            {p}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-              </div>
-            )}
-          </Card>
-
-          <Card
-            className={cn(
-              "p-4 space-y-2 border",
-              protegido ? "border-emerald-500/50 bg-emerald-500/10" : "border-border",
-            )}
-          >
-            <label className="flex items-center justify-between gap-3 cursor-pointer">
-              <span className="text-sm font-medium">Manter roteiro exatamente como está</span>
-              <Checkbox
-                checked={protegido}
-                onCheckedChange={(v) => patchPD({ roteiro_protegido: v === true })}
-              />
-            </label>
-            {protegido && (
-              <p className="text-xs text-emerald-700 dark:text-emerald-300">
-                Roteiro protegido. A IA não vai alterar nenhum bloco.
-              </p>
-            )}
-          </Card>
-
-          <Card className={cn("p-4 space-y-3", protegido && "opacity-50")}>
-            <Label>O que ajustar?</Label>
-            {AJUSTES_PRESET.map((a) => (
-              <label key={a} className="flex items-start gap-2 text-sm cursor-pointer">
-                <Checkbox
-                  checked={ajustes.includes(a)}
-                  onCheckedChange={() => toggleAjuste(a)}
-                  className="mt-0.5"
-                  disabled={protegido}
-                />
-                {a}
-              </label>
-            ))}
-          </Card>
-
-          <Card className={cn("p-4 space-y-2", protegido && "opacity-50")}>
-            <div className="flex items-center justify-between">
-              <Label>O que mais quer ajustar?</Label>
-              <VoiceButton
-                onResult={(spoken) => {
-                  if (protegido) return;
-                  const el = instrucaoRef.current;
-                  const prev = el?.value ?? pd.instrucao_ajuste_livre ?? "";
-                  const next = prev ? `${prev} ${spoken}`.trim() : spoken;
-                  if (el) el.value = next;
-                  patchPD({ instrucao_ajuste_livre: next });
-                }}
-              />
-            </div>
-            <Textarea
-              ref={instrucaoRef}
-              defaultValue={pd.instrucao_ajuste_livre ?? ""}
-              onChange={(e) => patchPD({ instrucao_ajuste_livre: e.target.value })}
-              rows={3}
-              placeholder="Instrução livre"
-              disabled={protegido}
-            />
-          </Card>
-
-          <div className="flex gap-3 flex-wrap">
-            <Button onClick={aplicarAjustes} disabled={loading === "phase3_adjust"}>
-              {loading === "phase3_adjust" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              {protegido ? "Ir para revisão" : "Aplicar ajustes"}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={async () => {
-                if (pd.blocos_ajustados && pd.blocos_ajustados.length > 0) {
-                  patchPD({ blocos_salvos_usuario: withCta(pd.blocos_ajustados) });
-                  await flush();
-                }
-                setSub("revisao");
-              }}
-            >
-              Salvar ajustes e ir para Revisão
-            </Button>
-          </div>
-
-          {pd.papeis_modificados && pd.papeis_modificados.length > 0 && (
-            <Card className="p-4 border-emerald-500/30 bg-emerald-500/5">
-              <div className="text-xs uppercase font-medium mb-1">Blocos modificados</div>
-              <div className="flex flex-wrap gap-1.5">
-                {pd.papeis_modificados.map((p) => (
-                  <Badge key={p} variant="outline" className="text-[10px]">
-                    {p}
-                  </Badge>
-                ))}
-              </div>
-            </Card>
           )}
         </div>
       )}
 
-      {/* 3d REVISÃO FINAL */}
+      {/* ── 4. REVISÃO ── */}
       {sub === "revisao" && (
         <div className="space-y-4">
           <div className="space-y-3">
             {blocosFinais.map((b, idx) => (
-              <BlockReadEdit
-                key={idx}
-                block={b}
-                onSave={(texto) => editarBlocoFinal(idx, texto)}
-              />
+              <BlockReadEdit key={idx} block={b} onSave={(texto) => editarBlocoFinal(idx, texto)} />
             ))}
           </div>
 
           <div className="flex gap-3 flex-wrap">
+            <Button variant="outline" onClick={salvarBlocoFinal}>
+              Salvar roteiro
+            </Button>
             <Button onClick={analisarRoteiro} disabled={loading === "phase3_review"}>
-              {loading === "phase3_review" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
+              {loading === "phase3_review" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               Análise da IA
             </Button>
             <Button variant="outline" onClick={() => setTeleOpen(true)}>
-              <Play className="h-4 w-4" />
-              Abrir Teleprompter
+              <Play className="h-4 w-4" /> Teleprompter
             </Button>
-            <Button onClick={aprovarRoteiro}>Roteiro aprovado — ir para Produção</Button>
+            <Button onClick={aprovarRoteiro}>Roteiro aprovado → Produção</Button>
           </div>
 
           {pd.revisao_ia && (
@@ -3199,78 +3052,54 @@ function Phase3({
             />
           )}
 
-          {pd.revisao_ia && (
-            <Card className="p-4 space-y-3">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div>
-                  <div className="text-sm font-medium">Cortar por tempo</div>
-                  <div className="text-xs text-muted-foreground">
-                    Tempo atual estimado:{" "}
-                    <span className="font-semibold tabular-nums">{tempoFinalSeconds}s</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs whitespace-nowrap">Reduzir para</Label>
-                  <Input
-                    type="number"
-                    min={15}
-                    value={targetSeconds}
-                    onChange={(e) => setTargetSeconds(Number(e.target.value) || 0)}
-                    className="w-20"
-                  />
-                  <span className="text-xs text-muted-foreground">seg</span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={sugerirCortes}
-                    disabled={loading === "phase3_adjust"}
-                  >
-                    {loading === "phase3_adjust" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4" />
-                    )}
-                    Sugerir cortes
-                  </Button>
+          <Card className="p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div>
+                <div className="text-sm font-medium">Cortar por tempo</div>
+                <div className="text-xs text-muted-foreground">
+                  Tempo atual: <span className="font-semibold tabular-nums">{tempoFinalSeconds}s</span>
                 </div>
               </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs whitespace-nowrap">Reduzir para</Label>
+                <Input type="number" min={15} value={targetSeconds} onChange={(e) => setTargetSeconds(Number(e.target.value) || 0)} className="w-20" />
+                <span className="text-xs text-muted-foreground">seg</span>
+                <Button size="sm" variant="outline" onClick={sugerirCortes} disabled={loading === "phase3_adjust"}>
+                  {loading === "phase3_adjust" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  Sugerir cortes
+                </Button>
+              </div>
+            </div>
 
-              {pd.sugestao_cortes && (
-                <div className="space-y-2 border-t pt-3">
-                  <div className="text-xs uppercase font-medium opacity-60">
-                    Original vs. com cortes (alvo {pd.sugestao_cortes.target}s)
+            {pd.sugestao_cortes && (
+              <div className="space-y-2 border-t pt-3">
+                <div className="text-xs uppercase font-medium opacity-60">Original vs. com cortes (alvo {pd.sugestao_cortes.target}s)</div>
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <div className="text-[11px] uppercase opacity-60">Original</div>
+                    {blocosFinais.map((b, i) => (
+                      <Card key={i} className="p-2 text-xs space-y-1">
+                        <Badge variant="outline" className="text-[9px]">{papelLabel(b.papel)}</Badge>
+                        <p className="whitespace-pre-wrap">{b.texto}</p>
+                      </Card>
+                    ))}
                   </div>
-                  <div className="grid md:grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <div className="text-[11px] uppercase opacity-60">Original</div>
-                      {blocosFinais.map((b, i) => (
-                        <Card key={i} className="p-2 text-xs space-y-1">
-                          <Badge variant="outline" className="text-[9px]">
-                            {papelLabel(b.papel)}
-                          </Badge>
-                          <p className="whitespace-pre-wrap">{b.texto}</p>
-                        </Card>
-                      ))}
-                    </div>
-                    <div className="space-y-2">
-                      <div className="text-[11px] uppercase opacity-60">Com cortes sugeridos</div>
-                      {pd.sugestao_cortes.blocos?.map((b, i) => (
-                        <Card key={i} className="p-2 text-xs space-y-1 border-accent/40">
-                          <Badge variant="outline" className="text-[9px]">
-                            {papelLabel(b.papel)}
-                          </Badge>
-                          <p className="whitespace-pre-wrap">{b.texto}</p>
-                        </Card>
-                      ))}
-                    </div>
+                  <div className="space-y-2">
+                    <div className="text-[11px] uppercase opacity-60">Com cortes sugeridos</div>
+                    {pd.sugestao_cortes.blocos?.map((b, i) => (
+                      <Card key={i} className="p-2 text-xs space-y-1 border-accent/40">
+                        <Badge variant="outline" className="text-[9px]">{papelLabel(b.papel)}</Badge>
+                        <p className="whitespace-pre-wrap">{b.texto}</p>
+                      </Card>
+                    ))}
                   </div>
-                  <Button size="sm" onClick={usarVersaoCortada}>
-                    Usar versão com cortes
-                  </Button>
                 </div>
-              )}
-            </Card>
-          )}
+                <Button size="sm" onClick={usarVersaoCortada}>
+                  Usar versão com cortes
+                </Button>
+              </div>
+            )}
+          </Card>
         </div>
       )}
 
@@ -3282,228 +3111,6 @@ function Phase3({
         onFontChange={setFont}
       />
     </div>
-  );
-}
-
-function BlockReadEdit({ block, onSave }: { block: ScriptBlock; onSave: (t: string) => void }) {
-  const [editing, setEditing] = useState(false);
-  const [local, setLocal] = useState(block.texto);
-  useEffect(() => setLocal(block.texto), [block.texto]);
-  return (
-    <Card className="p-4 space-y-2">
-      <div className="flex items-center justify-between">
-        <Badge variant="outline" className="text-[10px] uppercase">
-          {papelLabel(block.papel)}
-        </Badge>
-        <div className="flex items-center gap-1">
-          {editing && (
-            <VoiceButton
-              onResult={(spoken) =>
-                setLocal((prev) => (prev ? `${prev} ${spoken}`.trim() : spoken))
-              }
-            />
-          )}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              if (editing) onSave(local);
-              setEditing((v) => !v);
-            }}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            {editing ? "Salvar" : "Editar"}
-          </Button>
-        </div>
-      </div>
-      {editing ? (
-        <Textarea value={local} onChange={(e) => setLocal(e.target.value)} rows={3} />
-      ) : (
-        <p className="text-sm whitespace-pre-wrap">
-          {block.texto || (
-            <span className="italic text-muted-foreground">
-              {(block.papel ?? "").toLowerCase() === "cta"
-                ? "(CTA vazio — clique em Editar para escrever)"
-                : "(vazio)"}
-            </span>
-          )}
-        </p>
-      )}
-      {block.nota_gravacao && (
-        <p className="text-[11px] text-muted-foreground italic">↳ {block.nota_gravacao}</p>
-      )}
-    </Card>
-  );
-}
-
-function ReviewCard({
-  r,
-  sugestoes,
-  loadingPonto,
-  onSugerirPonto,
-  onAprovarSugestao,
-}: {
-  r: ReviewIA;
-  sugestoes?: Record<string, ScriptBlock[]>;
-  loadingPonto?: boolean;
-  onSugerirPonto?: (ponto: string, correcao: string) => void | Promise<void>;
-  onAprovarSugestao?: (ponto: string) => void | Promise<void>;
-}) {
-  return (
-    <Card className="p-5 space-y-4">
-      <div className="flex items-baseline gap-3">
-        <div className="text-4xl font-bold tabular-nums">{r.score_retencao ?? 0}</div>
-        <div className="text-sm text-muted-foreground">
-          retenção · estimativa <span className="font-medium uppercase">{r.estimativa ?? "?"}</span>
-        </div>
-      </div>
-      {r.pontos_fortes && r.pontos_fortes.length > 0 && (
-        <div className="space-y-1">
-          <div className="text-xs uppercase text-emerald-600 font-medium">Pontos fortes</div>
-          <ul className="text-sm list-disc pl-5 space-y-1">
-            {r.pontos_fortes.map((p, i) => (
-              <li key={i}>{p}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {r.pontos_fracos && r.pontos_fracos.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-xs uppercase text-amber-600 font-medium">Pontos fracos</div>
-          <ul className="text-sm space-y-3">
-            {r.pontos_fracos.map((p, i) => (
-              <li key={i} className="space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="font-medium">{p.ponto}</span>
-                      <div className="text-xs text-muted-foreground">↳ {p.correcao}</div>
-                    </div>
-                    {onSugerirPonto && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={loadingPonto}
-                        onClick={() => onSugerirPonto(p.ponto, p.correcao)}
-                      >
-                        Ver como ficaria →
-                      </Button>
-                    )}
-                  </div>
-                  {sugestoes?.[p.ponto] && (
-                    <div className="mt-2 p-3 rounded border bg-muted/30 space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">Como ficaria:</p>
-                      {sugestoes[p.ponto].map((bloco, bi) => (
-                        <div key={bi} className="text-sm">
-                          <span className="text-xs uppercase text-muted-foreground mr-1">{bloco.papel}:</span>
-                          {bloco.texto}
-                        </div>
-                      ))}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onAprovarSugestao?.(p.ponto)}
-                      >
-                        Aprovar esta sugestão
-                      </Button>
-                    </div>
-                  )}
-                </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {r.alerta_posicionamento && (
-        <div className="text-sm border border-red-500/40 bg-red-500/5 rounded p-3">
-          <span className="text-xs uppercase text-red-600 font-medium mr-2">Alerta de posicionamento</span>
-          {r.alerta_posicionamento}
-        </div>
-      )}
-      {r.comentario_final && <p className="text-sm border-t pt-3">{r.comentario_final}</p>}
-    </Card>
-  );
-}
-
-function Teleprompter({
-  open,
-  onOpenChange,
-  text,
-  fontSize,
-  onFontChange,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  text: string;
-  fontSize: number;
-  onFontChange: (v: number) => void;
-}) {
-  const [mirrored, setMirrored] = useState(false);
-  const [vertical, setVertical] = useState(false);
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="p-0 bg-black text-white border-0 rounded-lg flex flex-col overflow-hidden"
-        style={{ width: "390px", height: "680px", maxWidth: "95vw", maxHeight: "95vh" }}
-        onInteractOutside={(e) => e.preventDefault()}
-      >
-        {/* Controles */}
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 shrink-0">
-          <span className="text-xs opacity-60 w-12 shrink-0">{fontSize}px</span>
-          <Slider
-            min={16}
-            max={56}
-            step={1}
-            value={[fontSize]}
-            onValueChange={(v) => onFontChange(v[0])}
-            className="flex-1"
-          />
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setMirrored((v) => !v)}
-            className={`text-xs px-2 shrink-0 ${mirrored ? "text-yellow-400" : "text-white/60"}`}
-            title="Espelhar texto (para uso em teleprompter físico)"
-          >
-            ↔ Espelho
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setVertical((v) => !v)}
-            className={`text-xs px-2 shrink-0 ${vertical ? "text-yellow-400" : "text-white/60"}`}
-            title="Girar texto 90°"
-          >
-            ↻ Girar
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            className="text-white/60 hover:text-white shrink-0"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {/* Texto */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div
-            className="leading-relaxed whitespace-pre-wrap"
-            style={{
-              fontSize: `${fontSize}px`,
-              transform: [
-                mirrored ? "scaleX(-1)" : "",
-                vertical ? "rotate(90deg)" : "",
-              ].filter(Boolean).join(" ") || "none",
-              transformOrigin: "center center",
-              display: "block",
-            }}
-          >
-            {text || "(roteiro vazio)"}
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }
 
