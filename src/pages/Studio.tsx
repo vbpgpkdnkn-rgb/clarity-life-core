@@ -2563,7 +2563,7 @@ function Phase3({
   };
 
   // ── ETAPA 2: TÓPICOS ──
-  const topicos: string[] = pd.topicos_rascunho ?? [];
+  const topicos: string[] = (pd.topicos_rascunho as string[] | undefined) ?? [];
 
   const gerarTopicos = async () => {
     const result = await callAI("phase3_insights", {
