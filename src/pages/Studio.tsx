@@ -224,13 +224,10 @@ export default function Studio() {
 
   const createMut = useMutation({
     mutationFn: async () => {
-      const { data: userRes } = await supabase.auth.getUser();
-      const uid = userRes.user?.id;
-      if (!uid) throw new Error("Sem sessão");
       const title = `Nova peça ${new Date().toLocaleString("pt-BR")}`;
       const { data, error } = await supabase
         .from("content_pieces")
-        .insert({ user_id: uid, title, phase: 1, status: "ideia", scope: "profissional" } as never)
+        .insert({ title, phase: 1, status: "ideia", scope: "profissional" } as never)
         .select("id")
         .single();
       if (error) throw error;
@@ -2280,13 +2277,9 @@ function Phase5({
 
   const createReuseMut = useMutation({
     mutationFn: async () => {
-      const { data: userRes } = await supabase.auth.getUser();
-      const uid = userRes.user?.id;
-      if (!uid) throw new Error("Sem sessão");
       const { data, error } = await supabase
         .from("content_pieces")
         .insert({
-          user_id: uid,
           title: (piece.title ?? "Nova peça") + " (novo ângulo)",
           theme: (piece.theme ?? "") + " (novo ângulo)",
           phase: 1,
