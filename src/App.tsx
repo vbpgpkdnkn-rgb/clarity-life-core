@@ -21,7 +21,7 @@ import Metas from "./pages/Metas";
 import MetaDetalhe from "./pages/MetaDetalhe";
 import Financeiro from "./pages/Financeiro";
 import VisaoAnual from "./pages/VisaoAnual";
-import Conteudo from "./pages/Conteudo";
+import Studio from "./pages/Studio";
 import Vida from "./pages/Vida";
 import VidaAreas from "./pages/VidaAreas";
 import VidaDreamboard from "./pages/VidaDreamboard";
@@ -77,7 +77,7 @@ const App = () => (
                       <Route path="/metas/:id" element={<MetaDetalhe />} />
                       <Route path="/financeiro" element={<Financeiro />} />
                       <Route path="/anual" element={<VisaoAnual />} />
-                      <Route path="/conteudo" element={<Conteudo />} />
+                      <Route path="/studio" element={<Studio />} />
                       <Route path="/vida" element={<Vida />} />
                       <Route path="/vida/areas" element={<VidaAreas />} />
                       <Route path="/vida/dreamboard" element={<VidaDreamboard />} />
