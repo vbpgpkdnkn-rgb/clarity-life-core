@@ -1313,6 +1313,27 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_story_plans: {
+        Row: {
+          created_at: string
+          date: string
+          slots: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          slots?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          slots?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       dreamboard_items: {
         Row: {
           achieved: boolean
