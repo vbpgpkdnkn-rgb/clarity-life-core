@@ -3235,7 +3235,7 @@ function Phase3({
                 </div>
               </div>
 
-              {pd.sugestao_cortes?.blocos && pd.sugestao_cortes.blocos.length > 0 && (
+              {pd.sugestao_cortes && (
                 <div className="space-y-2 border-t pt-3">
                   <div className="text-xs uppercase font-medium opacity-60">
                     Original vs. com cortes (alvo {pd.sugestao_cortes.target}s)
@@ -3254,7 +3254,7 @@ function Phase3({
                     </div>
                     <div className="space-y-2">
                       <div className="text-[11px] uppercase opacity-60">Com cortes sugeridos</div>
-                      {pd.sugestao_cortes.blocos.map((b, i) => (
+                      {pd.sugestao_cortes.blocos?.map((b, i) => (
                         <Card key={i} className="p-2 text-xs space-y-1 border-accent/40">
                           <Badge variant="outline" className="text-[9px]">
                             {papelLabel(b.papel)}
