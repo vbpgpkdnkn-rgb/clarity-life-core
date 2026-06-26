@@ -21,7 +21,8 @@ type Action =
   | "phase3_draft"
   | "phase3_adjust"
   | "phase3_review"
-  | "phase4_derivatives";
+  | "phase4_derivatives"
+  | "phase5_performance";
 
 const BLOCK_ROLES = ["Hook", "Contexto Emocional", "Microchoque", "Insight de Descoberta", "Resolução"];
 
