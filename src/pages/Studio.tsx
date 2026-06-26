@@ -2174,6 +2174,12 @@ function Phase1({
               <p className="text-sm leading-relaxed">{pd.ia_leitura_fase1.observacao}</p>
             </div>
           )}
+          {pd.ia_leitura_fase1.caminho_narrativo && (
+            <div>
+              <span className="text-xs font-medium opacity-60 block mb-1">Caminho sugerido</span>
+              <p className="text-sm leading-relaxed font-medium">{pd.ia_leitura_fase1.caminho_narrativo}</p>
+            </div>
+          )}
           {pd.ia_leitura_fase1.padroes_audiencia && (
             <div>
               <span className="text-xs font-medium opacity-60 block mb-1">Padrão da audiência</span>
@@ -2182,6 +2188,20 @@ function Phase1({
           )}
         </div>
       )}
+
+      <div className="space-y-2">
+        <Label className="text-xs">Adicionar insight próprio (opcional)</Label>
+        <div className="flex gap-2">
+          <Textarea
+            placeholder="Se nenhum caminho da IA serviu, escreva aqui o que você quer explorar..."
+            rows={2}
+            defaultValue={pd.insight_manual ?? ""}
+            onChange={(e) => patchPD({ insight_manual: e.target.value })}
+            className="flex-1"
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">Este insight será usado na geração de esboço junto com os selecionados.</p>
+      </div>
     </div>
   );
 }
