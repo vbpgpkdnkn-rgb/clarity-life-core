@@ -1461,6 +1461,13 @@ function Phase3({
             >
               Gerar esboço com estes insights
             </Button>
+            <Button
+              variant="outline"
+              disabled={aprovados.length === 0}
+              onClick={salvarMulticonteudo}
+            >
+              Salvar insights para multiconteúdo
+            </Button>
           </div>
 
           {loading === "phase3_insights" && (
@@ -1481,27 +1488,46 @@ function Phase3({
               {insights.map((ins, idx) => {
                 const id = ins.id ?? String(idx);
                 const sel = isSelected(id);
+                const open = insightsExpanded.includes(id);
                 return (
                   <Card
                     key={id}
                     className={cn(
-                      "p-4 space-y-3 cursor-pointer transition-colors",
+                      "p-4 space-y-3 transition-colors",
                       sel ? "border-accent bg-accent/5" : "hover:border-accent/40",
                     )}
-                    onClick={() => toggleInsight({ ...ins, id })}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="font-medium text-sm">{ins.titulo_angulo}</div>
-                      {energiaBadge(ins.energia_sugerida)}
-                    </div>
-                    {ins.tensao && (
-                      <div className="text-xs">
-                        <span className="text-muted-foreground uppercase mr-1">Tensão:</span>
-                        {ins.tensao}
+                    <button
+                      type="button"
+                      className="w-full flex items-start justify-between gap-2 text-left"
+                      onClick={() =>
+                        setInsightsExpanded((cur) =>
+                          cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id],
+                        )
+                      }
+                    >
+                      <div className="flex items-center gap-2">
+                        {open ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                        <div className="font-medium text-sm">{ins.titulo_angulo}</div>
                       </div>
-                    )}
-                    {ins.frase_semente && (
-                      <div className="text-sm italic">"{ins.frase_semente}"</div>
+                      {energiaBadge(ins.energia_sugerida)}
+                    </button>
+                    {open && (
+                      <div className="space-y-2 pl-6">
+                        {ins.tensao && (
+                          <div className="text-xs">
+                            <span className="text-muted-foreground uppercase mr-1">Tensão:</span>
+                            {ins.tensao}
+                          </div>
+                        )}
+                        {ins.frase_semente && (
+                          <div className="text-sm italic">"{ins.frase_semente}"</div>
+                        )}
+                      </div>
                     )}
                     <label className="flex items-center gap-2 text-xs cursor-pointer pt-2 border-t">
                       <Checkbox checked={sel} onCheckedChange={() => toggleInsight({ ...ins, id })} />
@@ -1514,6 +1540,7 @@ function Phase3({
           )}
         </div>
       )}
+
 
       {/* 3b ESBOÇO */}
       {sub === "esboco" && (
