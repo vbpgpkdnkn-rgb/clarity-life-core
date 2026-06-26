@@ -26,6 +26,7 @@ import {
   Play,
   Plus,
   Sparkles,
+  Upload,
   X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
