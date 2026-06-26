@@ -1585,7 +1585,7 @@ function Phase3({
                 <Card key={idx} className="p-4 space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <Badge variant="outline" className="text-[10px] uppercase">
-                      {b.papel}
+                      {papelLabel(b.papel)}
                     </Badge>
                     <div className="text-[11px] text-muted-foreground tabular-nums">
                       {words} palavras · ~{seconds}s
@@ -1595,6 +1595,11 @@ function Phase3({
                     value={b.texto}
                     onChange={(e) => editarBloco(idx, e.target.value)}
                     rows={3}
+                    placeholder={
+                      (b.papel ?? "").toLowerCase() === "cta"
+                        ? "Escreva aqui a chamada para ação"
+                        : undefined
+                    }
                   />
                   {b.nota_gravacao && (
                     <p className="text-[11px] text-muted-foreground italic">↳ {b.nota_gravacao}</p>
