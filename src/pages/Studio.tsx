@@ -109,7 +109,18 @@ type Piece = {
   carousel_script: string | null;
   stories_script: string | null;
   debate_caption: string | null;
+  published_at: string | null;
+  performance_analysis: PerformanceAnalysis | null;
+  parent_piece_id: string | null;
   updated_at: string;
+};
+
+type PerformanceAnalysis = {
+  o_que_funcionou?: { ponto: string; razao: string }[];
+  o_que_nao_funcionou?: { ponto: string; hipotese: string; correcao: string }[];
+  proximos_conteudos?: string;
+  reuso_sugerido?: boolean;
+  memoria_entrada?: Record<string, unknown>;
 };
 
 const PHASES = [
