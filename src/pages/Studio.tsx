@@ -2828,7 +2828,7 @@ function Phase5({
         for (const [dbKey, apiKey] of mapDb) {
           const v = num(r[apiKey]);
           if (v !== undefined) {
-            next[dbKey] = v;
+            (next as Record<string, unknown>)[dbKey as string] = v;
             filled.add(dbKey as MetricKey);
           }
         }
