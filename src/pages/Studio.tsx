@@ -157,6 +157,80 @@ const METAS_RESULTADO = [
   "Engajamento nos comentários",
 ];
 
+const INTENCOES_USO = [
+  { v: "identificacao", label: "🎯 Identificação", desc: "a pessoa vai se reconhecer" },
+  { v: "ensino", label: "📚 Ensino", desc: "vou explicar algo que ela não sabe nomear" },
+  { v: "insight", label: "💡 Insight", desc: "vou virar a perspectiva dela" },
+  { v: "debate", label: "🔥 Debate", desc: "quero provocar reação e comentários" },
+  { v: "conexao", label: "🤝 Conexão", desc: "quero aproximar e gerar DM" },
+];
+
+function VoiceButton({
+  onResult,
+}: {
+  onResult: (text: string) => void;
+}) {
+  const SR =
+    typeof window !== "undefined"
+      ? ((window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
+          .SpeechRecognition ??
+          (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition)
+      : undefined;
+  const supported = !!SR;
+  const [recording, setRecording] = useState(false);
+  const recRef = useRef<{ stop: () => void } | null>(null);
+
+  const toggle = () => {
+    if (!supported) return;
+    if (recording) {
+      recRef.current?.stop();
+      return;
+    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rec = new (SR as any)();
+      rec.lang = "pt-BR";
+      rec.continuous = false;
+      rec.interimResults = false;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      rec.onresult = (ev: any) => {
+        const text = ev.results?.[0]?.[0]?.transcript ?? "";
+        if (text) onResult(text);
+      };
+      rec.onend = () => setRecording(false);
+      rec.onerror = () => setRecording(false);
+      recRef.current = rec;
+      rec.start();
+      setRecording(true);
+    } catch {
+      setRecording(false);
+    }
+  };
+
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="ghost"
+      disabled={!supported}
+      onClick={toggle}
+      className={cn("h-7 px-2", recording && "text-red-500")}
+      title={supported ? (recording ? "Parar" : "Ditar por voz") : "Voz não suportada"}
+    >
+      {recording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+    </Button>
+  );
+}
+
+function LabelRow({ children, onVoice }: { children: React.ReactNode; onVoice: (t: string) => void }) {
+  return (
+    <div className="flex items-center justify-between">
+      <Label>{children}</Label>
+      <VoiceButton onResult={onVoice} />
+    </div>
+  );
+}
+
 const energiaBadge = (energia: string | null | undefined) => {
   if (!energia) return null;
   const map: Record<string, string> = {
