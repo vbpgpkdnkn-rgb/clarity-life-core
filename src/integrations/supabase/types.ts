@@ -1095,6 +1095,42 @@ export type Database = {
         }
         Relationships: []
       }
+      content_series: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          instagram_url: string | null
+          name: string
+          started_at: string | null
+          status: string
+          total_episodes_planned: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          instagram_url?: string | null
+          name: string
+          started_at?: string | null
+          status?: string
+          total_episodes_planned?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          instagram_url?: string | null
+          name?: string
+          started_at?: string | null
+          status?: string
+          total_episodes_planned?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       content_stories: {
         Row: {
           created_at: string
