@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
 import {
   ArrowLeft,
+  Check,
   ChevronDown,
   ChevronRight,
   Clapperboard,
@@ -241,10 +242,19 @@ export default function Studio() {
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
-  const columns = useMemo(() => {
+  const [filter, setFilter] = useState<"todos" | "tema" | "estrategia" | "roteiro" | "producao" | "publicados">("todos");
+
+  const filtered = useMemo(() => {
     const items = piecesQ.data ?? [];
-    return PHASES.map((p) => ({ ...p, items: items.filter((it) => (it.phase ?? 1) === p.n) }));
-  }, [piecesQ.data]);
+    switch (filter) {
+      case "tema": return items.filter((it) => (it.phase ?? 1) === 1);
+      case "estrategia": return items.filter((it) => (it.phase ?? 1) === 2);
+      case "roteiro": return items.filter((it) => (it.phase ?? 1) === 3);
+      case "producao": return items.filter((it) => (it.phase ?? 1) === 4);
+      case "publicados": return items.filter((it) => it.status === "publicado");
+      default: return items;
+    }
+  }, [piecesQ.data, filter]);
 
   return (
     <AppLayout>
@@ -265,63 +275,80 @@ export default function Studio() {
               </Button>
             </div>
 
-            <div className="flex gap-4 overflow-x-auto pb-4">
-              {columns.map((col) => (
-                <div key={col.n} className="min-w-[260px] w-[260px] flex-shrink-0">
-                  <div className="flex items-center justify-between mb-2 px-1">
-                    <h2 className="text-sm font-medium">
-                      <span className="text-muted-foreground mr-1.5">{col.n}.</span>
-                      {col.label}
-                    </h2>
-                    <Badge variant="outline" className="text-[10px]">
-                      {col.items.length}
-                    </Badge>
-                  </div>
-                  <div className="space-y-2 min-h-[100px]">
-                    {col.items.length === 0 ? (
-                      <div className="text-xs text-muted-foreground italic px-2 py-6 text-center border border-dashed rounded-md">
-                        vazio
-                      </div>
-                    ) : (
-                      col.items.map((it) => (
-                        <Card
-                          key={it.id}
-                          onClick={() => {
-                            setActiveId(it.id);
-                            setView("foco");
-                          }}
-                          className="p-3 cursor-pointer hover:border-accent transition-colors space-y-2"
-                        >
-                          <div className="text-sm font-medium line-clamp-2">{it.title ?? "Sem título"}</div>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {energiaBadge(it.energia)}
-                            {it.creation_strategy && (
-                              <Badge variant="outline" className="text-[10px] capitalize">
-                                {it.creation_strategy}
-                              </Badge>
-                            )}
-                            {it.planned_date && (
-                              <span className="text-[10px] text-muted-foreground">
-                                {formatDate(it.planned_date)}
-                              </span>
-                            )}
-                          </div>
-                          {it.series_name && (
-                            <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                              <Film className="h-3 w-3" />
-                              <span className="truncate">
-                                {it.series_name}
-                                {it.series_position ? ` · ep ${it.series_position}` : ""}
-                              </span>
-                            </div>
-                          )}
-                        </Card>
-                      ))
-                    )}
-                  </div>
-                </div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: "todos", label: "Todos" },
+                { key: "tema", label: "Tema" },
+                { key: "estrategia", label: "Estratégia" },
+                { key: "roteiro", label: "Roteiro" },
+                { key: "producao", label: "Produção" },
+                { key: "publicados", label: "Publicados" },
+              ].map((tab) => (
+                <Button
+                  key={tab.key}
+                  variant={filter === tab.key ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFilter(tab.key as typeof filter)}
+                >
+                  {tab.label}
+                </Button>
               ))}
             </div>
+
+            {filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <p className="text-muted-foreground">Nenhuma peça aqui ainda</p>
+                <Button onClick={() => createMut.mutate()} disabled={createMut.isPending}>
+                  <Plus className="h-4 w-4" />
+                  Criar primeira peça
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filtered.map((it) => (
+                  <Card
+                    key={it.id}
+                    onClick={() => {
+                      setActiveId(it.id);
+                      setView("foco");
+                    }}
+                    className={cn(
+                      "p-4 cursor-pointer hover:border-accent transition-colors space-y-2 relative",
+                      it.status === "publicado" && "opacity-60"
+                    )}
+                  >
+                    {it.status === "publicado" && (
+                      <div className="absolute top-2 right-2">
+                        <Check className="h-4 w-4 text-emerald-500" />
+                      </div>
+                    )}
+                    <div className="text-sm font-semibold line-clamp-2">{it.title ?? "Sem título"}</div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {energiaBadge(it.energia)}
+                      {it.creation_strategy && (
+                        <Badge variant="outline" className="text-[10px] capitalize">
+                          {it.creation_strategy}
+                        </Badge>
+                      )}
+                      {it.planned_date && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {formatDate(it.planned_date)}
+                        </span>
+                      )}
+                    </div>
+                    {it.series_name && (
+                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <Film className="h-3 w-3" />
+                        <span className="truncate">
+                          {it.series_name}
+                          {it.series_position ? ` · ep ${it.series_position}` : ""}
+                        </span>
+                      </div>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            )}
           </>
         ) : (
           <FocoView
