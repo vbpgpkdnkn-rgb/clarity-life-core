@@ -2566,9 +2566,51 @@ function PostProductionSub({
         </DerivativeBlock>
       </Card>
 
-      <Button size="lg" onClick={onReady}>
-        Pronto para postar
-      </Button>
+      <Card className="p-5 space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={async () => {
+              queue({ pipeline_stage: "pronto_postar" });
+              await flush();
+              toast.success("Marcado como pronto para postar");
+            }}
+          >
+            Pronto para postar
+          </Button>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Data e hora de publicação</Label>
+          <Input
+            type="datetime-local"
+            value={publishAt}
+            onChange={(e) => setPublishAt(e.target.value)}
+            className="max-w-xs"
+          />
+        </div>
+
+        <Button
+          size="lg"
+          disabled={publishing}
+          onClick={async () => {
+            setPublishing(true);
+            try {
+              const iso = new Date(publishAt).toISOString();
+              await onReady(iso);
+              toast.success("Publicação confirmada");
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Falha");
+            } finally {
+              setPublishing(false);
+            }
+          }}
+        >
+          {publishing && <Loader2 className="h-4 w-4 animate-spin" />}
+          Confirmar publicação
+        </Button>
+      </Card>
     </div>
   );
 }
