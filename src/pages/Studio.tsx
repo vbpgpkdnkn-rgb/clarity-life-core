@@ -1754,24 +1754,41 @@ function BlockReadEdit({ block, onSave }: { block: ScriptBlock; onSave: (t: stri
     <Card className="p-4 space-y-2">
       <div className="flex items-center justify-between">
         <Badge variant="outline" className="text-[10px] uppercase">
-          {block.papel}
+          {papelLabel(block.papel)}
         </Badge>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => {
-            if (editing) onSave(local);
-            setEditing((v) => !v);
-          }}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-          {editing ? "Salvar" : "Editar"}
-        </Button>
+        <div className="flex items-center gap-1">
+          {editing && (
+            <VoiceButton
+              onResult={(spoken) =>
+                setLocal((prev) => (prev ? `${prev} ${spoken}`.trim() : spoken))
+              }
+            />
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              if (editing) onSave(local);
+              setEditing((v) => !v);
+            }}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            {editing ? "Salvar" : "Editar"}
+          </Button>
+        </div>
       </div>
       {editing ? (
         <Textarea value={local} onChange={(e) => setLocal(e.target.value)} rows={3} />
       ) : (
-        <p className="text-sm whitespace-pre-wrap">{block.texto}</p>
+        <p className="text-sm whitespace-pre-wrap">
+          {block.texto || (
+            <span className="italic text-muted-foreground">
+              {(block.papel ?? "").toLowerCase() === "cta"
+                ? "(CTA vazio — clique em Editar para escrever)"
+                : "(vazio)"}
+            </span>
+          )}
+        </p>
       )}
       {block.nota_gravacao && (
         <p className="text-[11px] text-muted-foreground italic">↳ {block.nota_gravacao}</p>
