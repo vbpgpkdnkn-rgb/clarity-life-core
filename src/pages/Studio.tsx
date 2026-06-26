@@ -32,6 +32,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { MicButton } from "@/components/MicButton";
 
 type PhaseData = {
   tipo_entrada?: string;
