@@ -667,8 +667,10 @@ export type Database = {
       }
       content_metrics: {
         Row: {
+          agendamentos: number | null
           comments: number
           created_at: string
+          dms_recebidos: number | null
           engagement_rate: number
           id: string
           likes: number
@@ -681,8 +683,10 @@ export type Database = {
           views: number
         }
         Insert: {
+          agendamentos?: number | null
           comments?: number
           created_at?: string
+          dms_recebidos?: number | null
           engagement_rate?: number
           id?: string
           likes?: number
@@ -695,8 +699,10 @@ export type Database = {
           views?: number
         }
         Update: {
+          agendamentos?: number | null
           comments?: number
           created_at?: string
+          dms_recebidos?: number | null
           engagement_rate?: number
           id?: string
           likes?: number
@@ -743,6 +749,8 @@ export type Database = {
           id: string
           idea_id: string | null
           notes: string | null
+          parent_piece_id: string | null
+          performance_analysis: Json | null
           phase: number
           phase_data: Json
           pipeline_stage: string
@@ -790,6 +798,8 @@ export type Database = {
           id?: string
           idea_id?: string | null
           notes?: string | null
+          parent_piece_id?: string | null
+          performance_analysis?: Json | null
           phase?: number
           phase_data?: Json
           pipeline_stage?: string
@@ -837,6 +847,8 @@ export type Database = {
           id?: string
           idea_id?: string | null
           notes?: string | null
+          parent_piece_id?: string | null
+          performance_analysis?: Json | null
           phase?: number
           phase_data?: Json
           pipeline_stage?: string
@@ -873,6 +885,13 @@ export type Database = {
             columns: ["idea_id"]
             isOneToOne: false
             referencedRelation: "content_ideas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_pieces_parent_piece_id_fkey"
+            columns: ["parent_piece_id"]
+            isOneToOne: false
+            referencedRelation: "content_pieces"
             referencedColumns: ["id"]
           },
         ]

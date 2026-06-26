@@ -21,7 +21,8 @@ type Action =
   | "phase3_draft"
   | "phase3_adjust"
   | "phase3_review"
-  | "phase4_derivatives";
+  | "phase4_derivatives"
+  | "phase5_performance";
 
 const BLOCK_ROLES = ["Hook", "Contexto Emocional", "Microchoque", "Insight de Descoberta", "Resolução"];
 
@@ -184,6 +185,35 @@ JSON:
     "intencao": "string curta explicando o objetivo do debate"
   }
 }`;
+
+
+
+    case "phase5_performance":
+      return `Analise o desempenho real desta peça publicada.
+
+- tema: ${payload.tema ?? "(vazio)"}
+- energia: ${payload.energia ?? "(nenhuma)"}
+- objetivo: ${payload.objetivo ?? "(vazio)"}
+- roteiro (texto): ${payload.roteiro_texto ?? "(vazio)"}
+- métricas: ${JSON.stringify(payload.metricas ?? {})}
+- comentários recebidos: ${payload.comentarios ?? "(nenhum)"}
+- memória de peças anteriores: ${memoryBlock(payload.ai_memory)}
+
+Avalie o resultado de forma honesta e clínica. Identifique o que funcionou, o que não funcionou, e o que aplicar nas próximas peças. Se houver um ângulo forte que merece nova exploração, sinalize.
+
+JSON:
+{
+  "o_que_funcionou": [{"ponto": "string", "razao": "string"}],
+  "o_que_nao_funcionou": [{"ponto": "string", "hipotese": "string", "correcao": "string"}],
+  "proximos_conteudos": "string com sugestão aplicável",
+  "reuso_sugerido": boolean,
+  "memoria_entrada": {
+    "tema": "string",
+    "energia": "string",
+    "resultado": "alto | médio | baixo",
+    "aprendizado": "string curta com lição central"
+  }
+}`;
   }
 }
 
@@ -200,6 +230,7 @@ Deno.serve(async (req) => {
       "phase3_adjust",
       "phase3_review",
       "phase4_derivatives",
+      "phase5_performance",
     ];
     if (!action || !valid.includes(action)) {
       return new Response(JSON.stringify({ error: "action inválida" }), {
