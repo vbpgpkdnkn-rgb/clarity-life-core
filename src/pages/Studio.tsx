@@ -3316,7 +3316,7 @@ function StoriesView({ pieces, onBack }: { pieces: Piece[]; onBack: () => void }
         .eq("date", today)
         .maybeSingle();
       if (error) throw error;
-      return data as { date: string; slots: StorySlot[] } | null;
+      return data as unknown as { date: string; slots: StorySlot[] } | null;
     },
   });
 
