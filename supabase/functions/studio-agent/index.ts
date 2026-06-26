@@ -238,6 +238,7 @@ Deno.serve(async (req) => {
       "phase3_adjust",
       "phase3_review",
       "phase4_derivatives",
+      "generate_captions",
       "phase5_performance",
     ];
     if (!action || !valid.includes(action)) {
