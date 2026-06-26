@@ -22,6 +22,7 @@ type Action =
   | "phase3_adjust"
   | "phase3_review"
   | "phase4_derivatives"
+  | "generate_captions"
   | "phase5_performance";
 
 const BLOCK_ROLES = ["Hook", "Contexto Emocional", "Microchoque", "Insight de Descoberta", "Resolução"];
@@ -193,6 +194,24 @@ JSON:
   }
 }`;
 
+    case "generate_captions":
+      return `Gere 2 OPÇÕES distintas de legenda para o post desta peça.
+
+- tema: ${payload.tema ?? "(vazio)"}
+- energia: ${payload.energia ?? "(nenhuma)"}
+- estratégia de criação: ${payload.creation_strategy ?? "(nenhuma)"}
+- roteiro: ${payload.script ?? "(vazio)"}
+- memória de peças anteriores: ${memoryBlock(payload.ai_memory)}
+
+Cada opção deve ter ABORDAGEM DIFERENTE (ex: uma mais provocativa, outra mais reflexiva). Linguagem de fala, sem clichês, sem coachês. 3 a 6 linhas. Pode incluir 1 pergunta no final para gerar comentário, mas nunca CTA de venda.
+
+JSON:
+{
+  "opcoes": [
+    { "texto": "string", "abordagem": "string curta descrevendo o ângulo" },
+    { "texto": "string", "abordagem": "string curta descrevendo o ângulo" }
+  ]
+}`;
 
 
     case "phase5_performance":
@@ -237,6 +256,7 @@ Deno.serve(async (req) => {
       "phase3_adjust",
       "phase3_review",
       "phase4_derivatives",
+      "generate_captions",
       "phase5_performance",
     ];
     if (!action || !valid.includes(action)) {

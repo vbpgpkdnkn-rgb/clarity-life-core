@@ -32,6 +32,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { MicButton } from "@/components/MicButton";
 
 type PhaseData = {
   tipo_entrada?: string;
@@ -573,11 +574,16 @@ function FocoView({ pieceId, onBack, onOpenPiece }: { pieceId: string | null; on
           pd={pd}
           queue={queue}
           flush={flush}
-          onAdvance={async () => {
+          onAdvance={async (publishedAt: string) => {
             await flush();
             await supabase
               .from("content_pieces")
-              .update({ phase: 5, pipeline_stage: "pronto_postar" } as never)
+              .update({
+                phase: 5,
+                pipeline_stage: "publicado",
+                status: "publicado",
+                published_at: publishedAt,
+              } as never)
               .eq("id", piece.id);
             qc.invalidateQueries({ queryKey: ["studio-piece", piece.id] });
             qc.invalidateQueries({ queryKey: ["studio-pieces"] });
@@ -1898,11 +1904,21 @@ function Teleprompter({
 /* ================================================================== */
 
 const DEFAULT_EDIT_CHECKLIST: { label: string; done: boolean }[] = [
-  { label: "Corte inicial e final", done: false },
-  { label: "Ajuste de áudio", done: false },
+  { label: "Ambiente limpo e organizado no enquadramento", done: false },
+  { label: "Iluminação adequada (luz frontal, sem sombras no rosto)", done: false },
+  { label: "Câmera na altura dos olhos", done: false },
+  { label: "Roupa alinhada ao posicionamento (profissional/intencional)", done: false },
+  { label: "Teleprompter posicionado e fonte ajustada", done: false },
+  { label: "Áudio testado (sem eco, sem barulho de fundo)", done: false },
+  { label: "Roteiro revisado e memorizado nos pontos-chave", done: false },
+  { label: "Energia e presença: respirar fundo antes de começar", done: false },
+  { label: "Gravação: 3 takes mínimos", done: false },
+  { label: "Revisar take escolhido antes de ir para edição", done: false },
+  { label: "Corte inicial e final limpos", done: false },
+  { label: "Ajuste de áudio (volume, equalização)", done: false },
   { label: "Legendas adicionadas", done: false },
-  { label: "Revisão de ritmo e cortes", done: false },
-  { label: "Thumbnail definida", done: false },
+  { label: "Thumbnail ou capa definida", done: false },
+  { label: "Revisão final do conteúdo completo antes de postar", done: false },
 ];
 
 type Derivatives = {
@@ -1936,7 +1952,7 @@ function Phase4({
   pd: PhaseData;
   queue: (p: Record<string, unknown>) => void;
   flush: () => Promise<void>;
-  onAdvance: () => Promise<void>;
+  onAdvance: (publishedAt: string) => Promise<void>;
 }) {
   const qc = useQueryClient();
   const [sub, setSub] = useState<"editorial" | "gravacao" | "pos">("editorial");
@@ -2230,7 +2246,7 @@ function PostProductionSub({
   flush: () => Promise<void>;
   genLoading: boolean;
   setGenLoading: (v: boolean) => void;
-  onReady: () => Promise<void>;
+  onReady: (publishedAt: string) => Promise<void>;
 }) {
   const checklist =
     (piece.editing_checklist && piece.editing_checklist.length > 0
@@ -2285,7 +2301,9 @@ function PostProductionSub({
           payload: {
             tema: piece.theme,
             energia: piece.energia,
+            creation_strategy: piece.creation_strategy,
             roteiro_final_texto: piece.script,
+            insights_multiconteudo: pd.insights_multiconteudo ?? [],
           },
         },
       });
@@ -2312,6 +2330,52 @@ function PostProductionSub({
     toast.success("Copiado");
   };
 
+  const [captionDraft, setCaptionDraft] = useState(piece.caption ?? "");
+  useEffect(() => {
+    setCaptionDraft(piece.caption ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [piece.id]);
+  const [captionOptions, setCaptionOptions] = useState<string[]>([]);
+  const [captionLoading, setCaptionLoading] = useState(false);
+
+  const generateCaptions = async () => {
+    setCaptionLoading(true);
+    try {
+      await flush();
+      const { data, error } = await supabase.functions.invoke("studio-agent", {
+        body: {
+          action: "generate_captions",
+          payload: {
+            tema: piece.theme,
+            script: piece.script,
+            energia: piece.energia,
+            creation_strategy: piece.creation_strategy,
+            ai_memory: piece.ai_memory,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const r = data?.result ?? {};
+      const opts: string[] = Array.isArray(r.opcoes)
+        ? r.opcoes.map((o: unknown) => (typeof o === "string" ? o : (o as { texto?: string })?.texto ?? "")).filter(Boolean)
+        : [];
+      if (opts.length === 0) throw new Error("IA não retornou opções");
+      setCaptionOptions(opts.slice(0, 2));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha");
+    } finally {
+      setCaptionLoading(false);
+    }
+  };
+
+  const [publishAt, setPublishAt] = useState(() => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  });
+  const [publishing, setPublishing] = useState(false);
+
   return (
     <div className="space-y-5">
       <Card className="p-5 space-y-3">
@@ -2335,21 +2399,68 @@ function PostProductionSub({
         />
       </Card>
 
-      <Card className="p-5 space-y-2">
-        <Label>Legenda do post</Label>
-        <Textarea
-          defaultValue={piece.caption ?? ""}
-          onChange={(e) => queue({ caption: e.target.value })}
-          rows={5}
-          placeholder="Escreva a legenda ou use o botão abaixo para gerar com IA"
-        />
+      <Card className="p-5 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <Label>Legenda do post</Label>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={generateCaptions}
+            disabled={captionLoading}
+          >
+            {captionLoading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5" />
+            )}
+            {captionOptions.length > 0 || piece.caption ? "Regerar legendas" : "Gerar 2 opções de legenda com IA"}
+          </Button>
+        </div>
+
+        {captionOptions.length > 0 && (
+          <div className="grid sm:grid-cols-2 gap-3">
+            {captionOptions.map((opt, i) => (
+              <div key={i} className="border rounded p-3 space-y-2 bg-muted/30">
+                <div className="text-xs text-muted-foreground">Opção {i + 1}</div>
+                <div className="text-sm whitespace-pre-wrap">{opt}</div>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setCaptionDraft(opt);
+                    queue({ caption: opt });
+                    setCaptionOptions([]);
+                    toast.success("Legenda aplicada — ajuste se quiser");
+                  }}
+                >
+                  Usar esta
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="relative">
+          <Textarea
+            value={captionDraft}
+            onChange={(e) => {
+              setCaptionDraft(e.target.value);
+              queue({ caption: e.target.value });
+            }}
+            rows={5}
+            placeholder="Escreva a legenda final ou gere opções com IA acima"
+            className="pr-11"
+          />
+          <div className="absolute right-1.5 top-1.5">
+            <MicButton value={captionDraft} onChange={(v) => { setCaptionDraft(v); queue({ caption: v }); }} />
+          </div>
+        </div>
       </Card>
 
       <Card className="p-5 space-y-3">
         <div>
           <div className="text-base font-semibold">Multiplicar conteúdo</div>
           <p className="text-xs text-muted-foreground">
-            Transforme este Reel em 4 formatos diferentes
+            Cada formato explora um ângulo diferente do mesmo tema — não uma repetição, mas uma conversa nova.
           </p>
         </div>
         <Button onClick={generateDerivatives} disabled={genLoading}>
@@ -2455,9 +2566,51 @@ function PostProductionSub({
         </DerivativeBlock>
       </Card>
 
-      <Button size="lg" onClick={onReady}>
-        Pronto para postar
-      </Button>
+      <Card className="p-5 space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={async () => {
+              queue({ pipeline_stage: "pronto_postar" });
+              await flush();
+              toast.success("Marcado como pronto para postar");
+            }}
+          >
+            Pronto para postar
+          </Button>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Data e hora de publicação</Label>
+          <Input
+            type="datetime-local"
+            value={publishAt}
+            onChange={(e) => setPublishAt(e.target.value)}
+            className="max-w-xs"
+          />
+        </div>
+
+        <Button
+          size="lg"
+          disabled={publishing}
+          onClick={async () => {
+            setPublishing(true);
+            try {
+              const iso = new Date(publishAt).toISOString();
+              await onReady(iso);
+              toast.success("Publicação confirmada");
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Falha");
+            } finally {
+              setPublishing(false);
+            }
+          }}
+        >
+          {publishing && <Loader2 className="h-4 w-4 animate-spin" />}
+          Confirmar publicação
+        </Button>
+      </Card>
     </div>
   );
 }
