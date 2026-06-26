@@ -3680,6 +3680,19 @@ function Phase5({
         )}
       </Card>
 
+      <div className="pt-6 border-t mt-6">
+        <Button
+          className="w-full"
+          onClick={async () => {
+            await flush();
+            toast.success("Desempenho salvo");
+            onBack();
+          }}
+        >
+          ✓ Salvar e voltar para o Studio
+        </Button>
+      </div>
+
       {/* Histórico */}
       <Card className="p-5 space-y-3">
         <div className="flex items-center justify-between">
