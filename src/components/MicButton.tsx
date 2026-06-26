@@ -5,27 +5,16 @@ import { toast } from "sonner";
 import { useEffect, useRef } from "react";
 
 interface MicButtonProps {
-  /** Valor atual do campo */
   value: string;
-  /** Recebe o novo valor (texto existente + ditado anexado) */
   onChange: (value: string) => void;
-  /** Modo de combinação: 'append' adiciona ao final, 'replace' substitui */
   mode?: "append" | "replace";
-  /** Tamanho do botão */
   size?: "sm" | "md";
-  /** Mostrar prévia do texto interim */
   showInterim?: boolean;
   className?: string;
-  /** Idioma — padrão pt-BR */
   lang?: string;
-  /** Tooltip customizado */
   title?: string;
 }
 
-/**
- * Botão universal de microfone para qualquer campo de texto.
- * Anexa o texto ditado ao valor existente — pode ser usado em Input ou Textarea.
- */
 export function MicButton({
   value,
   onChange,
@@ -34,12 +23,12 @@ export function MicButton({
   showInterim = false,
   className,
   lang = "pt-BR",
-  title = "Ditar por voz",
+  title = "Segure para falar",
 }: MicButtonProps) {
   const valueRef = useRef(value);
   useEffect(() => { valueRef.current = value; }, [value]);
 
-  const { listening, interim, error, supported, toggle } = useDictation({
+  const { listening, interim, error, supported, start, stop } = useDictation({
     lang,
     continuous: true,
     onFinal: (text) => {
@@ -62,16 +51,35 @@ export function MicButton({
   const dim = size === "sm" ? "h-7 w-7" : "h-9 w-9";
   const icon = size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4";
 
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    start();
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    e.preventDefault();
+    stop();
+  };
+
+  const handlePointerLeave = (e: React.PointerEvent) => {
+    if (listening) {
+      e.preventDefault();
+      stop();
+    }
+  };
+
   return (
     <>
       <button
         type="button"
-        onClick={toggle}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerLeave}
         title={title}
         aria-label={title}
         aria-pressed={listening}
         className={cn(
-          "inline-flex items-center justify-center rounded-md border transition-all shrink-0",
+          "inline-flex items-center justify-center rounded-md border transition-all shrink-0 select-none touch-none",
           dim,
           listening
             ? "border-destructive/40 bg-destructive/10 text-destructive animate-pulse"
