@@ -276,6 +276,24 @@ JSON:
   ]
 }`;
 
+    case "analyze_series":
+      return `Analise esta série de conteúdo clínico sobre relacionamentos.
+
+SÉRIE: ${payload.series_name ?? "(sem nome)"}
+EPISÓDIOS PUBLICADOS: ${JSON.stringify(payload.episodios ?? [])}
+TOTAL PLANEJADO: ${payload.total_planejado ?? "indefinido"}
+
+Avalie com honestidade clínica e estratégica.
+
+JSON:
+{
+  "funcionando": "string — o que está gerando resultado concreto nesta série",
+  "mudar": "string — o que claramente não está funcionando e por quê",
+  "proximos_episodios": "string — sugestão específica para os próximos 3 episódios",
+  "vale_continuar": "sim | talvez | nao",
+  "recomendacao": "string — recomendação direta sobre o futuro desta série"
+}`;
+
     default:
       throw new Error(`action desconhecida: ${action}`);
   }
