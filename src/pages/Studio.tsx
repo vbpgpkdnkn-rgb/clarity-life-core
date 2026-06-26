@@ -1338,6 +1338,145 @@ export default function Studio() {
             {/* Modal: nova série */}
             <NewSeriesDialog open={newSeriesOpen} onOpenChange={setNewSeriesOpen} />
 
+            {/* Modal: post rápido */}
+            <Dialog open={quickPostOpen} onOpenChange={setQuickPostOpen}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>⚡ Post rápido</DialogTitle>
+                  <p className="text-xs text-muted-foreground">Registre um conteúdo sem passar pelo fluxo completo de criação.</p>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Título *</Label>
+                      <Input value={qpTitle} onChange={(e) => setQpTitle(e.target.value)} placeholder="Nome do conteúdo" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Tema</Label>
+                      <Input value={qpTema} onChange={(e) => setQpTema(e.target.value)} placeholder="Assunto central" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Status</Label>
+                      <Select value={qpStatus} onValueChange={(v) => setQpStatus(v as "publicado" | "pronto_postar")}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="publicado">Já publicado</SelectItem>
+                          <SelectItem value="pronto_postar">Pronto para postar</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Energia</Label>
+                      <Select value={qpEnergia} onValueChange={setQpEnergia}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="topo">Topo</SelectItem>
+                          <SelectItem value="meio">Meio</SelectItem>
+                          <SelectItem value="fundo">Fundo</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{qpStatus === "publicado" ? "Data de publicação" : "Data planejada"}</Label>
+                    <Input type="date" value={qpDate} onChange={(e) => setQpDate(e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Série (opcional)</Label>
+                    <div className="flex gap-2">
+                      <Select value={qpSeries} onValueChange={setQpSeries}>
+                        <SelectTrigger className="flex-1"><SelectValue placeholder="Nenhuma" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Nenhuma</SelectItem>
+                          {(seriesListQ.data ?? []).map((s) => (
+                            <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {qpSeries !== "none" && (
+                        <Input type="number" min={1} placeholder="Ep nº" className="w-20"
+                          value={qpEpNum} onChange={(e) => setQpEpNum(e.target.value)} />
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Legenda (opcional)</Label>
+                    <Textarea value={qpCaption} onChange={(e) => setQpCaption(e.target.value)}
+                      placeholder="Cole a legenda usada no post" rows={2} />
+                  </div>
+                  {qpStatus === "publicado" && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Métricas principais (opcional)</Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div><Label className="text-[10px]">Views</Label>
+                          <Input type="number" min={0} value={qpViews} onChange={(e) => setQpViews(e.target.value)} /></div>
+                        <div><Label className="text-[10px]">Salvamentos</Label>
+                          <Input type="number" min={0} value={qpSaves} onChange={(e) => setQpSaves(e.target.value)} /></div>
+                        <div><Label className="text-[10px]">DMs</Label>
+                          <Input type="number" min={0} value={qpDms} onChange={(e) => setQpDms(e.target.value)} /></div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button variant="ghost" onClick={() => setQuickPostOpen(false)}>Cancelar</Button>
+                    <Button
+                      disabled={!qpTitle.trim() || qpSaving}
+                      onClick={async () => {
+                        setQpSaving(true);
+                        try {
+                          const { data, error } = await supabase
+                            .from("content_pieces")
+                            .insert({
+                              title: qpTitle.trim(),
+                              theme: qpTema.trim() || qpTitle.trim(),
+                              status: qpStatus,
+                              phase: qpStatus === "publicado" ? 5 : 4,
+                              scope: "profissional",
+                              energia: qpEnergia,
+                              planned_date: qpStatus === "pronto_postar" ? qpDate : null,
+                              published_at: qpStatus === "publicado" ? qpDate : null,
+                              pipeline_stage: qpStatus === "publicado" ? "publicado" : "pronto_postar",
+                              series_name: qpSeries !== "none" ? qpSeries : null,
+                              series_position: qpSeries !== "none" && qpEpNum ? Number(qpEpNum) : null,
+                              caption: qpCaption.trim() || null,
+                            } as never)
+                            .select("id")
+                            .single();
+                          if (error) throw error;
+                          if (qpStatus === "publicado" && (qpViews || qpSaves || qpDms)) {
+                            await supabase.from("content_metrics").insert({
+                              piece_id: (data as { id: string }).id,
+                              measured_at: qpDate,
+                              views: qpViews ? Number(qpViews) : 0,
+                              saves: qpSaves ? Number(qpSaves) : 0,
+                              dms_recebidos: qpDms ? Number(qpDms) : 0,
+                            } as never);
+                          }
+                          qc.invalidateQueries({ queryKey: ["studio-pieces"] });
+                          qc.invalidateQueries({ queryKey: ["studio-series-pieces"] });
+                          toast.success("Post registrado");
+                          setQuickPostOpen(false);
+                          setQpTitle(""); setQpTema(""); setQpEnergia("topo");
+                          setQpStatus("publicado"); setQpDate(new Date().toISOString().slice(0, 10));
+                          setQpSeries("none"); setQpEpNum(""); setQpViews("");
+                          setQpSaves(""); setQpDms(""); setQpCaption("");
+                        } catch (e) {
+                          toast.error(e instanceof Error ? e.message : "Erro ao salvar");
+                        } finally {
+                          setQpSaving(false);
+                        }
+                      }}
+                    >
+                      {qpSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Registrar post
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             {/* Modal: capturar ideia */}
             <Dialog open={ideaOpen} onOpenChange={setIdeaOpen}>
               <DialogContent>
