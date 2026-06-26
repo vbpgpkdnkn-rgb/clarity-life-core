@@ -423,7 +423,23 @@ function FocoView({ pieceId, onBack }: { pieceId: string | null; onBack: () => v
         />
       )}
 
-      {currentPhase >= 3 && (
+      {currentPhase === 3 && (
+        <Phase3
+          piece={piece}
+          pd={pd}
+          queue={queue}
+          flush={flush}
+          onAdvance={async () => {
+            await flush();
+            await supabase.from("content_pieces").update({ phase: 4 } as never).eq("id", piece.id);
+            qc.invalidateQueries({ queryKey: ["studio-piece", piece.id] });
+            qc.invalidateQueries({ queryKey: ["studio-pieces"] });
+            setCurrentPhase(4);
+          }}
+        />
+      )}
+
+      {currentPhase >= 4 && (
         <Card className="p-6 text-sm text-muted-foreground">
           Fase {currentPhase} — em construção.
         </Card>
