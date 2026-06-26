@@ -293,7 +293,7 @@ function useDebouncedSave(pieceId: string | null) {
 
 export default function Studio() {
   const qc = useQueryClient();
-  const [view, setView] = useState<"biblioteca" | "foco">("biblioteca");
+  const [view, setView] = useState<"biblioteca" | "foco" | "stories">("biblioteca");
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const piecesQ = useQuery({
