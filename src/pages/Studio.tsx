@@ -66,6 +66,8 @@ type PhaseData = {
   papeis_modificados?: string[];
   instrucao_ajuste_livre?: string;
   ajustes_marcados?: string[];
+  roteiro_protegido?: boolean;
+  insights_multiconteudo?: Insight[];
   revisao_ia?: ReviewIA;
   [k: string]: unknown;
 };
@@ -1176,6 +1178,20 @@ const wordsAndSeconds = (text: string) => {
   return { words, seconds };
 };
 
+const papelLabel = (papel: string) => {
+  const p = (papel ?? "").toLowerCase();
+  if (p === "resolucao" || p === "resolução") return "Resolução / Transformação";
+  if (p === "cta") return "CTA";
+  return papel;
+};
+
+const withCta = (blocks: ScriptBlock[]): ScriptBlock[] => {
+  if (!blocks || blocks.length === 0) return blocks;
+  const hasCta = blocks.some((b) => (b.papel ?? "").toLowerCase() === "cta");
+  if (hasCta) return blocks;
+  return [...blocks, { papel: "cta", texto: "" }];
+};
+
 function Phase3({
   piece,
   pd,
@@ -1193,6 +1209,8 @@ function Phase3({
   const [sub, setSub] = useState<"insights" | "esboco" | "ajustes" | "revisao">("insights");
   const [loading, setLoading] = useState<string | null>(null);
   const [teleOpen, setTeleOpen] = useState(false);
+  const [insightsExpanded, setInsightsExpanded] = useState<string[]>([]);
+  const instrucaoRef = useRef<HTMLTextAreaElement>(null);
 
   const patchPD = (p: Partial<PhaseData>) => queue({ phase_data: { ...pd, ...p } });
 
@@ -1265,17 +1283,17 @@ function Phase3({
       script_template: pd.template_selecionado ?? null,
     });
     if (!result) return;
-    const blocos: ScriptBlock[] = (result as { blocos?: ScriptBlock[] }).blocos ?? [];
+    const blocos: ScriptBlock[] = withCta((result as { blocos?: ScriptBlock[] }).blocos ?? []);
     patchPD({ blocos_rascunho: blocos, blocos_editados: blocos });
     await flush();
   };
 
-  const blocosBase: ScriptBlock[] = pd.blocos_editados ?? pd.blocos_rascunho ?? [];
+  const blocosBase: ScriptBlock[] = withCta(pd.blocos_editados ?? pd.blocos_rascunho ?? []);
   const totalSeconds = blocosBase.reduce((acc, b) => acc + wordsAndSeconds(b.texto || "").seconds, 0);
   const tempoOk = totalSeconds >= 45 && totalSeconds <= 65;
 
   const editarBloco = (idx: number, texto: string) => {
-    const next = (pd.blocos_editados ?? pd.blocos_rascunho ?? []).map((b, i) =>
+    const next = withCta(pd.blocos_editados ?? pd.blocos_rascunho ?? []).map((b, i) =>
       i === idx ? { ...b, texto } : b,
     );
     patchPD({ blocos_editados: next });
@@ -1283,32 +1301,39 @@ function Phase3({
 
   /* ---------- 3c AJUSTES ---------- */
   const ajustes = pd.ajustes_marcados ?? [];
+  const protegido = pd.roteiro_protegido === true;
   const toggleAjuste = (a: string) => {
+    if (protegido) return;
     const next = ajustes.includes(a) ? ajustes.filter((x) => x !== a) : [...ajustes, a];
     patchPD({ ajustes_marcados: next });
   };
 
   const aplicarAjustes = async () => {
+    if (protegido) {
+      setSub("revisao");
+      return;
+    }
     const result = await callAI("phase3_adjust", {
-      blocos_atuais: pd.blocos_editados ?? pd.blocos_rascunho ?? [],
+      blocos_atuais: withCta(pd.blocos_editados ?? pd.blocos_rascunho ?? []),
       ajustes_marcados: ajustes,
       instrucao_livre: pd.instrucao_ajuste_livre ?? "",
     });
     if (!result) return;
     const r = result as { blocos_ajustados?: ScriptBlock[]; papeis_modificados?: string[] };
     patchPD({
-      blocos_ajustados: r.blocos_ajustados ?? [],
+      blocos_ajustados: withCta(r.blocos_ajustados ?? []),
       papeis_modificados: r.papeis_modificados ?? [],
     });
     await flush();
   };
 
   /* ---------- 3d REVISÃO ---------- */
-  const blocosFinais: ScriptBlock[] =
-    pd.blocos_ajustados ?? pd.blocos_editados ?? pd.blocos_rascunho ?? [];
+  const blocosFinais: ScriptBlock[] = withCta(
+    pd.blocos_ajustados ?? pd.blocos_editados ?? pd.blocos_rascunho ?? [],
+  );
 
   const editarBlocoFinal = (idx: number, texto: string) => {
-    const base = pd.blocos_ajustados ?? pd.blocos_editados ?? pd.blocos_rascunho ?? [];
+    const base = withCta(pd.blocos_ajustados ?? pd.blocos_editados ?? pd.blocos_rascunho ?? []);
     const next = base.map((b, i) => (i === idx ? { ...b, texto } : b));
     if (pd.blocos_ajustados) patchPD({ blocos_ajustados: next });
     else patchPD({ blocos_editados: next });
@@ -1324,7 +1349,17 @@ function Phase3({
       ai_memory: piece.ai_memory,
     });
     if (!result) return;
-    patchPD({ revisao_ia: result as ReviewIA });
+    // Ignorar qualquer tentativa da IA de reescrever blocos — apenas comentário.
+    const raw = result as Record<string, unknown>;
+    const safe: ReviewIA = {
+      score_retencao: raw.score_retencao as number | undefined,
+      estimativa: raw.estimativa as ReviewIA["estimativa"],
+      pontos_fortes: (raw.pontos_fortes as string[] | undefined) ?? [],
+      pontos_fracos: (raw.pontos_fracos as ReviewIA["pontos_fracos"]) ?? [],
+      alerta_posicionamento: raw.alerta_posicionamento as string | undefined,
+      comentario_final: raw.comentario_final as string | undefined,
+    } as ReviewIA;
+    patchPD({ revisao_ia: safe });
     await flush();
   };
 
@@ -1339,6 +1374,12 @@ function Phase3({
     qc.invalidateQueries({ queryKey: ["studio-pieces"] });
     await onAdvance();
   };
+
+  const salvarMulticonteudo = () => {
+    patchPD({ insights_multiconteudo: aprovados });
+    toast.success("Insights salvos para multiconteúdo");
+  };
+
 
   const fontSize = piece.teleprompter_font_size ?? 32;
   const fontTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1422,6 +1463,13 @@ function Phase3({
             >
               Gerar esboço com estes insights
             </Button>
+            <Button
+              variant="outline"
+              disabled={aprovados.length === 0}
+              onClick={salvarMulticonteudo}
+            >
+              Salvar insights para multiconteúdo
+            </Button>
           </div>
 
           {loading === "phase3_insights" && (
@@ -1442,27 +1490,46 @@ function Phase3({
               {insights.map((ins, idx) => {
                 const id = ins.id ?? String(idx);
                 const sel = isSelected(id);
+                const open = insightsExpanded.includes(id);
                 return (
                   <Card
                     key={id}
                     className={cn(
-                      "p-4 space-y-3 cursor-pointer transition-colors",
+                      "p-4 space-y-3 transition-colors",
                       sel ? "border-accent bg-accent/5" : "hover:border-accent/40",
                     )}
-                    onClick={() => toggleInsight({ ...ins, id })}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="font-medium text-sm">{ins.titulo_angulo}</div>
-                      {energiaBadge(ins.energia_sugerida)}
-                    </div>
-                    {ins.tensao && (
-                      <div className="text-xs">
-                        <span className="text-muted-foreground uppercase mr-1">Tensão:</span>
-                        {ins.tensao}
+                    <button
+                      type="button"
+                      className="w-full flex items-start justify-between gap-2 text-left"
+                      onClick={() =>
+                        setInsightsExpanded((cur) =>
+                          cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id],
+                        )
+                      }
+                    >
+                      <div className="flex items-center gap-2">
+                        {open ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                        <div className="font-medium text-sm">{ins.titulo_angulo}</div>
                       </div>
-                    )}
-                    {ins.frase_semente && (
-                      <div className="text-sm italic">"{ins.frase_semente}"</div>
+                      {energiaBadge(ins.energia_sugerida)}
+                    </button>
+                    {open && (
+                      <div className="space-y-2 pl-6">
+                        {ins.tensao && (
+                          <div className="text-xs">
+                            <span className="text-muted-foreground uppercase mr-1">Tensão:</span>
+                            {ins.tensao}
+                          </div>
+                        )}
+                        {ins.frase_semente && (
+                          <div className="text-sm italic">"{ins.frase_semente}"</div>
+                        )}
+                      </div>
                     )}
                     <label className="flex items-center gap-2 text-xs cursor-pointer pt-2 border-t">
                       <Checkbox checked={sel} onCheckedChange={() => toggleInsight({ ...ins, id })} />
@@ -1475,6 +1542,7 @@ function Phase3({
           )}
         </div>
       )}
+
 
       {/* 3b ESBOÇO */}
       {sub === "esboco" && (
@@ -1517,7 +1585,7 @@ function Phase3({
                 <Card key={idx} className="p-4 space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <Badge variant="outline" className="text-[10px] uppercase">
-                      {b.papel}
+                      {papelLabel(b.papel)}
                     </Badge>
                     <div className="text-[11px] text-muted-foreground tabular-nums">
                       {words} palavras · ~{seconds}s
@@ -1527,6 +1595,11 @@ function Phase3({
                     value={b.texto}
                     onChange={(e) => editarBloco(idx, e.target.value)}
                     rows={3}
+                    placeholder={
+                      (b.papel ?? "").toLowerCase() === "cta"
+                        ? "Escreva aqui a chamada para ação"
+                        : undefined
+                    }
                   />
                   {b.nota_gravacao && (
                     <p className="text-[11px] text-muted-foreground italic">↳ {b.nota_gravacao}</p>
@@ -1541,7 +1614,27 @@ function Phase3({
       {/* 3c AJUSTES */}
       {sub === "ajustes" && (
         <div className="space-y-4">
-          <Card className="p-4 space-y-3">
+          <Card
+            className={cn(
+              "p-4 space-y-2 border",
+              protegido ? "border-emerald-500/50 bg-emerald-500/10" : "border-border",
+            )}
+          >
+            <label className="flex items-center justify-between gap-3 cursor-pointer">
+              <span className="text-sm font-medium">Manter roteiro exatamente como está</span>
+              <Checkbox
+                checked={protegido}
+                onCheckedChange={(v) => patchPD({ roteiro_protegido: v === true })}
+              />
+            </label>
+            {protegido && (
+              <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                Roteiro protegido. A IA não vai alterar nenhum bloco.
+              </p>
+            )}
+          </Card>
+
+          <Card className={cn("p-4 space-y-3", protegido && "opacity-50")}>
             <Label>O que ajustar?</Label>
             {AJUSTES_PRESET.map((a) => (
               <label key={a} className="flex items-start gap-2 text-sm cursor-pointer">
@@ -1549,19 +1642,34 @@ function Phase3({
                   checked={ajustes.includes(a)}
                   onCheckedChange={() => toggleAjuste(a)}
                   className="mt-0.5"
+                  disabled={protegido}
                 />
                 {a}
               </label>
             ))}
           </Card>
 
-          <Card className="p-4 space-y-2">
-            <Label>O que mais quer ajustar?</Label>
+          <Card className={cn("p-4 space-y-2", protegido && "opacity-50")}>
+            <div className="flex items-center justify-between">
+              <Label>O que mais quer ajustar?</Label>
+              <VoiceButton
+                onResult={(spoken) => {
+                  if (protegido) return;
+                  const el = instrucaoRef.current;
+                  const prev = el?.value ?? pd.instrucao_ajuste_livre ?? "";
+                  const next = prev ? `${prev} ${spoken}`.trim() : spoken;
+                  if (el) el.value = next;
+                  patchPD({ instrucao_ajuste_livre: next });
+                }}
+              />
+            </div>
             <Textarea
+              ref={instrucaoRef}
               defaultValue={pd.instrucao_ajuste_livre ?? ""}
               onChange={(e) => patchPD({ instrucao_ajuste_livre: e.target.value })}
               rows={3}
               placeholder="Instrução livre"
+              disabled={protegido}
             />
           </Card>
 
@@ -1572,7 +1680,7 @@ function Phase3({
               ) : (
                 <Sparkles className="h-4 w-4" />
               )}
-              Aplicar ajustes
+              {protegido ? "Ir para revisão" : "Aplicar ajustes"}
             </Button>
             <Button variant="outline" onClick={() => setSub("revisao")}>
               Revisar roteiro final
@@ -1646,24 +1754,41 @@ function BlockReadEdit({ block, onSave }: { block: ScriptBlock; onSave: (t: stri
     <Card className="p-4 space-y-2">
       <div className="flex items-center justify-between">
         <Badge variant="outline" className="text-[10px] uppercase">
-          {block.papel}
+          {papelLabel(block.papel)}
         </Badge>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => {
-            if (editing) onSave(local);
-            setEditing((v) => !v);
-          }}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-          {editing ? "Salvar" : "Editar"}
-        </Button>
+        <div className="flex items-center gap-1">
+          {editing && (
+            <VoiceButton
+              onResult={(spoken) =>
+                setLocal((prev) => (prev ? `${prev} ${spoken}`.trim() : spoken))
+              }
+            />
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              if (editing) onSave(local);
+              setEditing((v) => !v);
+            }}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            {editing ? "Salvar" : "Editar"}
+          </Button>
+        </div>
       </div>
       {editing ? (
         <Textarea value={local} onChange={(e) => setLocal(e.target.value)} rows={3} />
       ) : (
-        <p className="text-sm whitespace-pre-wrap">{block.texto}</p>
+        <p className="text-sm whitespace-pre-wrap">
+          {block.texto || (
+            <span className="italic text-muted-foreground">
+              {(block.papel ?? "").toLowerCase() === "cta"
+                ? "(CTA vazio — clique em Editar para escrever)"
+                : "(vazio)"}
+            </span>
+          )}
+        </p>
       )}
       {block.nota_gravacao && (
         <p className="text-[11px] text-muted-foreground italic">↳ {block.nota_gravacao}</p>
