@@ -1119,7 +1119,7 @@ export default function Studio() {
               </div>
 
               {seriesPanelOpen && (
-                <>
+                <div>
                   {(seriesListQ.data ?? []).length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                       Nenhuma série ainda. Crie uma para agrupar episódios e analisar resultados em conjunto.
@@ -1137,7 +1137,7 @@ export default function Studio() {
                       ))}
                     </div>
                   )}
-                </>
+                </div>
               )}
             </section>
 
