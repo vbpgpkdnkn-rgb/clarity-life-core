@@ -1560,6 +1560,17 @@ export default function Studio() {
             }}
             onOpenPiece={(id) => openPiece(id)}
           />
+        ) : view === "calendario" ? (
+          <CalendarioEditorial
+            pieces={piecesQ.data ?? []}
+            seriesList={seriesListQ.data ?? []}
+            onBack={() => setView("biblioteca")}
+            onOpenPiece={openPiece}
+            onRefresh={() => {
+              qc.invalidateQueries({ queryKey: ["studio-pieces"] });
+              qc.invalidateQueries({ queryKey: ["studio-series-pieces"] });
+            }}
+          />
         ) : (
           <StoriesView
             pieces={piecesQ.data ?? []}
