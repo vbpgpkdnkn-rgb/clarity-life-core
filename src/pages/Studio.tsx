@@ -54,10 +54,12 @@ type PhaseData = {
   origem?: string;
   conteudo?: string;
   conteudo_audiencia?: string;
+  insight_manual?: string;
   ia_leitura_fase1?: {
     energia_sugerida?: string;
     observacao?: string;
     padroes_audiencia?: string | null;
+    caminho_narrativo?: string;
   };
   intencao_uso?: string;
   objetivo?: string;
@@ -98,6 +100,7 @@ type Insight = {
   titulo_angulo?: string;
   tensao?: string;
   frase_semente?: string;
+  revelacao?: string;
   energia_sugerida?: string;
 };
 type ScriptBlock = {
