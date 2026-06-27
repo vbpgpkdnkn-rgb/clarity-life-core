@@ -2783,7 +2783,7 @@ function Phase3({
             <p className="text-xs text-muted-foreground">Cole um roteiro de referência. A IA vai usar a estrutura narrativa dele para organizar seus tópicos.</p>
             <DraftTextarea
               className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              value={pd.modelo_roteiro ?? ""}
+              value={phaseDraft.modelo_roteiro ?? ""}
               onValueChange={(value) => patchPD({ modelo_roteiro: value })}
               placeholder="Cole aqui um roteiro modelo para servir de estrutura narrativa..."
             />
@@ -2865,20 +2865,20 @@ function Phase3({
                 </Button>
               </div>
             </div>
-            {pd.sugestao_cortes && (
+            {phaseDraft.sugestao_cortes && (
               <div className="space-y-2 border-t pt-3">
-                <div className="text-xs uppercase opacity-60">Versão com cortes (alvo {pd.sugestao_cortes.target}s)</div>
+                <div className="text-xs uppercase opacity-60">Versão com cortes (alvo {phaseDraft.sugestao_cortes.target}s)</div>
                 <div className="space-y-2">
-                  {pd.sugestao_cortes.blocos?.map((b, i) => (
+                  {phaseDraft.sugestao_cortes.blocos?.map((b, i) => (
                     <div key={i} className="space-y-1">
                       <Badge variant="outline" className="text-[9px]">{papelLabel(b.papel)}</Badge>
                       <DraftTextarea
                         className="w-full min-h-[60px] rounded-md border border-accent/40 bg-accent/5 px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         value={b.texto}
                         onValueChange={(value) => {
-                          const next = [...(pd.sugestao_cortes?.blocos ?? [])];
+                          const next = [...(phaseDraft.sugestao_cortes?.blocos ?? [])];
                           next[i] = { ...next[i], texto: value };
-                          patchPD({ sugestao_cortes: { ...pd.sugestao_cortes!, blocos: next } });
+                          patchPD({ sugestao_cortes: { ...phaseDraft.sugestao_cortes!, blocos: next } });
                         }}
                       />
                     </div>
@@ -2926,7 +2926,7 @@ function Phase3({
           <div className="space-y-3">
             {blocosFinais.map((b, idx) => {
               const pf = revisaoIA?.pontos_fracos?.find(p => b.papel?.toLowerCase().includes(p.ponto?.toLowerCase().slice(0, 10)));
-              const sugestaoInline = (pd.sugestoes_inline ?? {})[idx];
+              const sugestaoInline = (phaseDraft.sugestoes_inline ?? {})[idx];
               const { words, seconds } = wordsAndSeconds(b.texto || "");
               return (
                 <Card key={idx} className="p-4 space-y-2">
