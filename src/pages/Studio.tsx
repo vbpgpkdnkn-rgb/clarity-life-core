@@ -20,8 +20,6 @@ import {
   Clapperboard,
   Film,
   Loader2,
-  Mic,
-  MicOff,
   MoreVertical,
   PenLine,
   Pencil,
@@ -1973,6 +1971,7 @@ function Phase1({
             origem: pd.origem,
             conteudo: pd.conteudo,
             conteudo_audiencia: pd.conteudo_audiencia,
+            intencao_uso: pd.intencao_uso,
             serie_nome: piece.series_name,
             serie_position: piece.series_position,
           },
@@ -1981,7 +1980,7 @@ function Phase1({
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       const result = data?.result ?? {};
-      queue({ phase_data: { ...pd, ia_leitura_fase1: result } });
+      patchPD({ ia_leitura_fase1: result });
       await flush();
       toast.success("Leitura da IA pronta");
     } catch (e) {
@@ -2280,13 +2279,16 @@ function Phase2({
             creation_strategy: piece.creation_strategy,
             metas_resultado: metasSelecionadas,
             intencao_uso: pd.intencao_uso,
+            conteudo: pd.conteudo,
+            insight_manual: pd.insight_manual,
+            caminho_narrativo: pd.ia_leitura_fase1?.caminho_narrativo,
             ai_memory: piece.ai_memory,
           },
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      queue({ phase_data: { ...pd, ia_validacao_fase2: data?.result ?? {} } });
+      patchPD({ ia_validacao_fase2: data?.result ?? {} });
       await flush();
       toast.success("Estratégia validada");
     } catch (e) {
