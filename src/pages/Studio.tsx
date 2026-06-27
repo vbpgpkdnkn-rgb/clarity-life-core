@@ -20,8 +20,6 @@ import {
   Clapperboard,
   Film,
   Loader2,
-  Mic,
-  MicOff,
   MoreVertical,
   PenLine,
   Pencil,
@@ -204,55 +202,17 @@ function VoiceButton({
 }: {
   onResult: (text: string) => void;
 }) {
-  const SR =
-    typeof window !== "undefined"
-      ? ((window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
-          .SpeechRecognition ??
-          (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition)
-      : undefined;
-  const supported = !!SR;
-  const [recording, setRecording] = useState(false);
-  const recRef = useRef<{ stop: () => void } | null>(null);
-
-  const toggle = () => {
-    if (!supported) return;
-    if (recording) {
-      recRef.current?.stop();
-      return;
-    }
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const rec = new (SR as any)();
-      rec.lang = "pt-BR";
-      rec.continuous = false;
-      rec.interimResults = false;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      rec.onresult = (ev: any) => {
-        const text = ev.results?.[0]?.[0]?.transcript ?? "";
-        if (text) onResult(text);
-      };
-      rec.onend = () => setRecording(false);
-      rec.onerror = () => setRecording(false);
-      recRef.current = rec;
-      rec.start();
-      setRecording(true);
-    } catch {
-      setRecording(false);
-    }
-  };
-
   return (
-    <Button
-      type="button"
+    <MicButton
+      value=""
+      mode="replace"
       size="sm"
-      variant="ghost"
-      disabled={!supported}
-      onClick={toggle}
-      className={cn("h-7 px-2", recording && "text-red-500")}
-      title={supported ? (recording ? "Parar" : "Ditar por voz") : "Voz não suportada"}
-    >
-      {recording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-    </Button>
+      title="Clique para iniciar/parar o ditado"
+      onChange={(text) => {
+        const clean = text.trim();
+        if (clean) onResult(clean);
+      }}
+    />
   );
 }
 
@@ -310,12 +270,94 @@ function useDebouncedSave(pieceId: string | null) {
   };
 
   const queue = (patch: Record<string, unknown>) => {
-    pending.current = { ...pending.current, ...patch };
+    if (
+      patch.phase_data &&
+      typeof patch.phase_data === "object" &&
+      pending.current.phase_data &&
+      typeof pending.current.phase_data === "object"
+    ) {
+      pending.current = {
+        ...pending.current,
+        ...patch,
+        phase_data: {
+          ...(pending.current.phase_data as Record<string, unknown>),
+          ...(patch.phase_data as Record<string, unknown>),
+        },
+      };
+    } else {
+      pending.current = { ...pending.current, ...patch };
+    }
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(flush, 800);
   };
 
   return { queue, flush };
+}
+
+function usePhaseDataDraft(pd: PhaseData, queue: (p: Record<string, unknown>) => void) {
+  const draftRef = useRef<PhaseData>(pd ?? {});
+
+  useEffect(() => {
+    draftRef.current = { ...draftRef.current, ...(pd ?? {}) };
+  }, [pd]);
+
+  return (patch: Partial<PhaseData>) => {
+    draftRef.current = { ...draftRef.current, ...patch };
+    queue({ phase_data: draftRef.current });
+  };
+}
+
+function usePhaseDataController(pd: PhaseData, queue: (p: Record<string, unknown>) => void) {
+  const [draft, setDraft] = useState<PhaseData>(pd ?? {});
+
+  useEffect(() => {
+    setDraft((prev) => ({ ...prev, ...(pd ?? {}) }));
+  }, [pd]);
+
+  const patch = (patchData: Partial<PhaseData>) => {
+    setDraft((prev) => {
+      const next = { ...prev, ...patchData };
+      queue({ phase_data: next });
+      return next;
+    });
+  };
+
+  return [draft, patch] as const;
+}
+
+type DraftTextareaProps = Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "onChange"> & {
+  value?: string;
+  onValueChange: (value: string) => void;
+};
+
+function DraftTextarea({ value = "", onValueChange, onFocus, onBlur, ...props }: DraftTextareaProps) {
+  const [local, setLocal] = useState(value ?? "");
+  const focused = useRef(false);
+
+  useEffect(() => {
+    if (!focused.current) setLocal(value ?? "");
+  }, [value]);
+
+  return (
+    <textarea
+      {...props}
+      value={local}
+      onFocus={(e) => {
+        focused.current = true;
+        onFocus?.(e);
+      }}
+      onBlur={(e) => {
+        focused.current = false;
+        onValueChange(local);
+        onBlur?.(e);
+      }}
+      onChange={(e) => {
+        const next = e.target.value;
+        setLocal(next);
+        onValueChange(next);
+      }}
+    />
+  );
 }
 
 /* ================================================================== */
@@ -1932,7 +1974,7 @@ function Phase1({
     apply(next);
   };
 
-  const patchPD = (p: Partial<PhaseData>) => queue({ phase_data: { ...pd, ...p } });
+  const patchPD = usePhaseDataDraft(pd, queue);
 
   const callAI = async () => {
     setLoading(true);
@@ -1947,6 +1989,7 @@ function Phase1({
             origem: pd.origem,
             conteudo: pd.conteudo,
             conteudo_audiencia: pd.conteudo_audiencia,
+            intencao_uso: pd.intencao_uso,
             serie_nome: piece.series_name,
             serie_position: piece.series_position,
           },
@@ -1955,7 +1998,7 @@ function Phase1({
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       const result = data?.result ?? {};
-      queue({ phase_data: { ...pd, ia_leitura_fase1: result } });
+      patchPD({ ia_leitura_fase1: result });
       await flush();
       toast.success("Leitura da IA pronta");
     } catch (e) {
@@ -2230,7 +2273,7 @@ function Phase2({
   onAdvance: () => Promise<void>;
 }) {
   const [loading, setLoading] = useState(false);
-  const patchPD = (p: Partial<PhaseData>) => queue({ phase_data: { ...pd, ...p } });
+  const patchPD = usePhaseDataDraft(pd, queue);
 
   const metasSelecionadas: string[] = pd.metas_resultado ?? (pd.meta_resultado ? [pd.meta_resultado] : []);
   const metasSugeridas: string[] = pd.ia_validacao_fase2?.metas_sugeridas ?? [];
@@ -2254,13 +2297,16 @@ function Phase2({
             creation_strategy: piece.creation_strategy,
             metas_resultado: metasSelecionadas,
             intencao_uso: pd.intencao_uso,
+            conteudo: pd.conteudo,
+            insight_manual: pd.insight_manual,
+            caminho_narrativo: pd.ia_leitura_fase1?.caminho_narrativo,
             ai_memory: piece.ai_memory,
           },
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      queue({ phase_data: { ...pd, ia_validacao_fase2: data?.result ?? {} } });
+      patchPD({ ia_validacao_fase2: data?.result ?? {} });
       await flush();
       toast.success("Estratégia validada");
     } catch (e) {
@@ -2418,10 +2464,9 @@ function Phase3({
   const [teleOpen, setTeleOpen] = useState(false);
   const [targetSeconds, setTargetSeconds] = useState(90);
   const [faltouTexto, setFaltouTexto] = useState("");
+  const [phaseDraft, patchPD] = usePhaseDataController(pd, queue);
 
   useEffect(() => { if (openTeleOnMount) setTeleOpen(true); }, []);
-
-  const patchPD = (p: Partial<PhaseData>) => queue({ phase_data: { ...pd, ...p } });
 
   const callAI = async (action: string, payload: Record<string, unknown>) => {
     setLoading(action);
@@ -2440,19 +2485,21 @@ function Phase3({
   };
 
   // ── ETAPA 1: INSIGHTS ──
-  const insights: string[] = pd.bullets_insights ?? [];
-  const sugestaoFalta: string = pd.sugestao_faltou ?? "";
+  const insights: string[] = phaseDraft.bullets_insights ?? [];
+  const sugestaoFalta: string = phaseDraft.sugestao_faltou ?? "";
 
   const gerarInsights = async () => {
     const result = await callAI("phase3_insights", {
       tema: piece.theme,
       energia: piece.energia,
       creation_strategy: piece.creation_strategy,
-      metas_resultado: pd.metas_resultado ?? [],
-      conteudo: pd.conteudo,
-      insight_manual: pd.insight_manual ?? null,
-      conteudo_audiencia: pd.conteudo_audiencia,
-      sugestao_aplicada: pd.sugestao_aplicada ?? null,
+      metas_resultado: phaseDraft.metas_resultado ?? [],
+      conteudo: phaseDraft.conteudo,
+      insight_manual: phaseDraft.insight_manual ?? null,
+      caminho_narrativo: phaseDraft.ia_leitura_fase1?.caminho_narrativo ?? null,
+      observacao_fase1: phaseDraft.ia_leitura_fase1?.observacao ?? null,
+      conteudo_audiencia: phaseDraft.conteudo_audiencia,
+      sugestao_aplicada: phaseDraft.sugestao_aplicada ?? null,
       ai_memory: piece.ai_memory,
       modo: "bullets",
     });
@@ -2469,8 +2516,9 @@ function Phase3({
       tema: piece.theme,
       energia: piece.energia,
       creation_strategy: piece.creation_strategy,
-      metas_resultado: pd.metas_resultado ?? [],
-      conteudo: pd.conteudo,
+      metas_resultado: phaseDraft.metas_resultado ?? [],
+      conteudo: phaseDraft.conteudo,
+      insight_manual: phaseDraft.insight_manual ?? null,
       faltou: faltouTexto,
       bullets_existentes: insights,
       ai_memory: piece.ai_memory,
@@ -2490,7 +2538,7 @@ function Phase3({
   };
 
   // ── ETAPA 2: TÓPICOS ──
-  const topicos: string[] = (pd.topicos_rascunho as string[] | undefined) ?? [];
+  const topicos: string[] = (phaseDraft.topicos_rascunho as string[] | undefined) ?? [];
   const atualizarTopico = (idx: number, valor: string) => {
     const next = [...topicos]; next[idx] = valor;
     patchPD({ topicos_rascunho: next });
@@ -2499,17 +2547,22 @@ function Phase3({
   const removerTopico = (idx: number) => patchPD({ topicos_rascunho: topicos.filter((_, i) => i !== idx) });
 
   // ── ETAPA 3: ROTEIRO ──
-  const blocos: ScriptBlock[] = withCta(pd.blocos_salvos_usuario ?? pd.blocos_editados ?? pd.blocos_rascunho ?? []);
+  const blocos: ScriptBlock[] = withCta(phaseDraft.blocos_salvos_usuario ?? phaseDraft.blocos_editados ?? phaseDraft.blocos_rascunho ?? []);
   const totalSec = blocos.reduce((a, b) => a + wordsAndSeconds(b.texto || "").seconds, 0);
 
   const gerarRoteiro = async () => {
     const result = await callAI("phase3_draft", {
       tema: piece.theme,
       energia: piece.energia,
-      metas_resultado: pd.metas_resultado ?? [],
-      conteudo: pd.conteudo,
-      topicos_para_abordar: topicos,
-      modelo_roteiro: pd.modelo_roteiro ?? null,
+      creation_strategy: piece.creation_strategy,
+      metas_resultado: phaseDraft.metas_resultado ?? [],
+      intencao_uso: phaseDraft.intencao_uso,
+      conteudo: phaseDraft.conteudo,
+      insight_manual: phaseDraft.insight_manual ?? null,
+      leitura_fase1: phaseDraft.ia_leitura_fase1 ?? {},
+      validacao_fase2: phaseDraft.ia_validacao_fase2 ?? {},
+      topicos_para_abordar: topicos.length ? topicos : insights,
+      modelo_roteiro: phaseDraft.modelo_roteiro ?? null,
       ai_memory: piece.ai_memory,
     });
     if (!result) return;
@@ -2530,7 +2583,7 @@ function Phase3({
   };
 
   // ── ETAPA 4: REVISÃO ──
-  const blocosFinais: ScriptBlock[] = withCta(pd.blocos_salvos_usuario ?? pd.blocos_editados ?? pd.blocos_rascunho ?? []);
+  const blocosFinais: ScriptBlock[] = withCta(phaseDraft.blocos_salvos_usuario ?? phaseDraft.blocos_editados ?? phaseDraft.blocos_rascunho ?? []);
   const tempoFinalSec = blocosFinais.reduce((a, b) => a + wordsAndSeconds(b.texto || "").seconds, 0);
 
   const editarBlocoFinal = (idx: number, texto: string) => {
@@ -2557,7 +2610,7 @@ function Phase3({
   };
 
   const usarVersaoCortada = async () => {
-    const cortes = pd.sugestao_cortes?.blocos;
+    const cortes = phaseDraft.sugestao_cortes?.blocos;
     if (!cortes) return;
     patchPD({ blocos_salvos_usuario: cortes, sugestao_cortes: undefined });
     await flush();
@@ -2569,7 +2622,8 @@ function Phase3({
       tema: piece.theme,
       energia: piece.energia,
       creation_strategy: piece.creation_strategy,
-      metas_resultado: pd.metas_resultado ?? [],
+      metas_resultado: phaseDraft.metas_resultado ?? [],
+      conteudo: phaseDraft.conteudo,
       blocos_finais: blocosFinais,
       ai_memory: piece.ai_memory,
     });
@@ -2596,15 +2650,15 @@ function Phase3({
     });
     if (!result) return;
     const r = result as { blocos_ajustados?: ScriptBlock[] };
-    patchPD({ sugestoes_inline: { ...(pd.sugestoes_inline ?? {}), [idx]: r.blocos_ajustados?.[idx] ?? r.blocos_ajustados?.[0] } });
+    patchPD({ sugestoes_inline: { ...(phaseDraft.sugestoes_inline ?? {}), [idx]: r.blocos_ajustados?.[idx] ?? r.blocos_ajustados?.[0] } });
     await flush();
   };
 
   const aprovarInline = async (idx: number) => {
-    const sugestao = (pd.sugestoes_inline ?? {})[idx];
+    const sugestao = (phaseDraft.sugestoes_inline ?? {})[idx];
     if (!sugestao) return;
     const next = [...blocosFinais]; next[idx] = { ...next[idx], texto: sugestao.texto };
-    patchPD({ blocos_salvos_usuario: next, sugestoes_inline: { ...(pd.sugestoes_inline ?? {}), [idx]: undefined } });
+    patchPD({ blocos_salvos_usuario: next, sugestoes_inline: { ...(phaseDraft.sugestoes_inline ?? {}), [idx]: undefined } });
     await flush();
     toast.success("Sugestão aplicada ao roteiro");
   };
@@ -2626,7 +2680,7 @@ function Phase3({
     fontTimer.current = setTimeout(flush, 500);
   };
 
-  const revisaoIA = pd.revisao_ia;
+  const revisaoIA = phaseDraft.revisao_ia;
 
   const subTabs = [
     { v: "insights" as const, label: "1. Insights" },
@@ -2709,10 +2763,10 @@ function Phase3({
             {topicos.map((t, idx) => (
               <div key={idx} className="flex gap-2 items-start">
                 <span className="text-xs text-muted-foreground pt-2.5 w-5 shrink-0">{idx + 1}.</span>
-                <textarea
+                <DraftTextarea
                   className="flex-1 min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   value={t}
-                  onChange={(e) => atualizarTopico(idx, e.target.value)}
+                  onValueChange={(value) => atualizarTopico(idx, value)}
                   placeholder={`Tópico ${idx + 1}...`}
                 />
                 <Button size="icon" variant="ghost" className="shrink-0 mt-1 text-muted-foreground hover:text-destructive" onClick={() => removerTopico(idx)}>
@@ -2727,10 +2781,10 @@ function Phase3({
           <Card className="p-4 space-y-2">
             <Label className="text-sm">Modelo base de roteiro (opcional)</Label>
             <p className="text-xs text-muted-foreground">Cole um roteiro de referência. A IA vai usar a estrutura narrativa dele para organizar seus tópicos.</p>
-            <textarea
+            <DraftTextarea
               className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              value={pd.modelo_roteiro ?? ""}
-              onChange={(e) => patchPD({ modelo_roteiro: e.target.value })}
+              value={phaseDraft.modelo_roteiro ?? ""}
+              onValueChange={(value) => patchPD({ modelo_roteiro: value })}
               placeholder="Cole aqui um roteiro modelo para servir de estrutura narrativa..."
             />
           </Card>
@@ -2771,10 +2825,10 @@ function Phase3({
                     <Badge variant="outline" className="text-[10px] uppercase">{papelLabel(b.papel)}</Badge>
                     {b.texto && <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">{words}p · ~{seconds}s</span>}
                   </div>
-                  <textarea
+                  <DraftTextarea
                     className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     value={b.texto}
-                    onChange={(e) => editarBloco(idx, e.target.value)}
+                    onValueChange={(value) => editarBloco(idx, value)}
                     placeholder={(b.papel ?? "").toLowerCase() === "cta" ? "Chamada para ação — não use venda direta" : `Escreva o ${b.papel}...`}
                   />
                   {b.nota_gravacao && b.papel !== "CTA" && (
@@ -2811,20 +2865,20 @@ function Phase3({
                 </Button>
               </div>
             </div>
-            {pd.sugestao_cortes && (
+            {phaseDraft.sugestao_cortes && (
               <div className="space-y-2 border-t pt-3">
-                <div className="text-xs uppercase opacity-60">Versão com cortes (alvo {pd.sugestao_cortes.target}s)</div>
+                <div className="text-xs uppercase opacity-60">Versão com cortes (alvo {phaseDraft.sugestao_cortes.target}s)</div>
                 <div className="space-y-2">
-                  {pd.sugestao_cortes.blocos?.map((b, i) => (
+                  {phaseDraft.sugestao_cortes.blocos?.map((b, i) => (
                     <div key={i} className="space-y-1">
                       <Badge variant="outline" className="text-[9px]">{papelLabel(b.papel)}</Badge>
-                      <textarea
+                      <DraftTextarea
                         className="w-full min-h-[60px] rounded-md border border-accent/40 bg-accent/5 px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         value={b.texto}
-                        onChange={(e) => {
-                          const next = [...(pd.sugestao_cortes?.blocos ?? [])];
-                          next[i] = { ...next[i], texto: e.target.value };
-                          patchPD({ sugestao_cortes: { ...pd.sugestao_cortes!, blocos: next } });
+                        onValueChange={(value) => {
+                          const next = [...(phaseDraft.sugestao_cortes?.blocos ?? [])];
+                          next[i] = { ...next[i], texto: value };
+                          patchPD({ sugestao_cortes: { ...phaseDraft.sugestao_cortes!, blocos: next } });
                         }}
                       />
                     </div>
@@ -2872,7 +2926,7 @@ function Phase3({
           <div className="space-y-3">
             {blocosFinais.map((b, idx) => {
               const pf = revisaoIA?.pontos_fracos?.find(p => b.papel?.toLowerCase().includes(p.ponto?.toLowerCase().slice(0, 10)));
-              const sugestaoInline = (pd.sugestoes_inline ?? {})[idx];
+              const sugestaoInline = (phaseDraft.sugestoes_inline ?? {})[idx];
               const { words, seconds } = wordsAndSeconds(b.texto || "");
               return (
                 <Card key={idx} className="p-4 space-y-2">
@@ -2880,10 +2934,10 @@ function Phase3({
                     <Badge variant="outline" className="text-[10px] uppercase">{papelLabel(b.papel)}</Badge>
                     <span className="text-[11px] text-muted-foreground tabular-nums">{words}p · ~{seconds}s</span>
                   </div>
-                  <textarea
+                  <DraftTextarea
                     className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     value={b.texto}
-                    onChange={(e) => editarBlocoFinal(idx, e.target.value)}
+                    onValueChange={(value) => editarBlocoFinal(idx, value)}
                   />
                   {pf && !sugestaoInline && (
                     <div className="border-t pt-2 space-y-1">

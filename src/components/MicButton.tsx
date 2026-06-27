@@ -23,12 +23,12 @@ export function MicButton({
   showInterim = false,
   className,
   lang = "pt-BR",
-  title = "Segure para falar",
+  title = "Clique para iniciar/parar o ditado",
 }: MicButtonProps) {
   const valueRef = useRef(value);
   useEffect(() => { valueRef.current = value; }, [value]);
 
-  const { listening, interim, error, supported, start, stop } = useDictation({
+  const { listening, interim, error, supported, toggle } = useDictation({
     lang,
     continuous: true,
     onFinal: (text) => {
@@ -51,30 +51,14 @@ export function MicButton({
   const dim = size === "sm" ? "h-7 w-7" : "h-9 w-9";
   const icon = size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4";
 
-  const handlePointerDown = (e: React.PointerEvent) => {
-    e.preventDefault();
-    start();
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    e.preventDefault();
-    stop();
-  };
-
-  const handlePointerLeave = (e: React.PointerEvent) => {
-    if (listening) {
-      e.preventDefault();
-      stop();
-    }
-  };
-
   return (
     <>
       <button
         type="button"
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerLeave}
+        onClick={(e) => {
+          e.preventDefault();
+          toggle();
+        }}
         title={title}
         aria-label={title}
         aria-pressed={listening}
