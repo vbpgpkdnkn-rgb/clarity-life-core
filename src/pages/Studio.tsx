@@ -307,6 +307,24 @@ function usePhaseDataDraft(pd: PhaseData, queue: (p: Record<string, unknown>) =>
   };
 }
 
+function usePhaseDataController(pd: PhaseData, queue: (p: Record<string, unknown>) => void) {
+  const [draft, setDraft] = useState<PhaseData>(pd ?? {});
+
+  useEffect(() => {
+    setDraft((prev) => ({ ...prev, ...(pd ?? {}) }));
+  }, [pd]);
+
+  const patch = (patchData: Partial<PhaseData>) => {
+    setDraft((prev) => {
+      const next = { ...prev, ...patchData };
+      queue({ phase_data: next });
+      return next;
+    });
+  };
+
+  return [draft, patch] as const;
+}
+
 type DraftTextareaProps = Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "onChange"> & {
   value?: string;
   onValueChange: (value: string) => void;
