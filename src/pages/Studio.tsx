@@ -309,6 +309,41 @@ function usePhaseDataDraft(pd: PhaseData, queue: (p: Record<string, unknown>) =>
   };
 }
 
+type DraftTextareaProps = Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "onChange"> & {
+  value?: string;
+  onValueChange: (value: string) => void;
+};
+
+function DraftTextarea({ value = "", onValueChange, onFocus, onBlur, ...props }: DraftTextareaProps) {
+  const [local, setLocal] = useState(value ?? "");
+  const focused = useRef(false);
+
+  useEffect(() => {
+    if (!focused.current) setLocal(value ?? "");
+  }, [value]);
+
+  return (
+    <textarea
+      {...props}
+      value={local}
+      onFocus={(e) => {
+        focused.current = true;
+        onFocus?.(e);
+      }}
+      onBlur={(e) => {
+        focused.current = false;
+        onValueChange(local);
+        onBlur?.(e);
+      }}
+      onChange={(e) => {
+        const next = e.target.value;
+        setLocal(next);
+        onValueChange(next);
+      }}
+    />
+  );
+}
+
 /* ================================================================== */
 /* SÉRIES — Card e Dialogs                                            */
 /* ================================================================== */
