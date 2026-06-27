@@ -204,55 +204,17 @@ function VoiceButton({
 }: {
   onResult: (text: string) => void;
 }) {
-  const SR =
-    typeof window !== "undefined"
-      ? ((window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
-          .SpeechRecognition ??
-          (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition)
-      : undefined;
-  const supported = !!SR;
-  const [recording, setRecording] = useState(false);
-  const recRef = useRef<{ stop: () => void } | null>(null);
-
-  const toggle = () => {
-    if (!supported) return;
-    if (recording) {
-      recRef.current?.stop();
-      return;
-    }
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const rec = new (SR as any)();
-      rec.lang = "pt-BR";
-      rec.continuous = false;
-      rec.interimResults = false;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      rec.onresult = (ev: any) => {
-        const text = ev.results?.[0]?.[0]?.transcript ?? "";
-        if (text) onResult(text);
-      };
-      rec.onend = () => setRecording(false);
-      rec.onerror = () => setRecording(false);
-      recRef.current = rec;
-      rec.start();
-      setRecording(true);
-    } catch {
-      setRecording(false);
-    }
-  };
-
   return (
-    <Button
-      type="button"
+    <MicButton
+      value=""
+      mode="replace"
       size="sm"
-      variant="ghost"
-      disabled={!supported}
-      onClick={toggle}
-      className={cn("h-7 px-2", recording && "text-red-500")}
-      title={supported ? (recording ? "Parar" : "Ditar por voz") : "Voz não suportada"}
-    >
-      {recording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-    </Button>
+      title="Clique para iniciar/parar o ditado"
+      onChange={(text) => {
+        const clean = text.trim();
+        if (clean) onResult(clean);
+      }}
+    />
   );
 }
 
@@ -310,12 +272,41 @@ function useDebouncedSave(pieceId: string | null) {
   };
 
   const queue = (patch: Record<string, unknown>) => {
-    pending.current = { ...pending.current, ...patch };
+    if (
+      patch.phase_data &&
+      typeof patch.phase_data === "object" &&
+      pending.current.phase_data &&
+      typeof pending.current.phase_data === "object"
+    ) {
+      pending.current = {
+        ...pending.current,
+        ...patch,
+        phase_data: {
+          ...(pending.current.phase_data as Record<string, unknown>),
+          ...(patch.phase_data as Record<string, unknown>),
+        },
+      };
+    } else {
+      pending.current = { ...pending.current, ...patch };
+    }
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(flush, 800);
   };
 
   return { queue, flush };
+}
+
+function usePhaseDataDraft(pd: PhaseData, queue: (p: Record<string, unknown>) => void) {
+  const draftRef = useRef<PhaseData>(pd ?? {});
+
+  useEffect(() => {
+    draftRef.current = { ...draftRef.current, ...(pd ?? {}) };
+  }, [pd]);
+
+  return (patch: Partial<PhaseData>) => {
+    draftRef.current = { ...draftRef.current, ...patch };
+    queue({ phase_data: draftRef.current });
+  };
 }
 
 /* ================================================================== */
