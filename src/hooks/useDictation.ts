@@ -28,6 +28,8 @@ export function useDictation({
   const [interim, setInterim] = useState("");
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
+  const shouldListenRef = useRef(false);
+  const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const supported = typeof window !== "undefined" &&
     (("SpeechRecognition" in window) || ("webkitSpeechRecognition" in window));
 
@@ -37,9 +39,15 @@ export function useDictation({
   useEffect(() => { onInterimRef.current = onInterim; }, [onInterim]);
 
   const stop = useCallback(() => {
+    shouldListenRef.current = false;
+    if (restartTimerRef.current) {
+      clearTimeout(restartTimerRef.current);
+      restartTimerRef.current = null;
+    }
     try {
       recognitionRef.current?.stop();
     } catch {}
+    recognitionRef.current = null;
     setListening(false);
   }, []);
 
@@ -50,6 +58,7 @@ export function useDictation({
     }
     setError(null);
     setInterim("");
+    shouldListenRef.current = true;
 
     const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     const rec = new SR();
@@ -82,22 +91,33 @@ export function useDictation({
       const msg = e.error === "not-allowed"
         ? "Permissão do microfone negada"
         : e.error === "no-speech"
-        ? "Não captei nenhuma fala"
+        ? null
         : `Erro: ${e.error}`;
-      setError(msg);
-      setListening(false);
+      if (msg) setError(msg);
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        shouldListenRef.current = false;
+      }
     };
 
     rec.onend = () => {
-      setListening(false);
       setInterim("");
+      recognitionRef.current = null;
+      if (shouldListenRef.current && continuous) {
+        restartTimerRef.current = setTimeout(() => {
+          if (shouldListenRef.current) start();
+        }, 250);
+        return;
+      }
+      setListening(false);
     };
 
     try {
+      try { recognitionRef.current?.stop(); } catch {}
       rec.start();
       recognitionRef.current = rec;
       setListening(true);
     } catch (err: any) {
+      shouldListenRef.current = false;
       setError(err?.message ?? "Falha ao iniciar microfone");
     }
   }, [lang, continuous, supported]);
