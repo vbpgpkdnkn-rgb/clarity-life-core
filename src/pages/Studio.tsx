@@ -2464,10 +2464,9 @@ function Phase3({
   const [teleOpen, setTeleOpen] = useState(false);
   const [targetSeconds, setTargetSeconds] = useState(90);
   const [faltouTexto, setFaltouTexto] = useState("");
+  const [phaseDraft, patchPD] = usePhaseDataController(pd, queue);
 
   useEffect(() => { if (openTeleOnMount) setTeleOpen(true); }, []);
-
-  const patchPD = usePhaseDataDraft(pd, queue);
 
   const callAI = async (action: string, payload: Record<string, unknown>) => {
     setLoading(action);
@@ -2486,21 +2485,21 @@ function Phase3({
   };
 
   // ── ETAPA 1: INSIGHTS ──
-  const insights: string[] = pd.bullets_insights ?? [];
-  const sugestaoFalta: string = pd.sugestao_faltou ?? "";
+  const insights: string[] = phaseDraft.bullets_insights ?? [];
+  const sugestaoFalta: string = phaseDraft.sugestao_faltou ?? "";
 
   const gerarInsights = async () => {
     const result = await callAI("phase3_insights", {
       tema: piece.theme,
       energia: piece.energia,
       creation_strategy: piece.creation_strategy,
-      metas_resultado: pd.metas_resultado ?? [],
-      conteudo: pd.conteudo,
-      insight_manual: pd.insight_manual ?? null,
-      caminho_narrativo: pd.ia_leitura_fase1?.caminho_narrativo ?? null,
-      observacao_fase1: pd.ia_leitura_fase1?.observacao ?? null,
-      conteudo_audiencia: pd.conteudo_audiencia,
-      sugestao_aplicada: pd.sugestao_aplicada ?? null,
+      metas_resultado: phaseDraft.metas_resultado ?? [],
+      conteudo: phaseDraft.conteudo,
+      insight_manual: phaseDraft.insight_manual ?? null,
+      caminho_narrativo: phaseDraft.ia_leitura_fase1?.caminho_narrativo ?? null,
+      observacao_fase1: phaseDraft.ia_leitura_fase1?.observacao ?? null,
+      conteudo_audiencia: phaseDraft.conteudo_audiencia,
+      sugestao_aplicada: phaseDraft.sugestao_aplicada ?? null,
       ai_memory: piece.ai_memory,
       modo: "bullets",
     });
@@ -2517,9 +2516,9 @@ function Phase3({
       tema: piece.theme,
       energia: piece.energia,
       creation_strategy: piece.creation_strategy,
-      metas_resultado: pd.metas_resultado ?? [],
-      conteudo: pd.conteudo,
-      insight_manual: pd.insight_manual ?? null,
+      metas_resultado: phaseDraft.metas_resultado ?? [],
+      conteudo: phaseDraft.conteudo,
+      insight_manual: phaseDraft.insight_manual ?? null,
       faltou: faltouTexto,
       bullets_existentes: insights,
       ai_memory: piece.ai_memory,
@@ -2539,7 +2538,7 @@ function Phase3({
   };
 
   // ── ETAPA 2: TÓPICOS ──
-  const topicos: string[] = (pd.topicos_rascunho as string[] | undefined) ?? [];
+  const topicos: string[] = (phaseDraft.topicos_rascunho as string[] | undefined) ?? [];
   const atualizarTopico = (idx: number, valor: string) => {
     const next = [...topicos]; next[idx] = valor;
     patchPD({ topicos_rascunho: next });
@@ -2548,7 +2547,7 @@ function Phase3({
   const removerTopico = (idx: number) => patchPD({ topicos_rascunho: topicos.filter((_, i) => i !== idx) });
 
   // ── ETAPA 3: ROTEIRO ──
-  const blocos: ScriptBlock[] = withCta(pd.blocos_salvos_usuario ?? pd.blocos_editados ?? pd.blocos_rascunho ?? []);
+  const blocos: ScriptBlock[] = withCta(phaseDraft.blocos_salvos_usuario ?? phaseDraft.blocos_editados ?? phaseDraft.blocos_rascunho ?? []);
   const totalSec = blocos.reduce((a, b) => a + wordsAndSeconds(b.texto || "").seconds, 0);
 
   const gerarRoteiro = async () => {
@@ -2556,14 +2555,14 @@ function Phase3({
       tema: piece.theme,
       energia: piece.energia,
       creation_strategy: piece.creation_strategy,
-      metas_resultado: pd.metas_resultado ?? [],
-      intencao_uso: pd.intencao_uso,
-      conteudo: pd.conteudo,
-      insight_manual: pd.insight_manual ?? null,
-      leitura_fase1: pd.ia_leitura_fase1 ?? {},
-      validacao_fase2: pd.ia_validacao_fase2 ?? {},
+      metas_resultado: phaseDraft.metas_resultado ?? [],
+      intencao_uso: phaseDraft.intencao_uso,
+      conteudo: phaseDraft.conteudo,
+      insight_manual: phaseDraft.insight_manual ?? null,
+      leitura_fase1: phaseDraft.ia_leitura_fase1 ?? {},
+      validacao_fase2: phaseDraft.ia_validacao_fase2 ?? {},
       topicos_para_abordar: topicos.length ? topicos : insights,
-      modelo_roteiro: pd.modelo_roteiro ?? null,
+      modelo_roteiro: phaseDraft.modelo_roteiro ?? null,
       ai_memory: piece.ai_memory,
     });
     if (!result) return;
@@ -2584,7 +2583,7 @@ function Phase3({
   };
 
   // ── ETAPA 4: REVISÃO ──
-  const blocosFinais: ScriptBlock[] = withCta(pd.blocos_salvos_usuario ?? pd.blocos_editados ?? pd.blocos_rascunho ?? []);
+  const blocosFinais: ScriptBlock[] = withCta(phaseDraft.blocos_salvos_usuario ?? phaseDraft.blocos_editados ?? phaseDraft.blocos_rascunho ?? []);
   const tempoFinalSec = blocosFinais.reduce((a, b) => a + wordsAndSeconds(b.texto || "").seconds, 0);
 
   const editarBlocoFinal = (idx: number, texto: string) => {
@@ -2611,7 +2610,7 @@ function Phase3({
   };
 
   const usarVersaoCortada = async () => {
-    const cortes = pd.sugestao_cortes?.blocos;
+    const cortes = phaseDraft.sugestao_cortes?.blocos;
     if (!cortes) return;
     patchPD({ blocos_salvos_usuario: cortes, sugestao_cortes: undefined });
     await flush();
@@ -2623,8 +2622,8 @@ function Phase3({
       tema: piece.theme,
       energia: piece.energia,
       creation_strategy: piece.creation_strategy,
-      metas_resultado: pd.metas_resultado ?? [],
-      conteudo: pd.conteudo,
+      metas_resultado: phaseDraft.metas_resultado ?? [],
+      conteudo: phaseDraft.conteudo,
       blocos_finais: blocosFinais,
       ai_memory: piece.ai_memory,
     });
@@ -2651,15 +2650,15 @@ function Phase3({
     });
     if (!result) return;
     const r = result as { blocos_ajustados?: ScriptBlock[] };
-    patchPD({ sugestoes_inline: { ...(pd.sugestoes_inline ?? {}), [idx]: r.blocos_ajustados?.[idx] ?? r.blocos_ajustados?.[0] } });
+    patchPD({ sugestoes_inline: { ...(phaseDraft.sugestoes_inline ?? {}), [idx]: r.blocos_ajustados?.[idx] ?? r.blocos_ajustados?.[0] } });
     await flush();
   };
 
   const aprovarInline = async (idx: number) => {
-    const sugestao = (pd.sugestoes_inline ?? {})[idx];
+    const sugestao = (phaseDraft.sugestoes_inline ?? {})[idx];
     if (!sugestao) return;
     const next = [...blocosFinais]; next[idx] = { ...next[idx], texto: sugestao.texto };
-    patchPD({ blocos_salvos_usuario: next, sugestoes_inline: { ...(pd.sugestoes_inline ?? {}), [idx]: undefined } });
+    patchPD({ blocos_salvos_usuario: next, sugestoes_inline: { ...(phaseDraft.sugestoes_inline ?? {}), [idx]: undefined } });
     await flush();
     toast.success("Sugestão aplicada ao roteiro");
   };
@@ -2681,7 +2680,7 @@ function Phase3({
     fontTimer.current = setTimeout(flush, 500);
   };
 
-  const revisaoIA = pd.revisao_ia;
+  const revisaoIA = phaseDraft.revisao_ia;
 
   const subTabs = [
     { v: "insights" as const, label: "1. Insights" },
