@@ -2746,10 +2746,10 @@ function Phase3({
             {topicos.map((t, idx) => (
               <div key={idx} className="flex gap-2 items-start">
                 <span className="text-xs text-muted-foreground pt-2.5 w-5 shrink-0">{idx + 1}.</span>
-                <textarea
+                <DraftTextarea
                   className="flex-1 min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   value={t}
-                  onChange={(e) => atualizarTopico(idx, e.target.value)}
+                  onValueChange={(value) => atualizarTopico(idx, value)}
                   placeholder={`Tópico ${idx + 1}...`}
                 />
                 <Button size="icon" variant="ghost" className="shrink-0 mt-1 text-muted-foreground hover:text-destructive" onClick={() => removerTopico(idx)}>
@@ -2764,10 +2764,10 @@ function Phase3({
           <Card className="p-4 space-y-2">
             <Label className="text-sm">Modelo base de roteiro (opcional)</Label>
             <p className="text-xs text-muted-foreground">Cole um roteiro de referência. A IA vai usar a estrutura narrativa dele para organizar seus tópicos.</p>
-            <textarea
+            <DraftTextarea
               className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               value={pd.modelo_roteiro ?? ""}
-              onChange={(e) => patchPD({ modelo_roteiro: e.target.value })}
+              onValueChange={(value) => patchPD({ modelo_roteiro: value })}
               placeholder="Cole aqui um roteiro modelo para servir de estrutura narrativa..."
             />
           </Card>
@@ -2808,10 +2808,10 @@ function Phase3({
                     <Badge variant="outline" className="text-[10px] uppercase">{papelLabel(b.papel)}</Badge>
                     {b.texto && <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">{words}p · ~{seconds}s</span>}
                   </div>
-                  <textarea
+                  <DraftTextarea
                     className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     value={b.texto}
-                    onChange={(e) => editarBloco(idx, e.target.value)}
+                    onValueChange={(value) => editarBloco(idx, value)}
                     placeholder={(b.papel ?? "").toLowerCase() === "cta" ? "Chamada para ação — não use venda direta" : `Escreva o ${b.papel}...`}
                   />
                   {b.nota_gravacao && b.papel !== "CTA" && (
@@ -2855,12 +2855,12 @@ function Phase3({
                   {pd.sugestao_cortes.blocos?.map((b, i) => (
                     <div key={i} className="space-y-1">
                       <Badge variant="outline" className="text-[9px]">{papelLabel(b.papel)}</Badge>
-                      <textarea
+                      <DraftTextarea
                         className="w-full min-h-[60px] rounded-md border border-accent/40 bg-accent/5 px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         value={b.texto}
-                        onChange={(e) => {
+                        onValueChange={(value) => {
                           const next = [...(pd.sugestao_cortes?.blocos ?? [])];
-                          next[i] = { ...next[i], texto: e.target.value };
+                          next[i] = { ...next[i], texto: value };
                           patchPD({ sugestao_cortes: { ...pd.sugestao_cortes!, blocos: next } });
                         }}
                       />
@@ -2917,10 +2917,10 @@ function Phase3({
                     <Badge variant="outline" className="text-[10px] uppercase">{papelLabel(b.papel)}</Badge>
                     <span className="text-[11px] text-muted-foreground tabular-nums">{words}p · ~{seconds}s</span>
                   </div>
-                  <textarea
+                  <DraftTextarea
                     className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     value={b.texto}
-                    onChange={(e) => editarBlocoFinal(idx, e.target.value)}
+                    onValueChange={(value) => editarBlocoFinal(idx, value)}
                   />
                   {pf && !sugestaoInline && (
                     <div className="border-t pt-2 space-y-1">
