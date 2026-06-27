@@ -23,12 +23,12 @@ export function MicButton({
   showInterim = false,
   className,
   lang = "pt-BR",
-  title = "Segure para falar",
+  title = "Clique para iniciar/parar o ditado",
 }: MicButtonProps) {
   const valueRef = useRef(value);
   useEffect(() => { valueRef.current = value; }, [value]);
 
-  const { listening, interim, error, supported, start, stop, toggle } = useDictation({
+  const { listening, interim, error, supported, toggle } = useDictation({
     lang,
     continuous: true,
     onFinal: (text) => {
