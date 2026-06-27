@@ -1958,7 +1958,7 @@ function Phase1({
     apply(next);
   };
 
-  const patchPD = (p: Partial<PhaseData>) => queue({ phase_data: { ...pd, ...p } });
+  const patchPD = usePhaseDataDraft(pd, queue);
 
   const callAI = async () => {
     setLoading(true);
@@ -2256,7 +2256,7 @@ function Phase2({
   onAdvance: () => Promise<void>;
 }) {
   const [loading, setLoading] = useState(false);
-  const patchPD = (p: Partial<PhaseData>) => queue({ phase_data: { ...pd, ...p } });
+  const patchPD = usePhaseDataDraft(pd, queue);
 
   const metasSelecionadas: string[] = pd.metas_resultado ?? (pd.meta_resultado ? [pd.meta_resultado] : []);
   const metasSugeridas: string[] = pd.ia_validacao_fase2?.metas_sugeridas ?? [];
@@ -2447,7 +2447,7 @@ function Phase3({
 
   useEffect(() => { if (openTeleOnMount) setTeleOpen(true); }, []);
 
-  const patchPD = (p: Partial<PhaseData>) => queue({ phase_data: { ...pd, ...p } });
+  const patchPD = usePhaseDataDraft(pd, queue);
 
   const callAI = async (action: string, payload: Record<string, unknown>) => {
     setLoading(action);
