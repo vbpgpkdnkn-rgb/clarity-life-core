@@ -333,10 +333,15 @@ type DraftTextareaProps = Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>
 function DraftTextarea({ value = "", onValueChange, onFocus, onBlur, ...props }: DraftTextareaProps) {
   const [local, setLocal] = useState(value ?? "");
   const focused = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!focused.current) setLocal(value ?? "");
   }, [value]);
+
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
 
   return (
     <textarea
@@ -348,13 +353,15 @@ function DraftTextarea({ value = "", onValueChange, onFocus, onBlur, ...props }:
       }}
       onBlur={(e) => {
         focused.current = false;
+        if (timerRef.current) clearTimeout(timerRef.current);
         onValueChange(local);
         onBlur?.(e);
       }}
       onChange={(e) => {
         const next = e.target.value;
         setLocal(next);
-        onValueChange(next);
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => onValueChange(next), 800);
       }}
     />
   );
