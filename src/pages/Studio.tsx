@@ -1544,6 +1544,116 @@ export default function Studio() {
               </DialogContent>
             </Dialog>
 
+            {/* Modal: roteiro pronto */}
+            <Dialog open={roteiroDirectoOpen} onOpenChange={setRoteiroDirectoOpen}>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>📝 Entrar com roteiro pronto</DialogTitle>
+                  <p className="text-xs text-muted-foreground">Cole o roteiro já criado. Ele vai direto para produção — sem passar por tema ou estratégia.</p>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Título da peça *</Label>
+                      <Input value={rdTitulo} onChange={(e) => setRdTitulo(e.target.value)} placeholder="Nome do conteúdo" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Tema central</Label>
+                      <Input value={rdTema} onChange={(e) => setRdTema(e.target.value)} placeholder="Assunto abordado" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Energia</Label>
+                      <Select value={rdEnergia} onValueChange={setRdEnergia}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="topo">Topo — identificação</SelectItem>
+                          <SelectItem value="meio">Meio — confiança clínica</SelectItem>
+                          <SelectItem value="fundo">Fundo — reduzir resistência</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Série (opcional)</Label>
+                      <div className="flex gap-2">
+                        <Select value={rdSeries} onValueChange={setRdSeries}>
+                          <SelectTrigger className="flex-1"><SelectValue placeholder="Nenhuma" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Nenhuma</SelectItem>
+                            {(seriesListQ.data ?? []).map((s) => (
+                              <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {rdSeries !== "none" && (
+                          <Input type="number" min={1} placeholder="Ep nº" className="w-20"
+                            value={rdEpNum} onChange={(e) => setRdEpNum(e.target.value)} />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Roteiro completo *</Label>
+                    <p className="text-xs text-muted-foreground">Cole o roteiro exatamente como está. Ele será salvo como texto corrido e ficará disponível no teleprompter.</p>
+                    <textarea
+                      className="w-full min-h-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      value={rdRoteiro}
+                      onChange={(e) => setRdRoteiro(e.target.value)}
+                      placeholder="Cole o roteiro aqui..."
+                    />
+                    {rdRoteiro.trim() && (
+                      <p className="text-xs text-muted-foreground">
+                        {rdRoteiro.trim().split(/\s+/).filter(Boolean).length} palavras · ~{Math.round(rdRoteiro.trim().split(/\s+/).filter(Boolean).length / 2.5)}s estimados
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button variant="ghost" onClick={() => setRoteiroDirectoOpen(false)}>Cancelar</Button>
+                    <Button
+                      disabled={!rdTitulo.trim() || !rdRoteiro.trim() || rdSaving}
+                      onClick={async () => {
+                        setRdSaving(true);
+                        try {
+                          const { data, error } = await supabase
+                            .from("content_pieces")
+                            .insert({
+                              title: rdTitulo.trim(),
+                              theme: rdTema.trim() || rdTitulo.trim(),
+                              status: "ideia",
+                              phase: 4,
+                              scope: "profissional",
+                              energia: rdEnergia,
+                              script: rdRoteiro.trim(),
+                              pipeline_stage: "roteiro_pronto",
+                              series_name: rdSeries !== "none" ? rdSeries : null,
+                              series_position: rdSeries !== "none" && rdEpNum ? Number(rdEpNum) : null,
+                            } as never)
+                            .select("id")
+                            .single();
+                          if (error) throw error;
+                          qc.invalidateQueries({ queryKey: ["studio-pieces"] });
+                          qc.invalidateQueries({ queryKey: ["studio-series-pieces"] });
+                          toast.success("Roteiro salvo — pronto para produção");
+                          setRoteiroDirectoOpen(false);
+                          setRdTitulo(""); setRdTema(""); setRdRoteiro("");
+                          setRdEnergia("topo"); setRdSeries("none"); setRdEpNum("");
+                          if (data) openPiece((data as { id: string }).id, 4);
+                        } catch (e) {
+                          toast.error(e instanceof Error ? e.message : "Erro ao salvar");
+                        } finally {
+                          setRdSaving(false);
+                        }
+                      }}
+                    >
+                      {rdSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                      Salvar e ir para produção
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             {/* Modal: capturar ideia */}
             <Dialog open={ideaOpen} onOpenChange={setIdeaOpen}>
               <DialogContent>
