@@ -1103,6 +1103,9 @@ export default function Studio() {
                 <Button size="sm" variant="outline" onClick={() => setQuickPostOpen(true)}>
                   ⚡ Post rápido
                 </Button>
+                <Button size="sm" variant="outline" onClick={() => setRoteiroDirectoOpen(true)}>
+                  📝 Roteiro pronto
+                </Button>
                 <Button size="sm" variant="outline" onClick={() => setView("calendario")}>
                   📅 Calendário
                 </Button>
