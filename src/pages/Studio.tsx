@@ -333,10 +333,15 @@ type DraftTextareaProps = Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>
 function DraftTextarea({ value = "", onValueChange, onFocus, onBlur, ...props }: DraftTextareaProps) {
   const [local, setLocal] = useState(value ?? "");
   const focused = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!focused.current) setLocal(value ?? "");
   }, [value]);
+
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
 
   return (
     <textarea
@@ -348,13 +353,15 @@ function DraftTextarea({ value = "", onValueChange, onFocus, onBlur, ...props }:
       }}
       onBlur={(e) => {
         focused.current = false;
+        if (timerRef.current) clearTimeout(timerRef.current);
         onValueChange(local);
         onBlur?.(e);
       }}
       onChange={(e) => {
         const next = e.target.value;
         setLocal(next);
-        onValueChange(next);
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => onValueChange(next), 800);
       }}
     />
   );
@@ -2583,6 +2590,7 @@ function Phase3({
   const qc = useQueryClient();
   const [sub, setSub] = useState<"insights" | "topicos" | "roteiro" | "revisao">("insights");
   const [loading, setLoading] = useState<string | null>(null);
+  const [loadingFalta, setLoadingFalta] = useState(false);
   const [teleOpen, setTeleOpen] = useState(false);
   const [targetSeconds, setTargetSeconds] = useState(90);
   const [faltouTexto, setFaltouTexto] = useState("");
@@ -2634,6 +2642,7 @@ function Phase3({
 
   const resolverFalta = async () => {
     if (!faltouTexto.trim()) return;
+    setLoadingFalta(true);
     const result = await callAI("phase3_insights", {
       tema: piece.theme,
       energia: piece.energia,
@@ -2649,6 +2658,7 @@ function Phase3({
     if (!result) return;
     const raw = result as { solucao?: string; bullet_adicional?: string };
     patchPD({ sugestao_faltou: raw.solucao ?? raw.bullet_adicional ?? "" });
+    setLoadingFalta(false);
     await flush();
   };
 
@@ -2855,8 +2865,8 @@ function Phase3({
                 placeholder="Descreva o que ainda falta cobrir neste conteúdo..."
                 rows={3}
               />
-              <Button variant="outline" size="sm" onClick={resolverFalta} disabled={loading === "phase3_insights" || !faltouTexto.trim()}>
-                {loading === "phase3_insights" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              <Button variant="outline" size="sm" onClick={resolverFalta} disabled={loadingFalta || !faltouTexto.trim()}>
+                {loadingFalta ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                 Resolver com IA
               </Button>
               {sugestaoFalta && (
