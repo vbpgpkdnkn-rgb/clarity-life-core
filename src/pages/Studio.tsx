@@ -947,6 +947,15 @@ export default function Studio() {
   const [qpCaption, setQpCaption] = useState("");
   const [qpSaving, setQpSaving] = useState(false);
 
+  const [roteiroDirectoOpen, setRoteiroDirectoOpen] = useState(false);
+  const [rdTitulo, setRdTitulo] = useState("");
+  const [rdTema, setRdTema] = useState("");
+  const [rdRoteiro, setRdRoteiro] = useState("");
+  const [rdEnergia, setRdEnergia] = useState("topo");
+  const [rdSeries, setRdSeries] = useState("none");
+  const [rdEpNum, setRdEpNum] = useState("");
+  const [rdSaving, setRdSaving] = useState(false);
+
   const saveIdea = async () => {
     const txt = ideaText.trim();
     if (!txt) return;
